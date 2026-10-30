@@ -127,6 +127,8 @@ def _normalize_chunk(raw: dict[str, Any], registry: dict[str, dict[str, Any]]) -
     item.setdefault("scope", "national" if item.get("jurisdiction") in {None, "national"} else "local")
     item.setdefault("jurisdiction", source.get("jurisdiction", "national"))
     item.setdefault("pdf_page", item.get("page_start") or item.get("page"))
+    if not item.get("locator") and item.get("pdf_page") is not None:
+        item["locator"] = f'p{item["pdf_page"]}'
     item.setdefault("printed_page", item.get("printed_page_number"))
     item.setdefault("article", item.get("section_title") if item.get("chunk_type") == "law_article" else None)
     item.setdefault("retrieval_tags", item.get("tags") or [])
