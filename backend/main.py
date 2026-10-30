@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from agent.workflow import (
     complete_task,
     create_case,
+    delegate_case_to_team,
     deliver_response,
     generate_support_report,
     get_case_snapshot,
@@ -22,6 +23,7 @@ from .schemas import (
     CaseCreateRequest,
     CaseSnapshotResponse,
     DeliveryRequest,
+    DelegationRequest,
     SupportRequestCreate,
     TaskCompleteRequest,
 )
@@ -84,6 +86,13 @@ def create_app() -> FastAPI:
             return complete_task(task_id, body.result_text, actor=body.actor)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post("/cases/{case_id}/delegate-to-team", response_model=CaseSnapshotResponse)
+    def delegate_to_team_endpoint(case_id: str, body: DelegationRequest):
+        try:
+            return delegate_case_to_team(case_id, actor=body.actor, note=body.note)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.post("/cases/{case_id}/deliver", response_model=CaseSnapshotResponse)
     def deliver_response_endpoint(case_id: str, body: DeliveryRequest):

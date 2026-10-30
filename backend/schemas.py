@@ -54,3 +54,9 @@ class DeliveryRequest(BaseModel):
     actor: str = "complaint_response_team"
     channel: str = "official_channel"
     note: str = ""
+
+
+
+class DelegationRequest(BaseModel):
+    actor: str
+    note: str = ""

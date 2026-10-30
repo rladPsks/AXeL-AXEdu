@@ -17,6 +17,7 @@ from db import (
     list_case_tasks,
     list_support_requests,
     save_ai_run,
+    update_case_owner,
     update_case_state,
 )
 from .action_router import decide_actions, next_case_state
@@ -79,6 +80,20 @@ def create_case(complaint: dict[str, Any], case_id: str | None = None) -> dict[s
     cls["history_reason"] = history_review["reason"]
     cls["follow_up_candidate"] = history_review["follow_up_candidate"]
     cls["history_comparison"] = history_review["comparison_summary"]
+
+    consult_reasons = []
+    if history_review["history_action"] != "NONE":
+        consult_reasons.append("반복·누적 이력 검토")
+    if cls.get("handling_route") == "ADMIN_REVIEW":
+        consult_reasons.append("관리자 판단 필요")
+    if complaint.get("source_type") == "EXTERNAL_TRANSFER":
+        consult_reasons.append("외부기관 이관 접수")
+    if len(result.get("routing", {}).get("collaborators") or []) >= 2:
+        consult_reasons.append("복수 담당 협조 필요")
+    cls["team_consult_required"] = bool(consult_reasons)
+    cls["team_consult_reasons"] = consult_reasons
+    if cls["team_consult_required"]:
+        cls["escalation_level"] = max(int(cls.get("escalation_level") or 1), 3)
 
     actions = decide_actions(cls, result["routing"], result["evidence"])
     status, next_action = next_case_state(actions)
@@ -288,6 +303,51 @@ def deliver_response(
         "reason": "approved_response_delivered",
     })
     return get_case_snapshot(case_id)
+
+def delegate_case_to_team(
+    case_id: str,
+    *,
+    actor: str,
+    note: str = "",
+) -> dict[str, Any]:
+    init_db()
+    case = get_case(case_id)
+    if case is None:
+        raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
+
+    update_case_owner(case_id, "complaint_response_team", next_action="TEAM_REVIEW")
+    append_event(case_id, "TEACHER_DELEGATED_TO_TEAM", actor, {
+        "note": note,
+        "previous_owner": case.get("owner_role"),
+        "new_owner": "complaint_response_team",
+    })
+
+    existing = [
+        t for t in list_case_tasks(case_id)
+        if t["task_type"] == "TEAM_REVIEW" and t["status"] != "COMPLETED"
+    ]
+    if not existing:
+        task = {
+            "id": _id("TASK"),
+            "case_id": case_id,
+            "task_type": "TEAM_REVIEW",
+            "assignee_role": "complaint_response_team",
+            "status": "REQUESTED",
+            "reason": "교직원이 개인 처리 대신 학교 민원대응팀의 공동 판단·처리를 요청했습니다.",
+            "instructions": [
+                "현재 사실 확인 결과와 원문 확인",
+                "담당·협조·관리자 지원 경로 재확인",
+                "교사 개인에게 처리 책임을 되돌리지 말고 대응 방향을 확정",
+            ],
+        }
+        create_task_record(task)
+        append_event(case_id, "TASK_CREATED", "agent", {
+            "task_id": task["id"],
+            "task_type": "TEAM_REVIEW",
+            "assignee_role": task["assignee_role"],
+        })
+    return get_case_snapshot(case_id)
+
 
 def request_support(
     case_id: str,
