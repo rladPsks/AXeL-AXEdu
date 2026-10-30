@@ -211,7 +211,8 @@ def test_support_decision_also_tracks_comparison_used_indirectly_by_reviewed_ai(
     client,creds,app,registry=env
     from backend.openai_provider import SupportReviewResult
     registry.register(Handler('REVIEW_SUPPORT',lambda snapshot:{'summary':'[가상] 비교 참고 지원 제안','observations':[],
-      'missing_information':['전달 증빙'],'suggested_support':'KEEP_REVIEWING','action_options':['학교 추가 확인']},SupportReviewResult,'support-test',generation_mode='RULE'))
+      'missing_information':['전달 증빙'],'suggested_support':'KEEP_REVIEWING','action_options':['학교 추가 확인'],
+      'response_draft':'','validation_checks':[],'evidence_used':[]},SupportReviewResult,'support-test',generation_mode='RULE'))
     review=save_review(client,creds,prepare(client,creds).json()['comparison_input_id']).json()['comparison_review_id']
     run=client.post('/api/cases/demo-case/agent-runs',headers=auth(creds),json={'expected_version':2,'purpose':'REVIEW_SUPPORT',
         'input_refs':[{'resource_type':'COMPARISON_REVIEW','resource_id':review,'version':1}]}).json()['run_id']

@@ -155,6 +155,9 @@ class OpenAIAdapter:
         source_ids.update(x.get("source_id") for x in official if x.get("source_id"))
         if any(observation['source_id'] not in source_ids for observation in result['observations']):
             raise ProviderFailure('INVALID_CITATION','입력에 없는 출처가 포함되어 재검토가 필요합니다.')
+        official_ids = {item['source_id'] for item in official if item.get('source_id')}
+        if any(source_id not in official_ids for source_id in result['evidence_used']):
+            raise ProviderFailure('INVALID_CITATION','검색한 공식 근거에 없는 출처가 포함되어 재검토가 필요합니다.')
         return result
 
     def summarize_transcript(self,snapshot):

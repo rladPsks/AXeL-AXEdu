@@ -10,7 +10,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-from config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
+from config import llm_settings
 
 
 class LLMUnavailable(RuntimeError):
@@ -18,7 +18,7 @@ class LLMUnavailable(RuntimeError):
 
 
 def configured() -> bool:
-    return bool(LLM_API_KEY and LLM_MODEL and LLM_BASE_URL)
+    return all(llm_settings())
 
 
 def _extract_output_text(body: dict[str, Any]) -> str:
@@ -51,12 +51,13 @@ def chat_json(
     timeout: int = 30,
 ) -> dict[str, Any]:
     del temperature
-    if not configured():
+    key, model, base_url = llm_settings()
+    if not all((key, model, base_url)):
         raise LLMUnavailable("LLM 환경변수가 설정되지 않았습니다.")
 
-    url = LLM_BASE_URL.rstrip("/") + "/responses"
+    url = base_url.rstrip("/") + "/responses"
     payload: dict[str, Any] = {
-        "model": LLM_MODEL,
+        "model": model,
         "instructions": system,
         "input": user,
     }
@@ -74,7 +75,7 @@ def chat_json(
         url,
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
         headers={
-            "Authorization": f"Bearer {LLM_API_KEY}",
+            "Authorization": f"Bearer {key}",
             "Content-Type": "application/json",
         },
         method="POST",

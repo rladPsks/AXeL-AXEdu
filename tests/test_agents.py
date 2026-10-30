@@ -221,7 +221,8 @@ def test_openai_adapter_payload_refusal_and_invalid_citation():
     snapshot={'sources':[{'ref':{'resource_id':'demo-case'},'data':{'title':'[가상]'}}]}
     calls=[]
     value={'summary':'검토 필요','observations':[{'source_id':'demo-case','kind':'CLAIM','detail':'기록된 주장'}],
-           'missing_information':['추가 확인'],'suggested_support':'KEEP_REVIEWING','action_options':['총괄 검토']}
+           'missing_information':['추가 확인'],'suggested_support':'KEEP_REVIEWING','action_options':['총괄 검토'],
+           'response_draft':'','validation_checks':[],'evidence_used':[]}
     response=SimpleNamespace(status='completed',output_parsed=value)
     def parse(**kwargs):
         calls.append(kwargs)
@@ -251,7 +252,8 @@ def test_real_sdk_transport_sends_structured_responses_payload_without_network()
     import openai
     requests=[]
     value={'summary':'[가상] 검토','observations':[], 'missing_information':['정보 부족'],
-           'suggested_support':'KEEP_REVIEWING','action_options':['추가 확인']}
+           'suggested_support':'KEEP_REVIEWING','action_options':['추가 확인'],
+           'response_draft':'','validation_checks':[],'evidence_used':[]}
     def transport(request):
         requests.append(request)
         return httpx2.Response(200,json={

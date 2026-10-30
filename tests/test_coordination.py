@@ -320,7 +320,12 @@ def test_reassignment_keeps_owner_and_history_and_releases_old_assignee_responsi
     changed=client.post(f'/api/tasks/{task_id}/reassign',headers=headers(creds),json={'expected_version':3,'assignee_id':'outsider','reason':'[가상] 부재 대체'})
     assert changed.status_code==200 and changed.json()['owner_id']=='admin' and changed.json()['status']=='REQUESTED'
     assert client.patch(f'/api/tasks/{task_id}',headers=headers(creds,'teacher'),json={'expected_version':4,'status':'COMPLETED','reply':'이전 수행자 회신'}).status_code==403
-    assert client.put('/api/school/members/teacher',headers=headers(creds),json={'expected_settings_version':1,'role':'TEACHER','active':False,'reason':'[가상] 인계 후 중지'}).status_code==200
+    # Task reassignment alone must not release the remaining homeroom duty.
+    blocked=client.put('/api/school/members/teacher',headers=headers(creds),json={'expected_settings_version':1,'role':'TEACHER','active':False,'reason':'[가상] 인계 후 중지'})
+    assert blocked.status_code==409
+    removed=client.post('/api/school/responsibilities/resp-home/remove',headers=headers(creds),json={'expected_settings_version':1,'reason':'[가상] 담임 업무분장 해제'})
+    assert removed.status_code==200
+    assert client.put('/api/school/members/teacher',headers=headers(creds),json={'expected_settings_version':2,'role':'TEACHER','active':False,'reason':'[가상] 모든 책임 인계 후 중지'}).status_code==200
     assert client.patch(f'/api/tasks/{task_id}',headers=headers(creds,'outsider'),json={'expected_version':4,'status':'COMPLETED','reply':'새 수행자 회신'}).status_code==200
     history=client.get('/api/cases/demo-case/timeline',headers=headers(creds)).json()
     assert any(event['payload'].get('reply')=='[가상] 이전 수행자 확인' for event in history)

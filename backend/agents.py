@@ -11,6 +11,7 @@ from .commands import mutate
 from .db import now, uid
 from .files import file_access
 from .models import Command, Identifier, Text
+from .intake_context import history_access, intake_context
 
 router = APIRouter()
 
@@ -78,6 +79,11 @@ def run_access(db, actor, run_id):
     if actor['role'] != 'ADMIN' and actor['user_id'] != run['requested_by']:
         fail(403, 'RUN_FORBIDDEN', '이 생성 결과를 열람할 권한이 없습니다.')
     for source in json.loads(run['snapshot'])['sources']:
+        if source['ref']['resource_type'] == 'CASE':
+            intake = source.get('data', {}).get('intake') or {}
+            workflow = intake.get('workflow') or json.loads(intake.get('workflow_json') or '{}')
+            for entry in (workflow.get('tools') or {}).get('history', []):
+                history_access(db, actor, entry)
         if source['ref']['resource_type'] == 'FILE':
             file_access(db,actor,source['ref']['resource_id'])
         elif source['ref']['resource_type'] == 'DOCUMENT_VERSION':
@@ -104,11 +110,7 @@ def snapshot(db, actor, case, refs, purpose=None):
             item = dict(case)
             intake = db.execute("SELECT * FROM case_intakes WHERE case_id=?", (case["id"],)).fetchone()
             if intake is not None:
-                intake_data = dict(intake)
-                intake_data["related_people"] = json.loads(intake_data.get("related_people") or "[]")
-                intake_data["classification"] = json.loads(intake_data.pop("classification_json")) if intake_data.get("classification_json") else None
-                intake_data["routing"] = json.loads(intake_data.pop("routing_json")) if intake_data.get("routing_json") else None
-                item["intake"] = intake_data
+                item["intake"] = intake_context(db, actor, intake)
         elif ref.resource_type == 'FILE':
             item = dict(file_access(db, actor, ref.resource_id))
             if item['category'] == 'AUDIO':

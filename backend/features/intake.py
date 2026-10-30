@@ -11,7 +11,8 @@ from agent.classify import classify_complaint
 from agent.routing import route_case
 from agent.retrieval import retrieve as retrieve_official_evidence
 from agent.rules import apply_rules
-from backend.access import authenticate, fail
+from backend.access import DomainError, accessible_case, authenticate, fail
+from backend.intake_context import intake_context
 from backend.commands import command_identity, replay_command, save_command
 from backend.db import audit, now, uid
 from backend.notifications import enqueue
@@ -152,19 +153,26 @@ def create_intake(body: IntakeCreate, request: Request):
 
         # Agent tool context: RAG + history + school duty map are persisted with the intake.
         history_rows = db.execute(
-            "SELECT ci.case_id,ci.received_at,ci.complaint_type,ci.raw_text,c.status "
+            "SELECT ci.case_id,ci.received_at,ci.complaint_type,ci.raw_text,c.status,c.version AS case_version "
             "FROM case_intakes ci JOIN cases c ON c.id=ci.case_id "
             "WHERE c.school_id=? AND ci.case_id<>? AND "
             "((? IS NOT NULL AND ci.student_name=?) OR ci.complainant_name=?) "
             "ORDER BY ci.received_at DESC LIMIT 5",
             (actor["school_id"], case_id, body.student_name, body.student_name, body.complainant_name),
         ).fetchall()
+        history = []
+        for row in history_rows:
+            try:
+                accessible_case(db, actor, row['case_id'])
+            except DomainError:
+                continue
+            history.append(dict(row))
         workflow = {
             "phase": "FACT_CHECK" if cls["handling_route"] == "STAFF_OR_TEAM" else "HUMAN_REVIEW",
             "agent": {"classifier_mode": cls.get("classifier_mode"), "orchestrator": "AXeL"},
             "tools": {
                 "rag": evidence,
-                "history": [dict(row) for row in history_rows],
+                "history": history,
                 "duty": {
                     "duty_area": routing.get("duty_area"), "duty_label": routing.get("duty_label"),
                     "action_role": routing.get("action_role"), "collaborators": routing.get("collaborators", []),
@@ -240,9 +248,4 @@ def get_intake(case_id: str, request: Request):
         row = db.execute("SELECT * FROM case_intakes WHERE case_id=?", (case_id,)).fetchone()
         if row is None:
             fail(404, "INTAKE_NOT_FOUND", "접수 기록을 찾을 수 없습니다.")
-        item = dict(row)
-        item["related_people"] = json.loads(item["related_people"])
-        item["classification"] = json.loads(item.pop("classification_json")) if item.get("classification_json") else None
-        item["routing"] = json.loads(item.pop("routing_json")) if item.get("routing_json") else None
-        item["workflow"] = json.loads(item.pop("workflow_json")) if item.get("workflow_json") else None
-        return item
+        return intake_context(db, actor, row)

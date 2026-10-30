@@ -33,6 +33,7 @@ from .coordination import router as coordination_router, resolve_support
 from .scheduling import router as scheduling_router
 from .notifications import router as notifications_router, enqueue, dispatch_once
 from .features.intake import router as intake_router
+from .intake_context import intake_context
 from .models import (CaseTransition, Command, HandoverCreate, SupportCreate,
                      SupportUpdate, TaskCreate, TaskUpdate)
 
@@ -219,12 +220,7 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
                     case_data = dict(case)
                     case_data["version"] = next_version
                     if intake:
-                        intake_data = dict(intake)
-                        intake_data["related_people"] = json.loads(intake_data.get("related_people") or "[]")
-                        intake_data["classification"] = json.loads(intake_data.pop("classification_json")) if intake_data.get("classification_json") else None
-                        intake_data["routing"] = json.loads(intake_data.pop("routing_json")) if intake_data.get("routing_json") else None
-                        intake_data["workflow"] = json.loads(intake_data.pop("workflow_json")) if intake_data.get("workflow_json") else None
-                        case_data["intake"] = intake_data
+                        case_data["intake"] = intake_context(db, actor, intake)
                     sources = [{"ref":{"resource_type":"CASE","resource_id":case_id,"version":next_version},"data":case_data}]
                     refs = [{"resource_type":"CASE","resource_id":case_id,"version":next_version}]
                     for row in db.execute("SELECT * FROM tasks WHERE case_id=? ORDER BY created_at,id LIMIT 10",(case_id,)).fetchall():

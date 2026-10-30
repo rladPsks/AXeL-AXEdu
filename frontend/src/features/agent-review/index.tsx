@@ -6,16 +6,14 @@ import type { CaseDetail } from "../../lib/api/types";
 import { CommandForm } from "../../shared/CommandForm";
 import { Badge, date, Empty, ErrorNotice, label } from "../../shared/ui";
 import type { DocumentVersion } from "../case-comparison";
+import { ResponseDraft, type DraftFields } from "./ResponseDraft";
 
-type Review = {
+type Review = DraftFields & {
   summary: string;
   observations: { source_id: string; kind: string; detail: string }[];
   missing_information: string[];
   suggested_support: string;
   action_options: string[];
-  response_draft: string;
-  validation_checks: string[];
-  evidence_used: string[];
 };
 type Run = {
   run_id: string;
@@ -291,11 +289,7 @@ export function AgentReview({ record }: { record: CaseDetail }) {
                     <li key={i}>{s}</li>
                   ))}
                 </ul>
-                <h3>AI가 준비한 보호자 답변</h3>
-                <p className="preserve">{run.result.response_draft}</p>
-                <h3>Validator 점검</h3>
-                <ul>{run.result.validation_checks.map((s, i) => <li key={i}>{s}</li>)}</ul>
-                <p className="hint">사용한 공식 근거: {run.result.evidence_used.join(", ") || "직접 인용 근거 없음"} · 관리자 검토 전에는 발송되지 않습니다.</p>
+                <ResponseDraft result={run.result} />
               </>
             ) : null}
             {record.status === "OPEN" &&
