@@ -13,6 +13,8 @@ venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 .DS_Store
 Thumbs.db
 .vscode/
@@ -20,3 +22,11 @@ Thumbs.db
 build/
 dist/
 *.egg-info/
+
+# 원본 학교 문서와 파싱 산출물은 개인정보·저작권·내부자료 보호를 위해 로컬에만 보관
+documents/raw/*
+!documents/raw/.gitkeep
+documents/parsed/*
+!documents/parsed/.gitkeep
+documents/chunks/*
+!documents/chunks/.gitkeep
