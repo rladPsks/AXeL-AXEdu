@@ -244,8 +244,7 @@ function CaseList() {
         ) : null}
       </section>
       <div className="notice">
-        접수·분류·근거 답변 기능은 A의 모듈이 연결되면 같은 사건에서 사용할 수
-        있습니다.
+        새 민원 접수에서 등록한 사건은 같은 사건 원장에서 분류·업무·지원·AI 검토까지 이어집니다.
       </div>
     </>
   );
