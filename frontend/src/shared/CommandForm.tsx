@@ -19,6 +19,7 @@ export function CommandForm({
   children,
   versionField = "expected_version",
   transformValues,
+  onSaved,
 }: {
   caseId: string;
   version: number;
@@ -30,6 +31,7 @@ export function CommandForm({
   transformValues?: (
     values: Record<string, unknown>,
   ) => Record<string, unknown>;
+  onSaved?: () => void;
 }) {
   const { api } = useSession();
   const scope = useScope();
@@ -56,6 +58,9 @@ export function CommandForm({
       queries.invalidateQueries({ queryKey: ["my-tasks", ...scope] }),
       queries.invalidateQueries({ queryKey: ["runs", ...scope, caseId] }),
       queries.invalidateQueries({
+        queryKey: ["support-decisions", ...scope, caseId],
+      }),
+      queries.invalidateQueries({
         queryKey: ["guardian-links", ...scope, caseId],
       }),
       queries.invalidateQueries({ queryKey: ["school-settings", ...scope] }),
@@ -74,6 +79,7 @@ export function CommandForm({
       setSaved(true);
       setDirty(false);
       form.current?.reset();
+      onSaved?.();
       await refresh();
     },
     onError: (error, cmd) => {

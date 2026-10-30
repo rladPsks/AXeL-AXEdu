@@ -32,6 +32,7 @@ import { Inbox, InboxIndicator } from "../features/inbox";
 import { SchoolSettings, SchoolContacts } from "../features/school-settings";
 import { Entry, GuardianDemo } from "./Entry";
 import { demoEnabled, demoNotice, type GuardianSession } from "./demo";
+import { SupportDecisions } from "../features/support-decisions";
 
 export function App() {
   const [auth, setAuth] = useState<{
@@ -320,7 +321,7 @@ function CaseShell() {
     "timeline",
     "files",
     "agent-review",
-    ...(session.role === "ADMIN" ? ["guardians"] : []),
+    ...(session.role === "ADMIN" ? ["guardians", "support-decisions"] : []),
     ...additionalCaseFeatures.map((feature) => feature.id),
   ];
   const tab = knownTabs.includes(requestedTab) ? requestedTab : "tasks";
@@ -358,7 +359,10 @@ function CaseShell() {
     { id: "files", title: "사건 자료" },
     { id: "agent-review", title: "AI 지원 검토" },
     ...(session.role === "ADMIN"
-      ? [{ id: "guardians", title: "보호자 연결" }]
+      ? [
+          { id: "guardians", title: "보호자 연결" },
+          { id: "support-decisions", title: "지원 판단" },
+        ]
       : []),
     ...additionalCaseFeatures,
   ];
@@ -427,6 +431,8 @@ function CaseShell() {
           />
         ) : tab === "agent-review" ? (
           <AgentReview record={record} />
+        ) : tab === "support-decisions" && session.role === "ADMIN" ? (
+          <SupportDecisions record={record} />
         ) : tab === "guardians" && session.role === "ADMIN" ? (
           <GuardianLinks
             caseId={caseId}

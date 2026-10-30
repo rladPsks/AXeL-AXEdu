@@ -28,6 +28,7 @@ export const labels: Record<string, string> = {
   TASK_SCHEDULE_CHANGED: "업무 일정 조정",
   TASK_REASSIGNED: "업무 수행자 변경",
   SUPPORT_REROUTED: "지원 대체 담당 연결",
+  SUPPORT_DECISION_RECORDED: "지원 판단 기록",
   FACT_CHECK: "사실 확인",
   COUNSEL: "상담",
   CALLBACK: "콜백",

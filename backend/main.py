@@ -21,6 +21,7 @@ from .runtime import build_registry
 from .worker import Worker
 from .seed import seed
 from .demo import router as demo_router
+from .decisions import router as decisions_router
 from .coordination import router as coordination_router, resolve_support
 from .scheduling import router as scheduling_router
 from .notifications import router as notifications_router, enqueue, dispatch_once
@@ -79,6 +80,7 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
     app.include_router(coordination_router)
     app.include_router(scheduling_router)
     app.include_router(notifications_router)
+    app.include_router(decisions_router)
     if os.getenv('SCHOOL_AGENT_DEMO','0')=='1':
         app.include_router(demo_router)
     for router in feature_routers:
