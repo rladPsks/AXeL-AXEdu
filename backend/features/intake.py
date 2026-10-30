@@ -112,15 +112,33 @@ def create_intake(body: IntakeCreate, request: Request):
     cls["core_demand"] = cls.get("summary_for_teacher") or body.raw_text[:180]
     cls["handling_route"] = _handling_route(cls)
     cls["escalation_level"] = 2 if cls["handling_route"] == "ADMIN_REVIEW" else 1
-    routing = route_case(_routing_domain(cls), text=analysis_text, classification=cls)
+    routing_text = " ".join(filter(None, [
+        body.complaint_type, body.incident_context, analysis_text,
+        str(cls.get("domain_p55") or ""), str(cls.get("subcategory") or ""),
+    ]))
+    routing = route_case(_routing_domain(cls), text=routing_text, classification=cls)
+
+    # Retrieval is decision-oriented: use the complaint plus the current handling question,
+    # not only the raw wording. This improves precision for fact-check/support decisions.
+    retrieval_query = " ".join(filter(None, [
+        body.complaint_type, str(cls.get("domain_p55") or ""),
+        "민원대응팀 담당자 협조 사실 확인" if cls.get("handling_route") == "STAFF_OR_TEAM" else "",
+        analysis_text,
+    ]))
     evidence = []
-    for item in retrieve_official_evidence(analysis_text, top_k=4):
+    for item in retrieve_official_evidence(retrieval_query, top_k=6):
         evidence.append({
             "source_id": item.get("source_id"), "title": item.get("title"),
             "source_type": item.get("source_type"), "article": item.get("article"),
             "pdf_page": item.get("pdf_page"), "printed_page": item.get("printed_page"),
             "text": str(item.get("text") or "")[:700], "score": item.get("score"),
         })
+    # Keep a compact, relevant evidence set. Very weak lexical matches are useful for search
+    # inspection but must not become response evidence.
+    if evidence:
+        best = max(float(x.get("score") or 0) for x in evidence)
+        floor = max(0.8, best * 0.42)
+        evidence = [x for x in evidence if float(x.get("score") or 0) >= floor][:4]
 
     with request.app.state.db.transaction() as db:
         actor = authenticate(db, request)
@@ -183,7 +201,12 @@ def create_intake(body: IntakeCreate, request: Request):
         # Persist the enriched classification too, not only the initial classifier output.
         db.execute("UPDATE case_intakes SET classification_json=? WHERE case_id=?",
                    (json.dumps(cls, ensure_ascii=False), case_id))
-        initial_draft = draft_information_reply(analysis_text, evidence) if cls.get("is_informational") else ""
+        safe_info_reply = (
+            cls.get("is_informational")
+            and cls.get("handling_route") == "FRONT_DESK_RESOLVE"
+            and not cls.get("needs_fact_check")
+        )
+        initial_draft = draft_information_reply(analysis_text, evidence) if safe_info_reply else ""
         initial_validation = validate_response(draft=initial_draft, evidence=evidence, classification=cls)
         workflow = {
             "phase": "FACT_CHECK" if cls["handling_route"] == "STAFF_OR_TEAM" else "HUMAN_REVIEW",

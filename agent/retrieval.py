@@ -92,15 +92,27 @@ def _load_chunk_files(folder: Path) -> list[dict[str, Any]]:
 
 def _legacy_chunks() -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
-    for name in ("legal_chunks.json", "manual_chunks.json", "policy_chunks.json"):
+    legacy_defaults = {
+        "legal_chunks.json": None,
+        "manual_chunks.json": "MOE-MANUAL-2026",
+        "policy_chunks.json": None,
+    }
+    for name, default_source_id in legacy_defaults.items():
         path = DATA_DIR / name
-        if path.exists():
-            out.extend(_read_json(path).get("chunks", []))
+        if not path.exists():
+            continue
+        for raw in _read_json(path).get("chunks", []):
+            item = dict(raw)
+            if default_source_id and not item.get("source_id"):
+                item["source_id"] = default_source_id
+            out.append(item)
     return out
 
 
 def _normalize_chunk(raw: dict[str, Any], registry: dict[str, dict[str, Any]]) -> dict[str, Any]:
     item = dict(raw)
+    if not item.get("chunk_id") and item.get("id"):
+        item["chunk_id"] = item["id"]
     source_id = item.get("source_id") or item.get("document_id")
     source = registry.get(source_id, {})
     canonical_source_id = source.get("source_id") or source_id
@@ -115,8 +127,11 @@ def _normalize_chunk(raw: dict[str, Any], registry: dict[str, dict[str, Any]]) -
     item.setdefault("scope", "national" if item.get("jurisdiction") in {None, "national"} else "local")
     item.setdefault("jurisdiction", source.get("jurisdiction", "national"))
     item.setdefault("pdf_page", item.get("page_start") or item.get("page"))
+    if not item.get("locator") and item.get("pdf_page") is not None:
+        item["locator"] = f'p{item["pdf_page"]}'
     item.setdefault("printed_page", item.get("printed_page_number"))
     item.setdefault("article", item.get("section_title") if item.get("chunk_type") == "law_article" else None)
+    item.setdefault("retrieval_tags", item.get("tags") or [])
     item.setdefault("verification_status", "pending")
     item.setdefault("authority_rank", AUTHORITY.get(item.get("source_type"), 8))
     item.setdefault("canonical", True)
@@ -131,7 +146,9 @@ def load_corpus(*, production: bool = False, as_of_date: str | None = None,
     allow = _allowlist().get("sources", {})
 
     # 원본 -> HITL 수정본 순서로 읽어 같은 chunk_id를 수정본이 덮어쓰게 합니다.
-    combined = _load_chunk_files(CHUNKS_DIR) or _legacy_chunks()
+    # Keep the curated legacy corpus as a stable baseline even after the full parser runs.
+    # Parsed chunks then override matching chunk_ids; HITL corrections override both.
+    combined = _legacy_chunks() + _load_chunk_files(CHUNKS_DIR)
     corrected = _load_chunk_files(CORRECTED_DIR)
     by_id: dict[str, dict[str, Any]] = {}
     for raw in combined + corrected:
