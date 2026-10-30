@@ -34,7 +34,7 @@ def process(complaint: dict[str, Any], history: list[dict[str, Any]] | None = No
         raise ValueError("민원 내용이 비어 있습니다.")
 
     cls = apply_rules(classify_complaint(text), history or [])
-    routing = route_case(_routing_domain(cls))
+    routing = route_case(_routing_domain(cls), text=text, classification=cls)
     allowed_source_types = _allowed_source_types(cls, text)
     evidence = retrieve(
         text,
