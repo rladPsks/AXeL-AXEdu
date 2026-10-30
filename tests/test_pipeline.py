@@ -1,5 +1,6 @@
 from agent.pipeline import process
 from agent.draft import draft_information_reply
+from agent import knowledge
 
 
 def test_pipeline_returns_required_sections():
@@ -34,3 +35,15 @@ def test_draft_supports_legacy_evidence_schema():
     }])
     assert "p.10" in text
     assert "legacy-1" in text
+
+
+def test_knowledge_wrapper_forwards_allowed_source_types(monkeypatch):
+    captured = {}
+
+    def fake_retrieve(query, **kwargs):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr(knowledge, "_retrieve", fake_retrieve)
+    knowledge.retrieve("질문", allowed_source_types={"school_policy"})
+    assert captured["allowed_source_types"] == {"school_policy"}
