@@ -84,3 +84,25 @@ def test_integrated_intake_creates_shared_case_and_routed_tasks(monkeypatch, tmp
         )
         assert repeated.status_code == 201
         assert repeated.json()["case_id"] == case_id
+
+def test_life_guidance_intake_uses_user_category_for_duty_and_does_not_draft_before_fact_check(monkeypatch, tmp_path):
+    from backend.main import create_app
+    from backend.seed import seed
+    from fastapi.testclient import TestClient
+    path = tmp_path / "life-guidance.sqlite3"
+    creds = seed(path)
+    app = create_app(path, inbox_worker=False)
+    with TestClient(app) as client:
+        headers = {"Authorization": "Bearer " + creds["tokens"]["admin"], "Idempotency-Key": "life-guidance-intake"}
+        response = client.post("/api/intakes", headers=headers, json={
+            "channel":"phone","complainant_name":"테스트보호자","student_name":"테스트학생",
+            "complaint_type":"생활지도 불만","related_people":["담임교사"],
+            "incident_context":"수업 중 생활지도 상황",
+            "raw_text":"우리 아이가 다른 학생보다 자주 지적받는다고 합니다. 상황을 확인해 주세요.",
+        })
+        assert response.status_code == 201
+        case_id = response.json()["case_id"]
+        detail = client.get(f"/api/cases/{case_id}/intake", headers={"Authorization":"Bearer "+creds["tokens"]["admin"]}).json()
+        assert detail["routing"]["duty_area"] == "student_life"
+        assert detail["routing"]["action_role"] == "HEAD_LIFE_PE"
+        assert detail["workflow"]["initial_response_draft"] == ""
