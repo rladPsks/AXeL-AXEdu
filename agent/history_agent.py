@@ -4,7 +4,6 @@ import re
 from difflib import SequenceMatcher
 from typing import Any
 
-from db import connect
 
 
 HIGH_SIMILARITY = 0.55
@@ -78,61 +77,20 @@ def compare_case_text(current_text: str, previous_text: str) -> dict[str, Any]:
     }
 
 
-def find_related_cases(
-    *,
-    current_case_id: str,
-    complainant_id: str | None,
-    student_ref: str | None,
-    raw_text: str,
-    limit: int = 5,
-) -> list[dict[str, Any]]:
-    if not complainant_id and not student_ref:
-        return []
-    with connect() as conn:
-        rows = conn.execute(
-            """SELECT id, received_at, complainant_id, student_ref, raw_text, status, response_draft
-               FROM cases
-               WHERE id != ?
-                 AND ((? IS NOT NULL AND complainant_id = ?)
-                   OR (? IS NOT NULL AND student_ref = ?))
-               ORDER BY received_at DESC
-               LIMIT 20""",
-            (current_case_id, complainant_id, complainant_id, student_ref, student_ref),
-        ).fetchall()
-
+def find_related_cases_from_rows(*, raw_text: str, rows: list[dict[str, Any]], limit: int = 5) -> list[dict[str, Any]]:
+    """Run repeat/follow-up comparison over rows supplied by the integrated database."""
     candidates = []
-    for row in rows:
-        item = dict(row)
-        comparison = compare_case_text(raw_text, item["raw_text"])
+    for raw in rows:
+        item = dict(raw)
+        comparison = compare_case_text(raw_text, str(item.get("raw_text") or ""))
         if comparison["similarity"] < 0.20:
             continue
         item["similarity"] = comparison["similarity"]
         item["comparison"] = comparison
-        with connect() as conn:
-            events = [r["event_type"] for r in conn.execute(
-                "SELECT event_type FROM case_events WHERE case_id = ? ORDER BY id",
-                (item["id"],),
-            ).fetchall()]
-            tasks = [dict(r) for r in conn.execute(
-                "SELECT task_type, status FROM tasks WHERE case_id = ?",
-                (item["id"],),
-            ).fetchall()]
-        if "RESPONSE_DELIVERED" in events:
-            response_status = "DELIVERED"
-        elif "RESPONSE_APPROVED" in events or any(
-            t["task_type"] == "RESPONSE_REVIEW" and t["status"] == "COMPLETED" for t in tasks
-        ):
-            response_status = "REVIEWED"
-        elif item.get("response_draft"):
-            response_status = "DRAFTED"
-        else:
-            response_status = "NOT_DRAFTED"
-        item["response_status"] = response_status
-        item["has_substantive_response"] = response_status in {"REVIEWED", "DELIVERED"}
+        item["has_substantive_response"] = bool(item.get("has_substantive_response"))
         candidates.append(item)
     candidates.sort(key=lambda x: x["similarity"], reverse=True)
     return candidates[:limit]
-
 
 def build_history_review(current_case: dict[str, Any], related: list[dict[str, Any]]) -> dict[str, Any]:
     if not related:
