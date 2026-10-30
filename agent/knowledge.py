@@ -29,7 +29,9 @@ def _active_on(chunk: dict[str, Any], on_date: str) -> bool:
     """시행 전 개정 조문이나 폐지된 조문이 현행 근거로 검색되지 않도록 합니다."""
     status = str(chunk.get("status", "in_force"))
     if status == "scheduled":
-        return False
+        # 시행 예정 조문은 기준일이 시행일에 도달한 경우에만 현행 조문으로 검색합니다.
+        if not start or str(start) > on_date:
+            return False
     start = chunk.get("effective_from")
     end = chunk.get("effective_to")
     if start and str(start) > on_date:
@@ -62,12 +64,9 @@ def _all_chunks(as_of_date: str) -> list[dict[str, Any]]:
             merged_item.setdefault("effective_to", source.get("effective_to"))
             merged_item.setdefault("status", source.get("status", "in_force"))
         merged_item.setdefault("source_type", "official_manual")
-        if merged_item["source_type"] in {"law", "decree"}:
+        if merged_item["source_type"] in {"law", "decree", "law_amendment_scheduled"}:
             if _active_on(merged_item, as_of_date):
                 merged.append(merged_item)
-        elif merged_item["source_type"] == "law_amendment_scheduled":
-            # 시행 전 개정 조문은 기본 검색에서 제외합니다.
-            continue
         else:
             merged.append(merged_item)
     return merged
@@ -115,6 +114,7 @@ def retrieve(
         # 법령은 일반 정책 설명보다 우선하되, 검색어와의 관련성이 낮으면 상위에 고정하지 않습니다.
         multiplier = {
             "law": 1.25,
+            "law_amendment_scheduled": 1.25,
             "decree": 1.18,
             "local_rule": 1.12,
             "official_manual": 1.0,
