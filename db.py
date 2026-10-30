@@ -284,3 +284,12 @@ def save_case(case_id: str, complaint: dict, result: dict):
            result["response_draft"], "PROPOSED", result["classification"].get("repeat_count", 1)))
         conn.execute("INSERT INTO history (complaint_id, at, actor, action, detail) VALUES (?, ?, ?, ?, ?)",
                      (case_id, now, "agent", "ANALYZED", "분류·라우팅·근거 검색 결과 생성"))
+
+
+def get_latest_ai_run(case_id: str) -> dict | None:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM ai_runs WHERE case_id = ? ORDER BY id DESC LIMIT 1",
+            (case_id,),
+        ).fetchone()
+        return dict(row) if row else None

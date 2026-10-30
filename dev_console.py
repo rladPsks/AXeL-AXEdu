@@ -119,6 +119,8 @@ if snapshot:
             "nature": cls.get("nature"),
             "domain_p55": cls.get("domain_p55"),
             "urgency": cls.get("urgency"),
+            "stage_reason": cls.get("stage_reason"),
+            "urgency_reason": cls.get("urgency_reason"),
             "summary_for_teacher": cls.get("summary_for_teacher"),
             "needs_fact_check": cls.get("needs_fact_check"),
             "special_codes": cls.get("special_codes"),
@@ -181,6 +183,50 @@ if snapshot:
         height=180,
         disabled=True,
     )
+
+    st.subheader("4-1. AI 판단·답변 근거")
+    if st.button("근거 불러오기"):
+        try:
+            st.session_state["evidence_view"] = api(
+                "GET", f"/cases/{case['id']}/evidence"
+            )
+        except Exception as exc:
+            st.error(str(exc))
+
+    evidence_view = st.session_state.get("evidence_view")
+    if evidence_view:
+        with st.expander("분류·라우팅 근거", expanded=True):
+            st.json({
+                "run_type": evidence_view.get("run_type"),
+                "classification_basis": evidence_view.get("classification_basis"),
+                "routing_basis": evidence_view.get("routing_basis"),
+            })
+
+        response_basis = evidence_view.get("response_basis") or {}
+        with st.expander("답변 생성 근거", expanded=True):
+            st.write("**사용한 확인 사실 / 근거 요약**")
+            st.write(response_basis.get("basis_summary") or "없음")
+            st.write("**추가 확인 필요**")
+            st.write(response_basis.get("missing_information") or "없음")
+            st.write("**사람 검토 필요 주장**")
+            st.write(response_basis.get("claims_requiring_review") or "없음")
+            st.write("**사람 검토 준비 여부**", response_basis.get("ready_for_human_review"))
+
+        rag_items = evidence_view.get("evidence") or []
+        with st.expander(f"RAG 검색 근거 ({len(rag_items)}건)", expanded=True):
+            if not rag_items:
+                st.info("이번 Agent 실행에서 사용된 외부 문서 근거가 없습니다.")
+            for idx, item in enumerate(rag_items, 1):
+                st.markdown(f"**{idx}. {item.get('title') or item.get('source_id')}**")
+                st.caption(
+                    f"source={item.get('source_id')} · type={item.get('source_type')} · "
+                    f"page={item.get('pdf_page')} · score={item.get('score')} · "
+                    f"review={item.get('verification_status')}"
+                )
+                if item.get("article"):
+                    st.write("조항/위치:", item.get("article"))
+                st.write(item.get("text") or "")
+                st.divider()
 
     st.subheader("5. 학교 지원 요청")
     s1, s2 = st.columns(2)

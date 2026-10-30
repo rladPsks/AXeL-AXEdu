@@ -11,6 +11,7 @@ from db import (
     create_support_request_record,
     create_task_record,
     get_case,
+    get_latest_ai_run,
     init_db,
     list_case_events,
     list_case_tasks,
@@ -247,3 +248,60 @@ def generate_support_report(case_id: str) -> dict[str, Any]:
         "report_status": report["report_status"],
     })
     return report
+
+
+def get_case_evidence(case_id: str) -> dict[str, Any]:
+    init_db()
+    if get_case(case_id) is None:
+        raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
+    run = get_latest_ai_run(case_id)
+    if run is None:
+        return {
+            "run_type": None,
+            "classification_basis": {},
+            "routing_basis": {},
+            "evidence": [],
+            "response_basis": {},
+        }
+
+    output = json.loads(run.get("output_json") or "{}")
+    classification = output.get("classification", {})
+    routing = output.get("routing", {})
+    response_generation = output.get("response_generation", {})
+
+    evidence = []
+    for item in output.get("evidence", []):
+        citation = item.get("citation") or {}
+        evidence.append({
+            "title": item.get("title"),
+            "source_id": item.get("source_id"),
+            "source_type": item.get("source_type"),
+            "article": item.get("article") or citation.get("article"),
+            "pdf_page": item.get("pdf_page") or citation.get("pdf_page"),
+            "printed_page": item.get("printed_page") or citation.get("printed_page"),
+            "score": item.get("score"),
+            "verification_status": item.get("verification_status"),
+            "text": item.get("text"),
+        })
+
+    return {
+        "run_type": run.get("run_type"),
+        "created_at": run.get("created_at"),
+        "classification_basis": {
+            "stage_reason": classification.get("stage_reason"),
+            "urgency_reason": classification.get("urgency_reason"),
+            "infringement_evidence": classification.get("infringement_evidence", []),
+        },
+        "routing_basis": {
+            "reason": routing.get("reason"),
+            "source_pages": routing.get("source_pages", []),
+            "requires_human_review": routing.get("requires_human_review"),
+        },
+        "evidence": evidence,
+        "response_basis": {
+            "basis_summary": response_generation.get("basis_summary", []),
+            "missing_information": response_generation.get("missing_information", []),
+            "claims_requiring_review": response_generation.get("claims_requiring_review", []),
+            "ready_for_human_review": response_generation.get("ready_for_human_review"),
+        },
+    }

@@ -10,6 +10,7 @@ from agent.workflow import (
     create_case,
     generate_support_report,
     get_case_snapshot,
+    get_case_evidence,
     request_support,
     review_case_history,
 )
@@ -92,6 +93,13 @@ def create_app() -> FastAPI:
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/cases/{case_id}/evidence")
+    def evidence_endpoint(case_id: str) -> dict:
+        try:
+            return get_case_evidence(case_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.get("/cases/{case_id}/history-review")
     def history_review_endpoint(case_id: str) -> dict:
