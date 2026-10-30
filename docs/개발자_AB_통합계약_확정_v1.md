@@ -1,12 +1,14 @@
-# 개발자 A·B 통합 계약 — 확정 v1.2
+# 개발자 A·B 통합 계약 — 확정 v1.3
 
 확정일: 2026-10-30 (Asia/Seoul)
 기준: 개발자 B의 현재 FastAPI·SQLite 코드 및 보관된 PRD·기술 명세·역할분담·유저플로우
-적용 저장소: `rladPsks/AXeL-AXEdu` / B 작업 브랜치: `yujinb`
+적용 저장소: `rladPsks/AXeL-AXEdu` / B 작업 브랜치: `codex/b-foundation`, PR 대상: `yujinb`
 
 v1.1 역할 변경: 사용자의 확정에 따라 **React 공통 구조·레이아웃·API 클라이언트(기존 상대점수 4)는 B가 담당한다.** 라우터·공통 UI·provider·캐시/오류 처리·공통 사건 shell의 구조도 B가 작성한다. A는 그 기반에 자기 기능 화면을 연결한다. 보관된 역할분담 원문보다 이 변경을 우선한다. 이 항목만 이관했으므로 기존 상대점수 합계는 A 36 / B 44가 되며, 실제 소요시간을 뜻하지 않는다.
 
 v1.2 구현 갱신: 비공개 파일·보호자 관계 검사·공통 AI 실행기와 화면을 추가했고, 사용자가 공급자로 OpenAI를 선택했다. 기존 업무 API의 호환성은 유지한다. 새 경로·binary 업로드·별도 보호자 세션·실행 전용 상태 변경의 정확한 계약은 [파일·보호자·OpenAI 연결 안내](B_파일_보호자_AI_연결안내.md)를 이 문서의 일부로 적용한다. 실제 모델 성공은 로컬 키/모델 설정 후 검증해야 한다.
+
+v1.3 구현 갱신: 일정·재배정·부재 대체·학교 설정·앱 알림·인계 거절/취소와 사용자가 승인한 구성원 권한 관리를 추가했다. [일정·학교 설정·알림 연결 안내](B_일정_학교설정_알림_연결안내.md)를 계약 일부로 적용한다. 학교 설정은 expected_settings_version을 사용하며 수신함 확인은 사건 버전을 변경하지 않는다. 기존 업무 API 본문은 유지한다.
 
 ## 1. 확정 효력과 적용 범위
 
@@ -27,9 +29,9 @@ v1.2 구현 갱신: 비공개 파일·보호자 관계 검사·공통 AI 실행�
 | 서버 진입 | `backend.main:create_app`, factory 방식 | 구현 |
 | 기본 DB | `data/private/dev.sqlite3`, 환경변수 `SCHOOL_AGENT_DB` | 구현 |
 | 개발 API | `http://127.0.0.1:8000`, 업무 API prefix `/api` | 구현 |
-| 프론트 | `frontend/`, React + TypeScript + Vite, React Router, TanStack Query | 확정·구현 예정 |
-| 프론트 패키지 | npm, `frontend/package-lock.json` 하나만 사용 | 확정·구현 예정 |
-| 프록시 | Vite `/api` → `http://127.0.0.1:8000` | 확정·구현 예정 |
+| 프론트 | `frontend/`, React + TypeScript + Vite, React Router, TanStack Query | 구현 |
+| 프론트 패키지 | npm, `frontend/package-lock.json` 하나만 사용 | 구현 |
+| 프록시 | Vite `/api` → `http://127.0.0.1:8000` | 구현 |
 | Python 의존성 | 기존 requirements 파일 유지, 루트에 별도 서버 프로젝트 생성 금지 | 구현/적용 규칙 |
 | 운영 배포 | 운영 DB·기관 인증·호스팅은 이 계약에서 확정하지 않음 | 개발 통합 범위 밖 |
 
@@ -93,7 +95,7 @@ A 코드가 제공되지 않은 상태에서 B 코드·명세의 경계 전체�
 | 31 | 캐시·시연 역할 전환 누출 | 학교/사용자별 cache 분리, 세션 전환 시 폐기 |
 | 32 | 프론트의 대문자 enum 변환 | 전송은 영문 enum 그대로, 한국어는 화면 label만 |
 | 33 | 시각·시간 단위·날짜 경계 | 서버 UTC ISO 8601, 화면 Asia/Seoul, duration은 초 |
-| 34 | 긴급 요청=알림 도착 | 저장·전달·수신을 분리, 현재 URGENT는 DB 기록만 |
+| 34 | 긴급 요청=알림 도착 | 저장·앱 전달·사용자 확인을 분리. URGENT도 수신함 queue/재시도 적용, 업무 수신 확인은 별도 |
 | 35 | 학교 설정·권한 설정 동시 편집 | A는 자료/공지/일정, B는 분장/대체/권한/알림 |
 | 36 | 변경 API 응답에 임의 wrapper 추가 | 기존 평면 JSON 유지, `{data: ...}`로 일괄 변경 금지 |
 | 37 | 목록·pagination 응답 재사용 오류 | 현재 timeline은 배열 유지, 신규 목록은 별도 계약 |
@@ -175,7 +177,7 @@ A 코드가 제공되지 않은 상태에서 B 코드·명세의 경계 전체�
 | 업무 상태 | REQUESTED → ACKNOWLEDGED → COMPLETED 또는 REQUESTED → COMPLETED |
 | 지원 type | ATTEND, JOINT_RESPONSE, TAKEOVER, URGENT |
 | 지원 상태 | REQUESTED → ACKNOWLEDGED → IN_PROGRESS → COMPLETED; ACKNOWLEDGED → COMPLETED도 허용 |
-| 인계 상태 | PENDING → ACCEPTED; 현재 거절·취소 API 없음 |
+| 인계 상태 | PENDING → ACCEPTED / DECLINED / CANCELLED; 수락 시만 총괄 변경 |
 | 사건 상태 | OPEN → CLOSED → OPEN |
 
 - 업무 완료 시 `reply`, 지원 완료 시 `result` 필수. 같은 상태로 재변경은 허용되지 않으며 같은 성공 명령의 재시도는 멱등 키로 처리한다.
@@ -310,7 +312,7 @@ A 보고서는 `decision_id`, 해당 snapshot, 생성 시 `case_version`, 필드
 - 업로드 상한·허용 형식은 파일 종류별 서버 정책으로 검증한다. STT 공급자 확정 전 임의 상한을 운영 확정값으로 선언하지 않는다.
 - 음성은 B 소유이며 파일 업로드 성공과 동의를 분리한다. 실행 시 동의·권한을 다시 확인한다. 전사 원본·수정 버전·음성 구간 연결을 유지한다.
 - 보호자는 내부 GET /api/cases 응답을 받지 않는다. B의 별도 세션·관계 확인/해제·검사 함수는 구현되었으며 실제 본인 확인과 A의 대외 DTO는 남아 있다. 내부 교사 회신·지원 사유·음성·감사 payload를 그대로 노출하지 않는다.
-- 현재 URGENT는 DB 기록만 만든다. 저장 성공을 관리자 알림 도착·수신 확인으로 표시하지 않는다. 알림 전달 채널·재시도·대체자 정책 구현 후 별도 상태를 붙인다.
+- URGENT는 앱 알림 원장에 저장하고 우선 전달한다. QUEUED/DELIVERED/ACKNOWLEDGED/FAILED를 분리하며 재시도와 부재/미확인 대체를 적용한다. 저장 성공을 사용자 확인으로 표시하지 않는다. 이메일/SMS는 연결하지 않았다. 인계 거절·취소 후 기존 총괄을 유지하며 종결 검사에서는 PENDING 인계만 미완료로 센다.
 - 긴급 보호 요청은 일반 AI 분류/생성 완료를 기다리지 않는 독립 동선으로 구현한다.
 - 반복 후보와 이관 판단은 분리한다. 반복 수·감정·신고 표현만으로 자동 이관/낙인하지 않는다. 활동 집계는 사건 원장에 근거하며 교사 순위를 만들지 않는다.
 

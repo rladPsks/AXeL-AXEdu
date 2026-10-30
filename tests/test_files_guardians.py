@@ -86,6 +86,8 @@ def test_restricted_file_is_hidden_from_other_participating_teacher(env):
         db.execute("INSERT INTO case_participants(case_id,user_id) VALUES ('demo-case','outsider')")
     file_id = upload(client, creds, 'teacher', visibility='RESTRICTED').json()['file_id']
     assert client.get('/api/cases/demo-case/files', headers=headers(creds,'outsider')).json() == []
+    history=client.get('/api/cases/demo-case/timeline',headers=headers(creds,'outsider'))
+    assert '상담 메모.txt' not in history.text and file_id not in history.text
     assert client.get(f'/api/files/{file_id}/download', headers=headers(creds,'outsider')).status_code == 403
     with database.transaction() as db:
         db.execute("DELETE FROM case_participants WHERE user_id='teacher'")
@@ -136,6 +138,8 @@ def test_guardian_relationship_verified_revoked_and_separate_from_staff(env):
     for other in ['other-guardian','foreign-guardian']:
         assert client.get('/api/guardian/cases/demo-case/access', headers=headers(creds,other,guardian=True)).status_code == 404
     link_id = linked.json()['link_id']
+    teacher_history=client.get('/api/cases/demo-case/timeline',headers=headers(creds,'teacher'))
+    assert link_id not in teacher_history.text and 'GUARDIAN_LINK_VERIFIED' not in teacher_history.text
     revoked = client.post(f'/api/guardian-links/{link_id}/revoke', headers=json_headers(creds),
                           json={'expected_version':2,'reason':'[가상] 관계 종료'})
     assert revoked.status_code == 200

@@ -2,6 +2,7 @@ import { useSession } from "../../app/providers";
 import type { CaseDetail, Member } from "../../lib/api/types";
 import { CommandForm } from "../../shared/CommandForm";
 import { Badge, Empty, label, date } from "../../shared/ui";
+import { Schedule } from "./Schedule";
 
 export function TeacherTasks({
   record,
@@ -36,6 +37,42 @@ export function TeacherTasks({
             </p>
             {task.reply ? (
               <blockquote className="preserve">{task.reply}</blockquote>
+            ) : null}
+            <Schedule
+              task={task}
+              version={record.version}
+              closed={record.status === "CLOSED"}
+            />
+            {record.status === "OPEN" &&
+            task.status !== "COMPLETED" &&
+            session.role === "ADMIN" ? (
+              <details className="new-request">
+                <summary>업무 수행자 변경</summary>
+                <CommandForm
+                  caseId={record.id}
+                  version={record.version}
+                  path={`/api/tasks/${encodeURIComponent(task.id)}/reassign`}
+                  button="수행자 변경 저장"
+                >
+                  <label>
+                    새 수행자
+                    <select required name="assignee_id" defaultValue="">
+                      <option value="" disabled>
+                        구성원 선택
+                      </option>
+                      {members
+                        .filter((person) => person.user_id !== task.assignee_id)
+                        .map((person) => (
+                          <option key={person.user_id}>{person.user_id}</option>
+                        ))}
+                    </select>
+                  </label>
+                  <label>
+                    수행자 변경 사유
+                    <textarea required name="reason" maxLength={10000} />
+                  </label>
+                </CommandForm>
+              </details>
             ) : null}
             {record.status === "OPEN" &&
             task.assignee_id === session.user_id &&

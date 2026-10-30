@@ -1,6 +1,8 @@
 import json
 import logging
 import os
+from contextlib import asynccontextmanager
+from threading import Event, Thread
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -12,16 +14,38 @@ from .access import DomainError, fail, authenticate, accessible_case, admin, mem
 from .commands import mutate, resource_case
 from .closure import ClosureRegistry
 from .queries import router as query_router
-from .files import router as files_router, upload_limit
+from .files import router as files_router, upload_limit, file_access
 from .guardians import router as guardians_router
 from .agents import router as agents_router
 from .runtime import build_registry
+from .coordination import router as coordination_router, resolve_support
+from .scheduling import router as scheduling_router
+from .notifications import router as notifications_router, enqueue, dispatch_once
 from .models import (CaseTransition, Command, HandoverCreate, SupportCreate,
                      SupportUpdate, TaskCreate, TaskUpdate)
 
 
-def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_bytes=None, agent_registry=None):
-    app = FastAPI(title="학교 민원 에이전트 — 개발자 B", version="0.1.0")
+def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_bytes=None, agent_registry=None, inbox_worker=True):
+    @asynccontextmanager
+    async def lifespan(app):
+        stop=Event()
+        def deliver():
+            while not stop.is_set():
+                try:
+                    dispatch_once(app.state.db)
+                except Exception as exc:
+                    logging.getLogger(__name__).error('inbox_dispatch_failed type=%s',type(exc).__name__)
+                stop.wait(2)
+        thread=Thread(target=deliver,name='school-inbox',daemon=True) if inbox_worker else None
+        if thread:
+            thread.start()
+        try:
+            yield
+        finally:
+            stop.set()
+            if thread:
+                thread.join(timeout=12)
+    app = FastAPI(title="학교 민원 에이전트 — 개발자 B", version="0.1.0",lifespan=lifespan)
     app.state.db = Database(db_path or os.getenv("SCHOOL_AGENT_DB", "data/private/dev.sqlite3"))
 
     app.state.closure = ClosureRegistry(closure_guards)
@@ -33,6 +57,9 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
     app.include_router(files_router)
     app.include_router(guardians_router)
     app.include_router(agents_router)
+    app.include_router(coordination_router)
+    app.include_router(scheduling_router)
+    app.include_router(notifications_router)
     for router in feature_routers:
         app.include_router(router)
 
@@ -83,6 +110,9 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
             for table in ("tasks", "support_requests", "handovers"):
                 case[table] = [dict(r) for r in db.execute(
                     f"SELECT * FROM {table} WHERE case_id=? ORDER BY created_at, id", (case_id,))]
+            for task in case['tasks']:
+                schedule=db.execute('SELECT planned_start_at,due_at,updated_by,updated_at,reason FROM task_schedules WHERE task_id=?',(task['id'],)).fetchone()
+                task['schedule']=dict(schedule) if schedule else None
             return case
 
     @app.get("/api/cases/{case_id}/timeline")
@@ -90,8 +120,18 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
         with app.state.db.transaction() as db:
             actor = authenticate(db, request)
             accessible_case(db, actor, case_id)
-            return [{**dict(row), "payload": json.loads(row["payload"])} for row in db.execute(
-                "SELECT * FROM audit_events WHERE case_id=? ORDER BY new_version", (case_id,))]
+            events=[]
+            for row in db.execute('SELECT * FROM audit_events WHERE case_id=? ORDER BY new_version',(case_id,)).fetchall():
+                payload=json.loads(row['payload'])
+                if row['action'].startswith('GUARDIAN_LINK_') and actor['role']!='ADMIN':
+                    continue
+                if row['action']=='FILE_UPLOADED':
+                    try:
+                        file_access(db,actor,payload['file_id'])
+                    except DomainError:
+                        continue
+                events.append({**dict(row),'payload':payload})
+            return events
 
     @app.post("/api/cases/{case_id}/tasks", status_code=201)
     def create_task(case_id: str, body: TaskCreate, request: Request):
@@ -103,6 +143,7 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
                        (task_id, case_id, body.type, body.assignee_id, actor["user_id"],
                         body.question, body.callback_needed, now()))
             participate(db, case_id, body.assignee_id)
+            enqueue(db,case_id,body.assignee_id,'TASK_CREATED',task_id,f'task:{task_id}:created')
             return {"task_id": task_id, "status": "REQUESTED", "owner_id": case["owner_id"]}
         return mutate(request, case_id, body, "TASK_CREATED", operation, 201)
 
@@ -119,6 +160,7 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
             if body.status == "COMPLETED" and not body.reply:
                 fail(422, "REPLY_REQUIRED", "완료 회신을 입력하세요.")
             db.execute("UPDATE tasks SET status=?, reply=? WHERE id=?", (body.status, body.reply, task_id))
+            enqueue(db,case_id,task['requester_id'],'TASK_UPDATED',task_id,f'task:{task_id}:{body.status}')
             return {"task_id": task_id, "status": body.status, "reply": body.reply}
         return mutate(request, case_id, body, "TASK_UPDATED", operation)
 
@@ -126,12 +168,16 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
     def create_support(case_id: str, body: SupportCreate, request: Request):
         def operation(db, actor, case):
             member(db, actor, body.coordinator_id, "ADMIN")
+            coordinator,routing=resolve_support(db,actor['school_id'],body.coordinator_id)
             support_id = uid()
             db.execute("INSERT INTO support_requests (id, case_id, requester_id, coordinator_id, type, reason, status, result, created_at) VALUES (?, ?, ?, ?, ?, ?, 'REQUESTED', NULL, ?)",
-                       (support_id, case_id, actor["user_id"], body.coordinator_id,
+                       (support_id, case_id, actor["user_id"], coordinator,
                         body.type, body.reason, now()))
-            participate(db, case_id, body.coordinator_id)
-            return {"support_request_id": support_id, "status": "REQUESTED"}
+            db.execute('UPDATE support_requests SET requested_coordinator_id=?,routing_reason=?,assigned_at=? WHERE id=?',
+                       (body.coordinator_id,routing,now(),support_id))
+            participate(db, case_id, coordinator)
+            enqueue(db,case_id,coordinator,'SUPPORT_REQUESTED',support_id,f'support:{support_id}:requested',severity='URGENT' if body.type=='URGENT' else 'NORMAL')
+            return {"support_request_id": support_id, "status": "REQUESTED",'coordinator_id':coordinator,'routing_reason':routing}
         return mutate(request, case_id, body, "SUPPORT_REQUESTED", operation, 201)
 
     @app.patch("/api/support-requests/{support_id}")
@@ -150,6 +196,7 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
                 fail(422, "RESULT_REQUIRED", "지원 결과를 입력하세요.")
             db.execute("UPDATE support_requests SET status=?, result=? WHERE id=?",
                        (body.status, body.result, support_id))
+            enqueue(db,case_id,support['requester_id'],'SUPPORT_UPDATED',support_id,f'support:{support_id}:{body.status}',severity='URGENT' if support['type']=='URGENT' else 'NORMAL')
             return {"support_request_id": support_id, "status": body.status, "result": body.result}
         return mutate(request, case_id, body, "SUPPORT_UPDATED", operation)
 
@@ -167,6 +214,7 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
             handover_id = uid()
             db.execute("INSERT INTO handovers (id, case_id, from_owner_id, to_owner_id, reason, status, created_at) VALUES (?, ?, ?, ?, ?, 'PENDING', ?)",
                        (handover_id, case_id, case["owner_id"], body.to_owner_id, body.reason, now()))
+            enqueue(db,case_id,body.to_owner_id,'HANDOVER_REQUESTED',handover_id,f'handover:{handover_id}:requested')
             return {"handover_id": handover_id, "status": "PENDING", "owner_id": case["owner_id"]}
         return mutate(request, case_id, body, "HANDOVER_REQUESTED", operation, 201)
 
@@ -182,9 +230,35 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
                 fail(409, "INVALID_TRANSITION", "인계 상태가 변경되었습니다.")
             participate(db, case_id, actor["user_id"])
             db.execute("UPDATE cases SET owner_id=? WHERE id=?", (actor["user_id"], case_id))
-            db.execute("UPDATE handovers SET status='ACCEPTED' WHERE id=?", (handover_id,))
+            db.execute("UPDATE handovers SET status='ACCEPTED',resolved_by=?,resolved_at=? WHERE id=?", (actor['user_id'],now(),handover_id))
+            enqueue(db,case_id,handover['from_owner_id'],'HANDOVER_ACCEPTED',handover_id,f'handover:{handover_id}:accepted')
             return {"handover_id": handover_id, "status": "ACCEPTED", "owner_id": actor["user_id"]}
         return mutate(request, case_id, body, "HANDOVER_ACCEPTED", operation)
+
+    def resolve_handover(handover_id,body,request,target):
+        case_id=resource_case(request,'handovers',handover_id)
+        def operation(db,actor,case):
+            admin(actor)
+            handover=db.execute('SELECT * FROM handovers WHERE id=?',(handover_id,)).fetchone()
+            required=handover['to_owner_id'] if target=='DECLINED' else handover['from_owner_id']
+            if actor['user_id']!=required or case['owner_id']!=handover['from_owner_id']:
+                fail(403,'HANDOVER_FORBIDDEN','지정된 당사자만 인계 요청을 처리할 수 있습니다.')
+            if handover['status']!='PENDING':
+                fail(409,'INVALID_TRANSITION','대기 중인 인계만 처리할 수 있습니다.')
+            db.execute('UPDATE handovers SET status=?,resolved_by=?,resolved_at=?,resolution_reason=? WHERE id=?',
+                       (target,actor['user_id'],now(),body.reason,handover_id))
+            recipient=handover['from_owner_id'] if target=='DECLINED' else handover['to_owner_id']
+            enqueue(db,case_id,recipient,'HANDOVER_'+target,handover_id,f'handover:{handover_id}:{target}')
+            return {'handover_id':handover_id,'status':target,'owner_id':case['owner_id'],'reason':body.reason}
+        return mutate(request,case_id,body,'HANDOVER_'+target,operation)
+
+    @app.post('/api/handovers/{handover_id}/decline')
+    def decline_handover(handover_id:str,body:CaseTransition,request:Request):
+        return resolve_handover(handover_id,body,request,'DECLINED')
+
+    @app.post('/api/handovers/{handover_id}/cancel')
+    def cancel_handover(handover_id:str,body:CaseTransition,request:Request):
+        return resolve_handover(handover_id,body,request,'CANCELLED')
 
     def transition(case_id, body, request, target):
         def operation(db, actor, case):
@@ -195,11 +269,11 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
                 fail(409, "INVALID_TRANSITION", "이미 해당 상태입니다.")
             if target == "CLOSED":
                 pending = {}
-                for table, finished in (("tasks", "COMPLETED"), ("support_requests", "COMPLETED"),
-                                        ("handovers", "ACCEPTED")):
+                for table, finished in (("tasks", "COMPLETED"), ("support_requests", "COMPLETED")):
                     pending[table] = db.execute(
                         f"SELECT COUNT(*) FROM {table} WHERE case_id=? AND status!=?",
                         (case_id, finished)).fetchone()[0]
+                pending['handovers']=db.execute("SELECT COUNT(*) FROM handovers WHERE case_id=? AND status='PENDING'",(case_id,)).fetchone()[0]
                 if any(pending.values()):
                     fail(409, "OPEN_WORK_REMAINS", "남은 업무·지원·인계를 확인하세요.", pending=pending)
                 blockers = app.state.closure.check_closure(db, actor, case_id)
@@ -230,7 +304,7 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
                 continue
             for method, operation in operations.items():
                 operation["security"] = [{"Session": []}]
-                if method in ("post", "patch", "delete"):
+                if method in ("post", "patch", "put", "delete"):
                     operation.setdefault("parameters", []).append({
                         "name": "Idempotency-Key", "in": "header", "required": True,
                         "schema": {"type": "string", "minLength": 1, "maxLength": 128},

@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { Link, NavLink, Outlet, Route, Routes, useParams } from "react-router";
+import {
+  Link,
+  NavLink,
+  Outlet,
+  Route,
+  Routes,
+  useParams,
+  useSearchParams,
+} from "react-router";
 import { ApiClient, ApiError } from "../lib/api/client";
 import type {
   CaseDetail,
@@ -20,6 +28,8 @@ import { Handover } from "../features/school-support/Handover";
 import { Files } from "../features/files";
 import { GuardianLinks } from "../features/guardian-links";
 import { AgentReview } from "../features/agent-review";
+import { Inbox, InboxIndicator } from "../features/inbox";
+import { SchoolSettings, SchoolContacts } from "../features/school-settings";
 
 export function App() {
   const [auth, setAuth] = useState<{
@@ -110,6 +120,9 @@ export function App() {
           <Route index element={<CaseList />} />
           <Route path="cases" element={<CaseList />} />
           <Route path="my-tasks" element={<MyTasks />} />
+          <Route path="inbox" element={<Inbox />} />
+          <Route path="school-settings" element={<SchoolSettings />} />
+          <Route path="school-contacts" element={<SchoolContacts />} />
           <Route path="cases/:caseId" element={<CaseShell />} />
           <Route
             path="*"
@@ -156,6 +169,11 @@ function Layout() {
         <nav aria-label="주요 메뉴">
           <NavLink to="/cases">사건 목록</NavLink>
           <NavLink to="/my-tasks">내 확인·상담 요청</NavLink>
+          <NavLink to="/inbox">학교 알림 수신함</NavLink>
+          <NavLink to="/school-contacts">학교 지원 담당</NavLink>
+          {session.role === "ADMIN" ? (
+            <NavLink to="/school-settings">학교 지원 설정</NavLink>
+          ) : null}
         </nav>
         <div className="sidebar-note">
           <strong>함께 처리하는 원칙</strong>
@@ -175,6 +193,7 @@ function Layout() {
       <div className="main-area">
         <header className="topbar">
           <span>학교 대응 업무 공간</span>
+          <InboxIndicator />
           <span className="dev-label">개발 시연</span>
         </header>
         <main id="content" className="content">
@@ -309,6 +328,9 @@ function MyTasks() {
                 <p className="meta">
                   {t.case_title} · {label(t.type)}
                 </p>
+                {t.due_at ? (
+                  <p className="meta">완료 기한 {date(t.due_at)}</p>
+                ) : null}
                 <h3>{t.question}</h3>
               </div>
               <Badge value={t.status} />
@@ -332,7 +354,19 @@ function CaseShell() {
   const { caseId = "" } = useParams();
   const { api, session } = useSession();
   const scope = useScope();
-  const [tab, setTab] = useState("tasks");
+  const [search, setSearch] = useSearchParams();
+  const requestedTab = search.get("tab") ?? "tasks";
+  const knownTabs = [
+    "tasks",
+    "support",
+    "handover",
+    "timeline",
+    "files",
+    "agent-review",
+    ...(session.role === "ADMIN" ? ["guardians"] : []),
+    ...additionalCaseFeatures.map((feature) => feature.id),
+  ];
+  const tab = knownTabs.includes(requestedTab) ? requestedTab : "tasks";
   const query = useQuery({
     queryKey: ["case", ...scope, caseId],
     queryFn: ({ signal }) =>
@@ -408,7 +442,7 @@ function CaseShell() {
             aria-current={tab === t.id ? "page" : undefined}
             key={t.id}
             onClick={(event) => {
-              setTab(t.id);
+              setSearch({ tab: t.id });
               event.currentTarget.scrollIntoView({
                 block: "nearest",
                 inline: "nearest",
@@ -477,8 +511,18 @@ function Timeline({ caseId }: { caseId: string }) {
                 <span>{date(e.created_at)}</span>
               </div>
               <p>
-                {e.actor_id} · 기록 {e.new_version}
+                {e.actor_id === "system:inbox" ? "학교 알림" : e.actor_id} ·
+                기록 {e.new_version}
               </p>
+              {typeof e.payload.reason === "string" ? (
+                <p className="preserve">{e.payload.reason}</p>
+              ) : null}
+              {typeof e.payload.reply === "string" ? (
+                <blockquote className="preserve">{e.payload.reply}</blockquote>
+              ) : null}
+              {typeof e.payload.result === "string" ? (
+                <blockquote className="preserve">{e.payload.result}</blockquote>
+              ) : null}
             </li>
           ))}
         </ol>

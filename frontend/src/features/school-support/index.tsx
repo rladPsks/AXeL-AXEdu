@@ -34,6 +34,20 @@ export function SchoolSupport({
             <p className="meta">
               요청자 {support.requester_id} · 지원 담당 {support.coordinator_id}
             </p>
+            {support.requested_coordinator_id &&
+            support.requested_coordinator_id !== support.coordinator_id ? (
+              <p className="notice">
+                요청한 담당 {support.requested_coordinator_id} 대신{" "}
+                {support.coordinator_id}에게 지원을 연결했습니다. 사건 총괄은
+                유지됩니다.
+              </p>
+            ) : null}
+            {support.routing_reason === "NO_AVAILABLE_SUBSTITUTE" ? (
+              <p className="notice">
+                현재 가능한 대체 담당을 확인하지 못했습니다. 요청은 저장되었으며
+                학교 관리자에게 직접 연락해 주세요.
+              </p>
+            ) : null}
             {support.result ? (
               <blockquote className="preserve">{support.result}</blockquote>
             ) : null}
@@ -115,8 +129,9 @@ export function SchoolSupport({
               <textarea required name="reason" maxLength={10000} />
             </label>
             <p className="notice">
-              긴급 도움도 현재는 요청 기록만 저장됩니다. 즉시 도움이 필요하면
-              학교 관리자에게 직접 연락해 주세요.
+              요청은 담당자의 앱 수신함으로 전달합니다. 실제 수신 확인 전까지
+              지원이 확보된 것은 아닙니다. 즉시 도움이 필요하면 학교 관리자에게
+              직접 연락해 주세요.
             </p>
           </CommandForm>
         </details>

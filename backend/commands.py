@@ -5,6 +5,30 @@ from fastapi.responses import JSONResponse
 from .db import audit
 from .access import authenticate, accessible_case, fail
 
+def command_identity(request,body):
+    key=request.headers.get('Idempotency-Key','').strip()
+    if not key or len(key)>128:
+        fail(422,'IDEMPOTENCY_KEY_REQUIRED','128자 이내의 Idempotency-Key가 필요합니다.')
+    return request.method+' '+request.url.path,key,hashlib.sha256(body.model_dump_json().encode()).hexdigest()
+
+
+def replay_command(db,actor,identity):
+    route,key,body_hash=identity
+    row=db.execute('SELECT * FROM idempotency WHERE actor_id=? AND school_id=? AND route=? AND key=?',
+                   (actor['user_id'],actor['school_id'],route,key)).fetchone()
+    if row:
+        if row['body_hash']!=body_hash:
+            fail(409,'IDEMPOTENCY_CONFLICT','같은 키에 다른 요청을 사용할 수 없습니다.')
+        return JSONResponse(json.loads(row['response']),status_code=row['status_code'])
+    return None
+
+
+def save_command(db,actor,identity,response,status=200):
+    route,key,body_hash=identity
+    db.execute('INSERT INTO idempotency(actor_id,school_id,route,key,body_hash,status_code,response) VALUES (?,?,?,?,?,?,?)',
+               (actor['user_id'],actor['school_id'],route,key,body_hash,status,json.dumps(response,ensure_ascii=False)))
+
+
 def mutate(request, case_id, body, action, operation, status=200, allow_closed=False, advance_case=True):
     key = request.headers.get("Idempotency-Key", "").strip()
     if not key or len(key) > 128:

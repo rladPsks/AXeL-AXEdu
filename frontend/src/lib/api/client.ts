@@ -11,7 +11,7 @@ export class ApiError extends Error {
 }
 export type Command = {
   path: string;
-  method: "POST" | "PATCH";
+  method: "POST" | "PATCH" | "PUT";
   key: string;
   body: Readonly<Record<string, unknown>>;
 };

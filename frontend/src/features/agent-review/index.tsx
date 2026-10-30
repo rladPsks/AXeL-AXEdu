@@ -85,20 +85,16 @@ export function AgentReview({ record }: { record: CaseDetail }) {
         resource_id: record.id,
         version: record.version,
       },
-      ...record.tasks
-        .slice(-10)
-        .map((t) => ({
-          resource_type: "TASK",
-          resource_id: t.id,
-          version: record.version,
-        })),
-      ...record.support_requests
-        .slice(-9)
-        .map((s) => ({
-          resource_type: "SUPPORT_REQUEST",
-          resource_id: s.id,
-          version: record.version,
-        })),
+      ...record.tasks.slice(-10).map((t) => ({
+        resource_type: "TASK",
+        resource_id: t.id,
+        version: record.version,
+      })),
+      ...record.support_requests.slice(-9).map((s) => ({
+        resource_type: "SUPPORT_REQUEST",
+        resource_id: s.id,
+        version: record.version,
+      })),
     ];
     start.mutate(
       command(`/api/cases/${encodeURIComponent(record.id)}/agent-runs`, {

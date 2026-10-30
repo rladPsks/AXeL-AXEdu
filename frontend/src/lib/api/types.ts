@@ -17,11 +17,21 @@ export type Task = {
   status: string;
   reply: string | null;
   created_at: string;
+  due_at?: string | null;
+  schedule?: {
+    planned_start_at: string | null;
+    due_at: string | null;
+    updated_by: string;
+    updated_at: string;
+    reason?: string | null;
+  } | null;
 };
 export type Support = {
   id: string;
   requester_id: string;
   coordinator_id: string;
+  requested_coordinator_id?: string | null;
+  routing_reason?: string | null;
   type: string;
   reason: string;
   status: string;
@@ -35,6 +45,7 @@ export type Handover = {
   reason: string;
   status: string;
   created_at: string;
+  resolution_reason?: string | null;
 };
 export type CaseSummary = {
   id: string;

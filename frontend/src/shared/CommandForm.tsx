@@ -1,12 +1,12 @@
 import { useRef, useState, type ReactNode } from "react";
 import {
   useIsMutating,
+  useIsFetching,
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
 import { useScope, useSession } from "../app/providers";
 import { ApiError, command, type Command } from "../lib/api/client";
-import type { MutationResult } from "../lib/api/types";
 import { ErrorNotice } from "./ui";
 import { useUnsavedChanges } from "./useUnsavedChanges";
 
@@ -17,6 +17,8 @@ export function CommandForm({
   method = "POST",
   button,
   children,
+  versionField = "expected_version",
+  transformValues,
 }: {
   caseId: string;
   version: number;
@@ -24,6 +26,10 @@ export function CommandForm({
   method?: Command["method"];
   button: string;
   children?: ReactNode;
+  versionField?: "expected_version" | "expected_settings_version";
+  transformValues?: (
+    values: Record<string, unknown>,
+  ) => Record<string, unknown>;
 }) {
   const { api } = useSession();
   const scope = useScope();
@@ -32,8 +38,16 @@ export function CommandForm({
   const [saved, setSaved] = useState(false);
   const { dirty, setDirty } = useUnsavedChanges();
   const [failed, setFailed] = useState<Command | null>(null);
-  const busy =
-    useIsMutating({ mutationKey: ["case-command", ...scope, caseId] }) > 0;
+  const mutating = useIsMutating({
+    mutationKey: ["case-command", ...scope, caseId],
+  });
+  const fetching = useIsFetching({
+    queryKey:
+      versionField === "expected_settings_version"
+        ? ["school-settings", ...scope]
+        : ["case", ...scope, caseId],
+  });
+  const busy = mutating > 0 || fetching > 0;
   const refresh = () =>
     Promise.all([
       queries.invalidateQueries({ queryKey: ["case", ...scope, caseId] }),
@@ -44,10 +58,17 @@ export function CommandForm({
       queries.invalidateQueries({
         queryKey: ["guardian-links", ...scope, caseId],
       }),
+      queries.invalidateQueries({ queryKey: ["school-settings", ...scope] }),
+      queries.invalidateQueries({ queryKey: ["school-members", ...scope] }),
+      queries.invalidateQueries({ queryKey: ["school-contacts", ...scope] }),
+      queries.invalidateQueries({ queryKey: ["notifications", ...scope] }),
+      queries.invalidateQueries({
+        queryKey: ["notification-status", ...scope],
+      }),
     ]);
   const mutation = useMutation({
     mutationKey: ["case-command", ...scope, caseId],
-    mutationFn: (cmd: Command) => api.execute<MutationResult>(cmd),
+    mutationFn: (cmd: Command) => api.execute<Record<string, unknown>>(cmd),
     onSuccess: async () => {
       setFailed(null);
       setSaved(true);
@@ -79,7 +100,14 @@ export function CommandForm({
         );
         setSaved(false);
         mutation.mutate(
-          command(path, { ...values, expected_version: version }, method),
+          command(
+            path,
+            {
+              ...(transformValues ? transformValues(values) : values),
+              [versionField]: version,
+            },
+            method,
+          ),
         );
       }}
     >

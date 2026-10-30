@@ -27,6 +27,9 @@ export function Handover({
             <Badge value={h.status} />
           </div>
           <p>{h.reason}</p>
+          {h.resolution_reason ? (
+            <p className="meta">처리 사유 {h.resolution_reason}</p>
+          ) : null}
           {h.status === "PENDING" &&
           record.status === "OPEN" &&
           session.user_id === h.to_owner_id ? (
@@ -36,6 +39,33 @@ export function Handover({
               path={`/api/handovers/${encodeURIComponent(h.id)}/accept`}
               button="총괄 인수 수락"
             />
+          ) : null}
+          {h.status === "PENDING" &&
+          record.status === "OPEN" &&
+          (session.user_id === h.from_owner_id ||
+            session.user_id === h.to_owner_id) ? (
+            <details className="new-request">
+              <summary>
+                {session.user_id === h.to_owner_id
+                  ? "인수 거절"
+                  : "인계 요청 취소"}
+              </summary>
+              <CommandForm
+                caseId={record.id}
+                version={record.version}
+                path={`/api/handovers/${encodeURIComponent(h.id)}/${session.user_id === h.to_owner_id ? "decline" : "cancel"}`}
+                button={
+                  session.user_id === h.to_owner_id
+                    ? "인수 거절 저장"
+                    : "인계 요청 취소 저장"
+                }
+              >
+                <label>
+                  처리 사유
+                  <textarea required name="reason" maxLength={10000} />
+                </label>
+              </CommandForm>
+            </details>
           ) : null}
         </article>
       ))}

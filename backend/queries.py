@@ -24,8 +24,8 @@ def my_tasks(request: Request, after: str = "", limit: int = Query(50, ge=1, le=
     with request.app.state.db.transaction() as db:
         actor = authenticate(db, request)
         rows = db.execute(
-            "SELECT t.*, c.title AS case_title, c.version AS case_version FROM tasks t "
-            "JOIN cases c ON c.id=t.case_id WHERE c.school_id=? AND t.assignee_id=? "
+            "SELECT t.*, c.title AS case_title, c.version AS case_version,s.due_at FROM tasks t "
+            "JOIN cases c ON c.id=t.case_id LEFT JOIN task_schedules s ON s.task_id=t.id WHERE c.school_id=? AND t.assignee_id=? "
             "AND t.id>? AND (?='ADMIN' OR EXISTS (SELECT 1 FROM case_participants p "
             "WHERE p.case_id=c.id AND p.user_id=?)) ORDER BY t.id LIMIT ?",
             (actor["school_id"], actor["user_id"], after, actor["role"], actor["user_id"], limit + 1),

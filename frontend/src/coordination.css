@@ -1,0 +1,48 @@
+.action-row {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.action-row a {
+  color: var(--teal);
+  font-size: 14px;
+  font-weight: 600;
+}
+.inbox-indicator {
+  color: var(--navy);
+  font-size: 13px;
+}
+.inbox-indicator strong {
+  display: inline-block;
+  min-width: 21px;
+  text-align: center;
+  background: var(--teal);
+  color: white;
+  border-radius: 11px;
+  margin-left: 5px;
+  padding: 1px 5px;
+  font-size: 12px;
+}
+.urgent-text {
+  color: #9c3039;
+  font-size: 13px;
+  font-weight: 600;
+}
+input[type="checkbox"] {
+  accent-color: var(--teal);
+}
+@media (max-width: 680px) {
+  .sidebar nav {
+    flex-wrap: wrap;
+  }
+  .sidebar nav a {
+    font-size: 12px;
+  }
+  .topbar {
+    gap: 8px;
+  }
+  .topbar > span:first-child {
+    font-size: 11px;
+  }
+}

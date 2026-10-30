@@ -22,6 +22,12 @@ export const labels: Record<string, string> = {
   COMPLETED: "완료",
   PENDING: "인수 대기",
   ACCEPTED: "인수 완료",
+  DECLINED: "인수 거절",
+  HANDOVER_DECLINED: "인수 거절",
+  HANDOVER_CANCELLED: "인계 취소",
+  TASK_SCHEDULE_CHANGED: "업무 일정 조정",
+  TASK_REASSIGNED: "업무 수행자 변경",
+  SUPPORT_REROUTED: "지원 대체 담당 연결",
   FACT_CHECK: "사실 확인",
   COUNSEL: "상담",
   CALLBACK: "콜백",
@@ -49,6 +55,7 @@ export const label = (value: string) => labels[value] ?? value;
 export const date = (value: string) =>
   new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul",
+    year: "numeric",
     month: "long",
     day: "numeric",
     hour: "2-digit",
