@@ -41,6 +41,33 @@ def test_law_header_is_not_created_as_article_chunk():
     assert result["chunks"][0]["article_number"] == "1"
 
 
+def test_red_heading_detects_amended_article_even_if_shared_text_is_black():
+    black = "#000000"
+    red = "#FF0000"
+    blue = "#0000FF"
+    lines = [
+        {"text": "제19조(교육활동 침해행위)", "segments": [{"text": "제19조(교육활동 침해행위)", "color": red}]},
+        {"text": "① 공통되는 기존 조문 문장입니다.", "segments": [{"text": "① 공통되는 기존 조문 문장입니다.", "color": black}]},
+        {"text": "② 공통되는 기존 조문 문장입니다.", "segments": [{"text": "② 공통되는 기존 조문 문장입니다.", "color": black}]},
+        {"text": "가. 목적이 정당하지 아니한 민원을 반복적으로 제기하거나 교육활동에 현저한 지장을 주는 방식으로 제기하는 행위", "segments": [{"text": "가. 목적이 정당하지 아니한 민원을 반복적으로 제기하거나 교육활동에 현저한 지장을 주는 방식으로 제기하는 행위", "color": red}]},
+        {"text": "[시행일: 2026. 12. 3.] 제19조", "segments": [{"text": "[시행일: 2026. 12. 3.] 제19조", "color": blue}]},
+    ]
+    document = {
+        "document_id": "TEST-LAW",
+        "title": "테스트 법령",
+        "source_type": "law",
+        "effective_from": "2026-02-19",
+        "pages": [{"page_number": 7, "text": "\n".join(x["text"] for x in lines), "styled_lines": lines}],
+        "warnings": [],
+    }
+    result = chunk_document(document)
+    assert result["chunk_count"] == 1
+    chunk = result["chunks"][0]
+    assert chunk["version_status"] == "scheduled"
+    assert chunk["effective_from"] == "2026-12-03"
+    assert chunk["article_number"] == "19"
+
+
 def test_styled_law_separates_current_and_future_article_versions():
     black = "#000000"
     red = "#FF0000"
@@ -58,6 +85,7 @@ def test_styled_law_separates_current_and_future_article_versions():
                 {"text": "제19조(침해행위)", "segments": [{"text": "제19조(침해행위)", "color": black}]},
                 {"text": "기존 조문 내용", "segments": [{"text": "기존 조문 내용", "color": black}]},
                 {"text": "제19조(침해행위)", "segments": [{"text": "제19조(침해행위)", "color": red}]},
+                {"text": "공통 문장", "segments": [{"text": "공통 문장", "color": black}]},
                 {"text": "개정 조문 내용", "segments": [{"text": "개정 조문 내용", "color": red}]},
                 {"text": "[시행일: 2026. 12. 3.]", "segments": [{"text": "[시행일: 2026. 12. 3.]", "color": blue}]},
             ],
@@ -72,11 +100,11 @@ def test_styled_law_separates_current_and_future_article_versions():
     assert future["version_status"] == "scheduled"
     assert future["effective_from"] == "2026-12-03"
     assert "기존 조문 내용" in current["text"]
+    assert "공통 문장" in future["text"]
     assert "개정 조문 내용" in future["text"]
 
 
 def test_blank_and_section_divider_pages_do_not_raise_ocr_warnings():
-    # 페이지 유형은 파서가 분류하지만, 청커는 빈 페이지를 건너뛰고 구분 제목을 보존합니다.
     document = {
         "document_id": "TEST-MANUAL",
         "title": "테스트 매뉴얼",

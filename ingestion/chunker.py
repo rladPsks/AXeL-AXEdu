@@ -128,6 +128,7 @@ def _law_occurrences(document: dict[str, Any]) -> tuple[list[dict[str, Any]], li
         lines = current["lines"]
         all_text = "\n".join(item["text"] for item in lines).strip()
         if all_text:
+            heading_color = lines[0].get("color_name", "unknown") if lines else "unknown"
             red_chars = sum(
                 len(item["text"]) for item in lines
                 if item.get("color_name") == "red"
@@ -146,7 +147,9 @@ def _law_occurrences(document: dict[str, Any]) -> tuple[list[dict[str, Any]], li
             ]
             body = "\n".join(body_lines).strip()
             # 빨간 글자 비중은 개정 표시를 찾는 신호일 뿐, 시행일의 법적 판단을 대신하지 않습니다.
-            is_red_revision = red_ratio >= 0.25
+            # 개정 표시 PDF는 조문 제목만 빨간색이고 본문 일부는 검은색일 수 있습니다.
+            # 따라서 제목 색상을 우선 사용하고, 본문 색상 비율은 보조 신호로만 씁니다.
+            is_red_revision = heading_color == "red" or red_ratio >= 0.25
             date_text = "\n".join(annotations + [all_text])
             revision_date = _extract_effective_date(date_text) if is_red_revision else None
             if is_red_revision:
@@ -168,6 +171,7 @@ def _law_occurrences(document: dict[str, Any]) -> tuple[list[dict[str, Any]], li
                 "page_start": current["page_start"],
                 "page_end": current["page_end"],
                 "visual_color": "red" if is_red_revision else "black_or_unclassified",
+                "heading_color": heading_color,
                 "version_status": version_status,
                 "revision_effective_from": revision_date,
                 "requires_review": version_status == "amended_unverified",
