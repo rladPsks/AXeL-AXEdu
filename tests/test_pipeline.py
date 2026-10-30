@@ -1,4 +1,5 @@
 from agent.pipeline import process
+from agent.draft import draft_information_reply
 
 
 def test_pipeline_returns_required_sections():
@@ -13,3 +14,23 @@ def test_empty_text_raises():
     except ValueError:
         return
     raise AssertionError("Expected ValueError")
+
+
+def test_draft_supports_new_retrieval_metadata_schema():
+    text = draft_information_reply("문의", [{
+        "title": "학교민원 처리 매뉴얼",
+        "pdf_page": 15,
+        "chunk_id": "abc123",
+    }])
+    assert "p.15" in text
+    assert "abc123" in text
+
+
+def test_draft_supports_legacy_evidence_schema():
+    text = draft_information_reply("문의", [{
+        "title": "학교민원 처리 매뉴얼",
+        "page": 10,
+        "id": "legacy-1",
+    }])
+    assert "p.10" in text
+    assert "legacy-1" in text
