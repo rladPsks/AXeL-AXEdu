@@ -102,6 +102,13 @@ def snapshot(db, actor, case, refs, purpose=None):
             if ref.resource_id != case['id']:
                 fail(422, 'INPUT_CASE_MISMATCH', '같은 사건의 입력을 선택하세요.')
             item = dict(case)
+            intake = db.execute("SELECT * FROM case_intakes WHERE case_id=?", (case["id"],)).fetchone()
+            if intake is not None:
+                intake_data = dict(intake)
+                intake_data["related_people"] = json.loads(intake_data.get("related_people") or "[]")
+                intake_data["classification"] = json.loads(intake_data.pop("classification_json")) if intake_data.get("classification_json") else None
+                intake_data["routing"] = json.loads(intake_data.pop("routing_json")) if intake_data.get("routing_json") else None
+                item["intake"] = intake_data
         elif ref.resource_type == 'FILE':
             item = dict(file_access(db, actor, ref.resource_id))
             if item['category'] == 'AUDIO':

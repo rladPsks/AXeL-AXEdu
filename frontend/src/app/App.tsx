@@ -37,6 +37,7 @@ import { CaseComparison, CaseDocuments } from "../features/case-comparison";
 import { ActivityLog } from "../features/activity-log";
 import { Recordings } from "../features/recordings";
 import { DashboardPage } from "../features/dashboard";
+import { IntakeCreate } from "../features/intake";
 
 export function App() {
   const [auth, setAuth] = useState<{
@@ -76,6 +77,7 @@ export function App() {
         <Route element={<Layout />}>
           <Route index element={<CaseList />} />
           <Route path="cases" element={<CaseList />} />
+          <Route path="intake" element={<IntakeCreate />} />
           <Route path="my-tasks" element={<MyTasks />} />
           <Route path="inbox" element={<Inbox />} />
           <Route path="dashboard" element={<DashboardPage />} />
@@ -126,6 +128,7 @@ function Layout() {
         <p className="nav-label">학교 업무</p>
         <nav aria-label="주요 메뉴">
           <NavLink to="/cases">사건 목록</NavLink>
+          <NavLink to="/intake">새 민원 접수</NavLink>
           <NavLink to="/my-tasks">내 확인·상담 요청</NavLink>
           <NavLink to="/inbox">학교 알림 수신함</NavLink>
           <NavLink to="/school-contacts">학교 지원 담당</NavLink>
@@ -241,8 +244,7 @@ function CaseList() {
         ) : null}
       </section>
       <div className="notice">
-        접수·분류·근거 답변 기능은 A의 모듈이 연결되면 같은 사건에서 사용할 수
-        있습니다.
+        새 민원 접수에서 등록한 사건은 같은 사건 원장에서 분류·업무·지원·AI 검토까지 이어집니다.
       </div>
     </>
   );
