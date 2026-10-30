@@ -7,6 +7,8 @@ import openai
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from agent.retrieval import retrieve as retrieve_official_evidence
+from agent.validator import validate_response
+from agent.multilingual import translate_from_korean
 
 from .agents import Handler, ProviderFailure, Registry
 from .comparison_review import ComparisonResult,validate_citations
@@ -151,6 +153,29 @@ class OpenAIAdapter:
             "official_evidence": official,
         }
         result=self._structured(enriched,INSTRUCTIONS,SupportReviewResult)
+        classification = intake.get("classification") or {}
+        deterministic = validate_response(
+            draft=result.get("response_draft") or "",
+            evidence=official,
+            classification=classification,
+            response_generation={"claims_requiring_review": []},
+        )
+        result["validation_checks"] = list(result.get("validation_checks") or [])
+        result["validation_checks"].extend(
+            f'{issue["code"]}: {issue["message"]}' for issue in deterministic["issues"]
+        )
+        result["validation_checks"].append(
+            f'deterministic_validator: {"PASS" if deterministic["passed"] else "REVIEW_REQUIRED"}'
+        )
+        result["validation_checks"].append("auto_send_allowed: false")
+        translated = translate_from_korean(
+            result.get("response_draft") or "",
+            classification.get("original_language", "ko"),
+        )
+        if translated:
+            result["action_options"].append(
+                "원문 언어 답변 번역본 생성 완료 — 관리자 의미 대조 필요"
+            )
         source_ids={source['ref']['resource_id'] for source in snapshot['sources']}
         source_ids.update(x.get("source_id") for x in official if x.get("source_id"))
         if any(observation['source_id'] not in source_ids for observation in result['observations']):
