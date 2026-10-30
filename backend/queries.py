@@ -1,8 +1,23 @@
 """Read APIs for the shared case shell and B's work queue."""
+import json
 from fastapi import APIRouter, Query, Request
 from .access import accessible_case, authenticate
 
 router = APIRouter()
+
+
+def complaint_stage(classification):
+    if not classification:
+        return None
+    item = json.loads(classification)
+    if (item.get("infringement_flags") or item.get("special_codes")
+            or item.get("nature") in {"SAFETY", "INFRINGEMENT_REVIEW"}
+            or item.get("urgency") in {"HIGH", "URGENT"}
+            or (isinstance(item.get("stage"), (int, float)) and item["stage"] >= 4)):
+        return "together"
+    if item.get("is_informational") or item.get("nature") in {"INFORMATION", "INFO_REQUEST"}:
+        return "simple"
+    return "review"
 
 
 @router.get("/api/cases")
@@ -10,12 +25,18 @@ def list_cases(request: Request, after: str = "", limit: int = Query(50, ge=1, l
     with request.app.state.db.transaction() as db:
         actor = authenticate(db, request)
         rows = db.execute(
-            "SELECT c.* FROM cases c WHERE c.school_id=? AND c.id>? "
+            "SELECT c.*,i.channel,i.received_at,i.classification_json FROM cases c "
+            "LEFT JOIN case_intakes i ON i.case_id=c.id WHERE c.school_id=? AND c.id>? "
             "AND (?='ADMIN' OR EXISTS (SELECT 1 FROM case_participants p "
             "WHERE p.case_id=c.id AND p.user_id=?)) ORDER BY c.id LIMIT ?",
             (actor["school_id"], after, actor["role"], actor["user_id"], limit + 1),
         ).fetchall()
-        return {"items": [dict(r) for r in rows[:limit]],
+        items = []
+        for row in rows[:limit]:
+            item = dict(row)
+            item["stage"] = complaint_stage(item.pop("classification_json"))
+            items.append(item)
+        return {"items": items,
                 "next_cursor": rows[limit - 1]["id"] if len(rows) > limit else None}
 
 

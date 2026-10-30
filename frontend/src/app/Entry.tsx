@@ -80,7 +80,9 @@ export function Entry({
           api,
           await api.get<GuardianSession>("/api/guardian/session"),
         );
-      else onStaff(api, await api.get<Session>("/api/session"));
+      else {
+        onStaff(api, await api.get<Session>("/api/session"));
+      }
     } catch (err) {
       api.dispose();
       throw err;
@@ -150,92 +152,89 @@ export function Entry({
       </button>
     </form>
   );
+  const featured =
+    accounts?.filter(
+      (a) =>
+        a.kind === "STAFF" && ["admin", "deputy", "teacher"].includes(a.id),
+    ) ?? [];
+  const otherAccounts = accounts?.filter((a) => !featured.includes(a)) ?? [];
+  const roleCard = (account: DemoAccount) => (
+    <button
+      className="role-card"
+      aria-label={`${personName(account.id, account.name)} ${account.kind === "GUARDIAN" ? "보호자" : account.role === "ADMIN" ? "관리자" : "교사"}`}
+      key={account.id}
+      disabled={pending}
+      onClick={() => void login(account)}
+    >
+      <span className="role-avatar" aria-hidden="true">
+        {personName(account.id, account.name).slice(0, 1)}
+      </span>
+      <span>
+        <strong>{personName(account.id, account.name)}</strong>
+        <small>
+          {account.id === "admin"
+            ? "학교 전체 민원을 함께 살펴봐요"
+            : account.id === "deputy"
+              ? "필요한 지원과 담당자를 연결해요"
+              : account.role === "TEACHER"
+                ? "나에게 온 민원과 지원을 확인해요"
+                : "함께 쓰는 업무 공간으로 들어가요"}
+        </small>
+      </span>
+    </button>
+  );
   return (
-    <main className="login">
-      <section className="login-story">
+    <main className="entry-v2">
+      <section className="entry-copy">
         <div className="brand">
           <Brand />
-          <span>학교 민원 지원</span>
         </div>
-        <h1>
-          교사를 혼자
-          <br />
-          두지 않는 대응.
-        </h1>
-        <p>
-          확인할 일은 명확하게.
-          <br />
-          필요한 지원은 학교와 함께.
-        </p>
-        <div className="story-line">
-          업무 확인 <span>—</span> 학교 지원 <span>—</span> 함께 마무리
-        </div>
-      </section>
-      <section className="login-form">
+        <h1>학교 민원, 함께 처리해요</h1>
+        <p>우리 학교 민원대응팀이 함께 쓰는 공간이에요.</p>
+        {state === "loading" ? (
+          <p role="status">학교 업무 공간을 준비하고 있어요…</p>
+        ) : state === "failed" ? (
+          <button onClick={() => setAttempt((v) => v + 1)}>다시 시도</button>
+        ) : accounts ? (
+          <>
+            <div className="role-cards" aria-label="역할 선택">
+              {featured.map(roleCard)}
+            </div>
+            {accounts.length === 0 ? (
+              <p>현재 사용할 수 있는 계정이 없어요.</p>
+            ) : null}
+            <div className="entry-tools">
+              {otherAccounts.length ? (
+                <details>
+                  <summary>다른 시연 계정</summary>
+                  <div className="role-cards">
+                    {otherAccounts.map(roleCard)}
+                  </div>
+                </details>
+              ) : null}
+              <details>
+                <summary>기존 토큰으로 연결</summary>
+                {tokenForm}
+              </details>
+            </div>
+          </>
+        ) : (
+          tokenForm
+        )}
+        {error ? <ErrorNotice error={error} /> : null}
         {demoEnabled ? (
           <p className="demo-notice" role="note">
             {demoNotice}
           </p>
         ) : null}
-        <h2>학교 업무 공간 연결</h2>
-        {state === "loading" ? (
-          <p role="status">
-            서버를 준비하고 있습니다. 최대 1분 정도 걸릴 수 있습니다.
-          </p>
-        ) : state === "failed" ? (
-          <button onClick={() => setAttempt((value) => value + 1)}>
-            다시 시도
-          </button>
-        ) : (
-          <>
-            {accounts ? (
-              <>
-                <p>
-                  시연할 계정을 선택하세요. 데이터는 서버가 다시 시작되면
-                  초기화될 수 있습니다.
-                </p>
-                <div className="demo-accounts">
-                  {accounts.map((account) => (
-                    <button
-                      key={account.id}
-                      disabled={pending}
-                      onClick={() => void login(account)}
-                    >
-                      <strong>{personName(account.id, account.name)}</strong>
-                      <span>
-                        {account.kind === "GUARDIAN"
-                          ? "보호자"
-                          : account.role === "ADMIN"
-                            ? "관리자"
-                            : "교사"}{" "}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                {accounts.length === 0 ? (
-                  <p>현재 사용할 수 있는 시연 계정이 없습니다.</p>
-                ) : null}
-                <details>
-                  <summary>기존 토큰으로 연결</summary>
-                  {tokenForm}
-                </details>
-                <button
-                  disabled={pending}
-                  onClick={() => setAttempt((value) => value + 1)}
-                >
-                  서버 준비 다시 시도
-                </button>
-              </>
-            ) : (
-              <>
-                <p>개발 계정으로 업무와 지원 흐름을 확인합니다.</p>
-                {tokenForm}
-              </>
-            )}
-          </>
-        )}
-        {error ? <ErrorNotice error={error} /> : null}
       </section>
+      <img
+        className="landing-art"
+        src="/brand/landing-team.svg"
+        alt="큰 우산 아래 선생님을 교감과 동료가 감싸고, 교장과 행정실장이 함께해요."
+        width="760"
+        height="660"
+      />
     </main>
   );
 }

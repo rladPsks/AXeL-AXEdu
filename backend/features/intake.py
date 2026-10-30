@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from agent.classify import classify_complaint
 from agent.routing import route_case
@@ -16,12 +16,35 @@ from agent.history_agent import find_related_cases_from_rows, build_history_revi
 from agent.action_router import decide_actions
 from agent.draft import draft_information_reply, teacher_card
 from agent.validator import validate_response
-from backend.access import authenticate, fail
+from backend.access import authenticate, fail, admin
+from backend.commands import mutate
+from backend.models import Command, Text
 from backend.commands import command_identity, replay_command, save_command
 from backend.db import audit, now, uid
 from backend.notifications import enqueue
 
 router = APIRouter()
+
+
+class TeacherBriefUpdate(Command):
+    summary: Text
+    action: Text
+
+
+@router.post("/api/cases/{case_id}/teacher-brief")
+def update_teacher_brief(case_id: str, body: TeacherBriefUpdate, request: Request):
+    def operation(db, actor, case):
+        admin(actor)
+        row = db.execute("SELECT workflow_json FROM case_intakes WHERE case_id=?", (case_id,)).fetchone()
+        if row is None:
+            fail(404, "INTAKE_NOT_FOUND", "접수 기록을 찾을 수 없습니다.")
+        workflow = json.loads(row["workflow_json"] or "{}")
+        card = workflow.setdefault("teacher_card", {})
+        card.update(summary=body.summary, action=body.action, edited_by=actor["user_id"])
+        db.execute("UPDATE case_intakes SET workflow_json=? WHERE case_id=?",
+                   (json.dumps(workflow, ensure_ascii=False), case_id))
+        return {"summary": body.summary, "action": body.action}
+    return mutate(request, case_id, body, "TEACHER_BRIEF_UPDATED", operation)
 
 
 class IntakeCreate(BaseModel):
@@ -33,6 +56,7 @@ class IntakeCreate(BaseModel):
     raw_text: str = Field(min_length=1, max_length=10000)
     related_people: list[str] = Field(default_factory=list, max_length=20)
     incident_context: str | None = Field(default=None, max_length=4000)
+    occurred_at: AwareDatetime | None = None
     received_at: datetime | None = None
 
 
@@ -166,13 +190,14 @@ def create_intake(body: IntakeCreate, request: Request):
         db.execute(
             "INSERT INTO case_intakes(case_id,received_at,channel,complainant_name,student_name,"
             "complaint_type,related_people,incident_context,raw_text,source_type,classification_json,"
-            "routing_json,created_by,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "routing_json,created_by,created_at,occurred_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 case_id, received_at, body.channel, body.complainant_name, body.student_name,
                 body.complaint_type, json.dumps(body.related_people, ensure_ascii=False),
                 body.incident_context, body.raw_text, source_type,
                 json.dumps(cls, ensure_ascii=False), json.dumps(routing, ensure_ascii=False),
                 actor["user_id"], now(),
+                body.occurred_at.astimezone(timezone.utc).isoformat() if body.occurred_at else None,
             ),
         )
 

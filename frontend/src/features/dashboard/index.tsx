@@ -82,7 +82,7 @@ export function DashboardPage() {
           새로고침
         </button>
       </div>
-      <section className="panel">
+      <section className="panel dashboard-panel">
         <div className="command-form">
           <label>
             시작일
@@ -117,28 +117,30 @@ export function DashboardPage() {
             {d.tasks.by_type_status.length === 0 ? (
               <Empty>이 기간에 요청한 업무가 없습니다.</Empty>
             ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>종류</th>
-                    <th>상태</th>
-                    <th>건수</th>
-                    <th>민원</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {d.tasks.by_type_status.map((t) => (
-                    <tr key={`${t.type}-${t.status}`}>
-                      <td>{label(t.type)}</td>
-                      <td>{label(t.status)}</td>
-                      <td>{t.count}</td>
-                      <td>
-                        <CaseLinks ids={t.case_ids} />
-                      </td>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>종류</th>
+                      <th>상태</th>
+                      <th className="num">건수</th>
+                      <th>민원</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {d.tasks.by_type_status.map((t) => (
+                      <tr key={`${t.type}-${t.status}`}>
+                        <td>{label(t.type)}</td>
+                        <td>{label(t.status)}</td>
+                        <td className="num">{t.count}</td>
+                        <td>
+                          <CaseLinks ids={t.case_ids} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
             <h2>학교 지원</h2>
             <p>
@@ -157,36 +159,38 @@ export function DashboardPage() {
             {d.staff_activity.length === 0 ? (
               <Empty>이 기간에 남긴 활동 기록이 없습니다.</Empty>
             ) : (
-              <table>
-                <thead>
-                  <tr>
-                    <th>담당자</th>
-                    <th>기록 건수</th>
-                    <th>기록된 시간</th>
-                    <th>시간 미기록</th>
-                    <th>활동 종류</th>
-                    <th>민원</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {d.staff_activity.map((s) => (
-                    <tr key={s.staff_id}>
-                      <td>{personName(s.staff_id)}</td>
-                      <td>{s.entries}</td>
-                      <td>{minutes(s.recorded_seconds)}</td>
-                      <td>{s.entries_without_duration}건</td>
-                      <td>
-                        {Object.entries(s.by_kind)
-                          .map(([k, v]) => `${label(k)} ${v}`)
-                          .join(" · ")}
-                      </td>
-                      <td>
-                        <CaseLinks ids={s.case_ids} />
-                      </td>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>담당자</th>
+                      <th className="num">기록 건수</th>
+                      <th className="num">기록된 시간</th>
+                      <th className="num">시간 미기록</th>
+                      <th>활동 종류</th>
+                      <th>민원</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {d.staff_activity.map((s) => (
+                      <tr key={s.staff_id}>
+                        <td>{personName(s.staff_id)}</td>
+                        <td className="num">{s.entries}</td>
+                        <td className="num">{minutes(s.recorded_seconds)}</td>
+                        <td className="num">{s.entries_without_duration}건</td>
+                        <td>
+                          {Object.entries(s.by_kind)
+                            .map(([k, v]) => `${label(k)} ${v}`)
+                            .join(" · ")}
+                        </td>
+                        <td>
+                          <CaseLinks ids={s.case_ids} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
             <ul className="hint">
               {d.notes.map((n) => (

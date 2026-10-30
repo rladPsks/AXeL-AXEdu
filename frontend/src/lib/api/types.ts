@@ -48,6 +48,9 @@ export type Handover = {
   resolution_reason?: string | null;
 };
 export type CaseSummary = {
+  stage?: "simple" | "review" | "together" | null;
+  channel?: string | null;
+  received_at?: string | null;
   id: string;
   school_id: string;
   title: string;

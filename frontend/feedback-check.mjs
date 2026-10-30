@@ -7,6 +7,21 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
 const errors = [];
 page.on("pageerror", (error) => errors.push(error.message));
 await page.goto(process.env.FEEDBACK_BASE_URL ?? "http://127.0.0.1:5175");
+await expect(page.locator('[aria-label="역할 선택"] > button')).toHaveCount(3);
+await expect(page.locator(".landing-art")).toBeVisible();
+await page.screenshot({
+  path: "test-results/feedback/landing-v2.png",
+  fullPage: true,
+});
+await page.setViewportSize({ width: 390, height: 844 });
+await page.screenshot({
+  path: "test-results/feedback/landing-mobile-v2.png",
+  fullPage: true,
+});
+expect(
+  await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+).toBe(true);
+await page.setViewportSize({ width: 1440, height: 1100 });
 await page
   .getByRole("button", { name: "김○○ 교장 관리자", exact: true })
   .click();
@@ -17,6 +32,13 @@ await expect(
   page.getByRole("heading", { name: "전체 민원 목록", exact: true }),
 ).toBeVisible();
 await expect(page.getByLabel("학교 민원 안내")).toBeVisible();
+await expect(page.getByLabel("민원 단계별 현황")).toBeVisible();
+expect(await page.locator("body").innerText()).not.toContain("악성");
+expect(
+  await page
+    .locator(".sidebar")
+    .evaluate((el) => getComputedStyle(el).backgroundColor),
+).toBe("rgb(255, 246, 226)");
 await expect(page.getByRole("img", { name: "함께" })).toBeVisible();
 expect(await page.locator("body").innerText()).not.toMatch(
   /\b(admin|teacher|deputy|outsider|demo-case)\b|사건/,
@@ -25,9 +47,22 @@ await page.screenshot({
   path: "test-results/feedback/list.png",
   fullPage: true,
 });
+await page.emulateMedia({ colorScheme: "dark" });
+await page.screenshot({
+  path: "test-results/feedback/list-dark-v2.png",
+  fullPage: true,
+});
+await page.emulateMedia({ colorScheme: "light" });
+await page.getByRole("button", { name: "처음 화면", exact: true }).click();
+await expect(page.locator('[aria-label="역할 선택"] > button')).toHaveCount(3);
+await page.getByRole("button", { name: "김○○ 교장 관리자", exact: true }).click();
+await page.locator('.sidebar a.brand').click();
+await expect(page.locator('[aria-label="역할 선택"] > button')).toHaveCount(3);
+await page.getByRole("button", { name: "김○○ 교장 관리자", exact: true }).click();
 await page.getByRole("link", { name: "새 민원 접수", exact: true }).click();
 await expect(page.getByPlaceholder("예: 생활지도, 단순 민원 등")).toBeVisible();
 await expect(page.getByPlaceholder("예: 김○○, 이○○")).toBeVisible();
+await expect(page.locator('input[name="occurred_at"]')).toBeVisible();
 await expect(
   page.getByPlaceholder("예: ○○○○년 ○월 ○일, ○○ 관련 민원 발생"),
 ).toBeVisible();
@@ -62,7 +97,7 @@ await expect(
 await expect(
   page.getByLabel("기한이 지난 뒤 다시 알려드릴 시간 (분)", { exact: true }),
 ).toBeVisible();
-await expect(page.locator(".team-node")).toHaveCount(4);
+await expect(page.locator(".team-node")).toHaveCount(5);
 expect(await page.locator("body").innerText()).not.toMatch(
   /\b(admin|teacher|deputy|outsider|demo-case)\b|대체|사건/,
 );
@@ -71,7 +106,9 @@ await page
   .selectOption("deputy");
 await page.getByRole("button", { name: "학교 기준 저장", exact: true }).click();
 await expect(page.getByText("저장했습니다.", { exact: false })).toBeVisible();
-await expect(page.getByRole("combobox", { name: "민원대응팀", exact: true })).toHaveValue("deputy");
+await expect(
+  page.getByRole("combobox", { name: "민원대응팀", exact: true }),
+).toHaveValue("deputy");
 await page.screenshot({
   path: "test-results/feedback/settings.png",
   fullPage: true,

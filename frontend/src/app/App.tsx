@@ -11,6 +11,7 @@ import {
   Routes,
   useParams,
   useSearchParams,
+  useNavigate,
 } from "react-router";
 import { ApiClient, ApiError } from "../lib/api/client";
 import type {
@@ -104,13 +105,20 @@ export function App() {
 
 function Layout() {
   const { session, disconnect } = useSession();
+  const navigate = useNavigate();
+  const goHome = () => {
+    disconnect();
+    navigate("/");
+  };
   return (
     <div
       className="workspace"
       onClickCapture={(event) => {
         const target = event.target as HTMLElement;
         if (
-          target.closest("a:not(.skip), .tabs button, .account button") &&
+          target.closest(
+            "a:not(.skip), .tabs button, .account button, .home-button",
+          ) &&
           document.querySelector('form[data-dirty="true"]') &&
           !window.confirm(
             "저장하지 않은 입력이 있습니다. 이동하면 입력이 사라집니다. 이동할까요?",
@@ -125,7 +133,7 @@ function Layout() {
         본문으로 이동
       </a>
       <aside className="sidebar">
-        <Link className="brand" to="/cases">
+        <Link className="brand" to="/" onClick={disconnect}>
           <Brand />
           <span>학교 민원 지원</span>
         </Link>
@@ -134,6 +142,7 @@ function Layout() {
           <NavLink to="/cases">
             {session.role === "ADMIN" ? "전체 민원 목록" : "민원 목록"}
           </NavLink>
+
           <NavLink to="/intake">새 민원 접수</NavLink>
           <NavLink to="/my-tasks">내 확인·상담 요청</NavLink>
           <NavLink to="/inbox">학교 알림 수신함</NavLink>
@@ -147,20 +156,26 @@ function Layout() {
         </nav>
         <div className="sidebar-note">
           <strong>학교 민원, 함께 처리해요</strong>
+          <p>혼자 받지 않고, 함께 보고, 기록으로 남깁니다.</p>
         </div>
         <div className="account">
           <strong>{personName(session.user_id)}</strong>
           <span>
             {label(session.role)} · {schoolName(session.school_id)}
           </span>
-          <button onClick={disconnect}>계정 연결 해제</button>
+          <button onClick={goHome}>계정 연결 해제</button>
         </div>
       </aside>
       <div className="main-area">
         <header className="topbar">
-          <span>학교 대응 업무 공간</span>
+          <span className="topbar-user">
+            <strong>{personName(session.user_id)}</strong> ·{" "}
+            {schoolName(session.school_id)}
+          </span>
           <InboxIndicator />
-          <span className="dev-label">개발 시연</span>
+          <button className="home-button" onClick={goHome}>
+            처음 화면
+          </button>
         </header>
         <main id="content" className="content">
           {demoEnabled ? (
@@ -174,6 +189,21 @@ function Layout() {
     </div>
   );
 }
+
+const stageLabels = {
+  simple: "단순",
+  review: "살펴보기",
+  together: "함께 대응",
+};
+const channelLabels: Record<string, string> = {
+  phone: "유선전화",
+  message: "문자·하이톡 등",
+  visit: "방문",
+  ieodream: "이어드림",
+  homepage: "홈페이지",
+  external_transfer: "교육청·국민신문고 이관",
+  other: "기타",
+};
 
 function CaseList() {
   const { api, session } = useSession();
@@ -196,7 +226,7 @@ function CaseList() {
           <h1>학교 민원을 함께 살펴봅시다</h1>
           <p>
             {session.role === "ADMIN"
-              ? "학교 전체 민원과 필요한 지원을 함께 확인해요."
+              ? "우리 학교 민원과 필요한 지원을 확인해요."
               : "나에게 온 민원과 함께할 지원 담당을 확인해요."}
           </p>
         </div>
@@ -207,20 +237,39 @@ function CaseList() {
           새로고침
         </button>
       </div>
+      <section className="stage-tiles" aria-label="민원 단계별 현황">
+        {(["simple", "review", "together"] as const).map((stage) => (
+          <div className={`stage-tile stage-${stage}`} key={stage}>
+            <span>{stageLabels[stage]}</span>
+            <strong>
+              {query.isPending
+                ? "—"
+                : records.filter((c) => c.stage === stage).length}
+            </strong>
+          </div>
+        ))}
+      </section>
+      <p className="tile-scope">
+        불러온 민원 기준 · 분류 전 {records.filter((c) => !c.stage).length}건
+      </p>
       <aside className="complaint-guide" aria-label="학교 민원 안내">
         <p>
-          <strong>학교 민원의 유형</strong> 생활지도·상담, 학적·전입학, 학교
-          시설, 행정 안내 등 학교생활에 관한 문의와 요청이 있어요.
+          <strong>학교생활의 문의와 요청을 함께 살펴요</strong>생활지도·상담,
+          학적, 시설, 행정 안내 등
         </p>
         <p className="conduct-guide">
-          <strong>함께 지켜요</strong> 욕설·협박, 반복적인 모욕, 정당한 답변
-          뒤에도 같은 요구를 과도하게 반복하는 행위는 악성 민원으로 검토될 수
-          있어요. 혼자 감당하지 말고 민원대응팀과 함께 확인해요.
+          <strong>혼자 감당하지 말고 함께 대응해요</strong>욕설·협박·반복적인
+          모욕은 민원대응팀과 확인해요.
         </p>
       </aside>
       <section className="panel">
-        <div className="section-heading">
+        <div className="section-heading case-list-heading">
           <h2>{session.role === "ADMIN" ? "전체 민원 목록" : "민원 목록"}</h2>
+          <span
+            className={`scope-badge ${session.role === "ADMIN" ? "scope-all" : "scope-mine"}`}
+          >
+            {session.role === "ADMIN" ? "학교 전체" : "나에게 온 민원"}
+          </span>
           <span>불러온 민원 {records.length}건</span>
         </div>
         {query.isPending ? (
@@ -241,9 +290,18 @@ function CaseList() {
                 to={`/cases/${encodeURIComponent(c.id)}`}
               >
                 <div>
-                  <span className="meta">{caseName(c.id)}</span>
+                  <span className={`stage-badge ${c.stage ?? "pending"}`}>
+                    {c.stage ? stageLabels[c.stage] : "분류 전"}
+                  </span>
                   <h3>{c.title}</h3>
-                  <span className="meta">총괄 {personName(c.owner_id)}</span>
+                  <span className="meta">
+                    {c.channel
+                      ? (channelLabels[c.channel] ?? "기타")
+                      : "접수 경로 확인 전"}{" "}
+                    ·{" "}
+                    {c.received_at ? date(c.received_at) : "접수 일시 확인 전"}{" "}
+                    · 담당 {personName(c.owner_id)}
+                  </span>
                 </div>
                 <Badge value={c.status} />
                 <span className="open-label">민원 열기</span>
@@ -260,9 +318,6 @@ function CaseList() {
           </button>
         ) : null}
       </section>
-      <div className="notice">
-        접수한 민원의 기록부터 필요한 지원까지, 민원대응팀과 함께 이어가요.
-      </div>
     </>
   );
 }
@@ -340,7 +395,7 @@ function CaseShell() {
   const { api, session } = useSession();
   const scope = useScope();
   const [search, setSearch] = useSearchParams();
-  const requestedTab = search.get("tab") ?? "tasks";
+  const requestedTab = search.get("tab") ?? "intake";
   const knownTabs = [
     "tasks",
     "support",
@@ -355,7 +410,7 @@ function CaseShell() {
       : []),
     ...additionalCaseFeatures.map((feature) => feature.id),
   ];
-  const tab = knownTabs.includes(requestedTab) ? requestedTab : "tasks";
+  const tab = knownTabs.includes(requestedTab) ? requestedTab : "intake";
   const query = useQuery({
     queryKey: ["case", ...scope, caseId],
     queryFn: ({ signal }) =>
@@ -383,7 +438,8 @@ function CaseShell() {
   const record = query.data;
   const feature = additionalCaseFeatures.find((f) => f.id === tab);
   const tabs = [
-    { id: "tasks", title: "교사 업무" },
+    { id: "intake", title: "① 원문·분류·검토" },
+    { id: "tasks", title: "② 담당자 전달·업무" },
     { id: "support", title: "학교 지원" },
     { id: "handover", title: "총괄·인계" },
     { id: "timeline", title: "처리 이력" },
@@ -399,7 +455,7 @@ function CaseShell() {
           { id: "comparison", title: "반복·새 사실" },
         ]
       : []),
-    ...additionalCaseFeatures,
+    ...additionalCaseFeatures.filter((f) => f.id !== "intake"),
   ];
   return (
     <>
@@ -433,22 +489,43 @@ function CaseShell() {
       {query.isRefetchError ? <ErrorNotice error={query.error} /> : null}
       {members.error ? <ErrorNotice error={members.error} /> : null}
       <nav className="tabs" aria-label="민원 메뉴">
-        {tabs.map((t) => (
-          <button
-            aria-current={tab === t.id ? "page" : undefined}
-            key={t.id}
-            onClick={(event) => {
-              setSearch({ tab: t.id });
-              event.currentTarget.scrollIntoView({
-                block: "nearest",
-                inline: "nearest",
-              });
-            }}
-          >
-            {t.title}
-          </button>
-        ))}
+        {tabs
+          .filter((t) => ["intake", "tasks", "support"].includes(t.id))
+          .map((t) => (
+            <button
+              aria-current={tab === t.id ? "page" : undefined}
+              key={t.id}
+              onClick={(event) => {
+                setSearch({ tab: t.id });
+                event.currentTarget.scrollIntoView({
+                  block: "nearest",
+                  inline: "nearest",
+                });
+              }}
+            >
+              {t.title}
+            </button>
+          ))}
       </nav>
+      <details
+        className="case-more"
+        open={!["intake", "tasks", "support"].includes(tab)}
+      >
+        <summary>자료·이력·기타 기능</summary>
+        <nav className="tabs" aria-label="민원 부가 기능">
+          {tabs
+            .filter((t) => !["intake", "tasks", "support"].includes(t.id))
+            .map((t) => (
+              <button
+                key={t.id}
+                aria-current={tab === t.id ? "page" : undefined}
+                onClick={() => setSearch({ tab: t.id })}
+              >
+                {t.title}
+              </button>
+            ))}
+        </nav>
+      </details>
       <section className="panel" key={`${caseId}-${tab}`}>
         {tab === "tasks" ? (
           <TeacherTasks record={record} members={members.data ?? []} />

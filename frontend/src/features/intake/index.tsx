@@ -1,9 +1,14 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { command } from "../../lib/api/client";
 import { useScope, useSession } from "../../app/providers";
-import { ErrorNotice } from "../../shared/ui";
+import type { CaseDetail } from "../../lib/api/types";
+import { CommandForm } from "../../shared/CommandForm";
+import { koreanTime } from "../../shared/dates";
+import { channelName } from "../../shared/names";
+import { useUnsavedChanges } from "../../shared/useUnsavedChanges";
+import { ErrorNotice, date } from "../../shared/ui";
 
 type IntakeResult = {
   case_id: string;
@@ -15,6 +20,7 @@ type IntakeResult = {
 type IntakeRecord = {
   case_id: string;
   received_at: string;
+  occurred_at: string | null;
   channel: string;
   complainant_name: string;
   student_name: string | null;
@@ -33,11 +39,13 @@ export function IntakeCreate() {
   const scope = useScope();
   const navigate = useNavigate();
   const queries = useQueryClient();
+  const { dirty, setDirty } = useUnsavedChanges();
   const [error, setError] = useState<unknown>(null);
   const create = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
       api.execute<IntakeResult>(command("/api/intakes", body)),
     onSuccess: async (data) => {
+      setDirty(false);
       await queries.invalidateQueries({ queryKey: ["cases", ...scope] });
       navigate(`/cases/${encodeURIComponent(data.case_id)}?tab=intake`);
     },
@@ -53,11 +61,14 @@ export function IntakeCreate() {
       .map((x) => x.trim())
       .filter(Boolean);
     create.mutate({
-      channel: String(form.get("channel") ?? "phone"),
+      channel: String(form.get("channel") || "other"),
       complainant_name: String(form.get("complainant_name") ?? "").trim(),
       student_name: String(form.get("student_name") ?? "").trim() || null,
       complaint_type: String(form.get("complaint_type") ?? "").trim(),
       related_people: related,
+      occurred_at: form.get("occurred_at")
+        ? koreanTime(String(form.get("occurred_at")))
+        : null,
       incident_context:
         String(form.get("incident_context") ?? "").trim() || null,
       raw_text: String(form.get("raw_text") ?? "").trim(),
@@ -69,26 +80,15 @@ export function IntakeCreate() {
       <div className="page-heading">
         <div>
           <h1>새 민원 접수</h1>
-          <p>
-            전화·문자·방문으로 받은 민원을 기록해요. 필요한 확인과 지원을 함께
-            준비할게요.
-          </p>
+          <p>받은 민원을 기록하면 필요한 지원을 함께 준비해요.</p>
         </div>
       </div>
       <section className="panel">
-        <form onSubmit={submit} data-dirty="false">
-          <label>
-            접수 경로
-            <select name="channel" defaultValue="phone">
-              <option value="phone">유선전화</option>
-              <option value="message">문자·하이톡 등</option>
-              <option value="visit">방문</option>
-              <option value="ieodream">이어드림</option>
-              <option value="homepage">홈페이지</option>
-              <option value="external_transfer">교육청·국민신문고 이관</option>
-              <option value="other">기타</option>
-            </select>
-          </label>
+        <form
+          onSubmit={submit}
+          data-dirty={dirty ? "true" : undefined}
+          onChange={() => setDirty(true)}
+        >
           <label>
             학부모명
             <input name="complainant_name" required maxLength={120} />
@@ -114,17 +114,54 @@ export function IntakeCreate() {
               placeholder="예: 김○○, 이○○"
             />
           </label>
+          <div className="form-row">
+            <label>
+              접수 경로 (선택)
+              <select name="channel" defaultValue="">
+                <option value="">접수 경로 선택</option>
+                <option value="phone">유선전화</option>
+                <option value="message">문자·하이톡 등</option>
+                <option value="visit">방문</option>
+                <option value="ieodream">이어드림</option>
+                <option value="homepage">홈페이지</option>
+                <option value="external_transfer">
+                  교육청·국민신문고 이관
+                </option>
+                <option value="other">기타</option>
+              </select>
+            </label>
+            <label>
+              발생 일시
+              <input type="datetime-local" name="occurred_at" />
+              <small className="field-help">
+                알고 있는 경우 입력해 주세요. (한국시간)
+              </small>
+            </label>
+          </div>
           <label>
             발생 경위
             <textarea
               name="incident_context"
               placeholder="예: ○○○○년 ○월 ○일, ○○ 관련 민원 발생"
               maxLength={4000}
+              aria-describedby="context-help"
             />
+            <small className="field-help" id="context-help">
+              언제, 어떤 일이 있었는지 간단히 적어 주세요.
+            </small>
           </label>
           <label>
             민원 원문
-            <textarea name="raw_text" required maxLength={10000} rows={8} />
+            <textarea
+              name="raw_text"
+              required
+              maxLength={10000}
+              rows={8}
+              aria-describedby="raw-help"
+            />
+            <small className="field-help" id="raw-help">
+              받은 내용을 그대로 옮겨 주세요.
+            </small>
           </label>
           <div className="intake-submit">
             <button className="primary" disabled={create.isPending}>
@@ -143,8 +180,13 @@ export function IntakeCreate() {
 }
 
 export function IntakeDetail({ caseId }: { caseId: string }) {
-  const { api } = useSession();
+  const { api, session } = useSession();
   const scope = useScope();
+  const record = useQuery({
+    queryKey: ["case", ...scope, caseId],
+    queryFn: ({ signal }) =>
+      api.get<CaseDetail>(`/api/cases/${encodeURIComponent(caseId)}`, signal),
+  });
   const query = useQuery({
     queryKey: ["intake", ...scope, caseId],
     queryFn: ({ signal }) =>
@@ -160,128 +202,174 @@ export function IntakeDetail({ caseId }: { caseId: string }) {
   const routing = item.routing ?? {};
   const labels = routing.role_labels ?? {};
   const workflow = item.workflow ?? {};
-  const tools = workflow.tools ?? {};
-  const plan = workflow.action_plan ?? {};
+  const card = workflow.teacher_card ?? {};
+  const risky =
+    (cls.infringement_flags ?? []).length > 0 ||
+    cls.nature === "INFRINGEMENT_REVIEW";
+  const roles = [
+    ...new Set<string>(
+      [
+        routing.action_role,
+        ...(routing.collaborators ?? []),
+        routing.backup_role,
+      ].filter(Boolean),
+    ),
+  ].slice(0, 3);
+  const url = `/cases/${encodeURIComponent(caseId)}`;
+  const urgency: Record<string, string> = {
+    HIGH: "긴급",
+    MID: "보통",
+    LOW: "낮음",
+  };
+  const categories: Record<string, string> = {
+    INFO: "정보성 문의",
+    EDU: "교육",
+    SAFE: "안전",
+    COUNSEL: "상담",
+    ADMIN: "행정",
+    STAFF: "교직원",
+    OTHER: "기타",
+  };
   return (
     <>
-      <h2>접수·AI 분류</h2>
-      <div className="case-context">
-        <span>
-          경로 <strong>{item.channel}</strong>
-        </span>
-        <span>
-          민원 종류 <strong>{item.complaint_type}</strong>
-        </span>
-        <span>
-          긴급도 <strong>{cls.urgency ?? "-"}</strong>
-        </span>
-      </div>
+      <h2>원문에서 담당자 전달까지</h2>
       <section className="work-item">
-        <div className="item-top">
-          <strong>AXeL Agent 대응계획</strong>
-          <span>{workflow.phase ?? "TRIAGE"}</span>
+        <h3>01 학교에서 받은 민원 원문</h3>
+        <p className="meta">
+          수신 경로: {channelName(item.channel)} · 등록된 유형:{" "}
+          {item.complaint_type}
+        </p>
+        {item.occurred_at ? (
+          <p className="meta">발생 일시: {date(item.occurred_at)}</p>
+        ) : null}
+        <p className="preserve">{item.raw_text}</p>
+      </section>
+      <section className="work-item">
+        <h3>02 유형·긴급도·담당 추천</h3>
+        <div className="case-context">
+          <span>
+            유형{" "}
+            <strong>
+              {categories[cls.category] ?? cls.domain_p55 ?? "분류 확인 필요"}
+            </strong>
+          </span>
+          <span>
+            긴급도 <strong>{urgency[cls.urgency] ?? "확인 필요"}</strong>
+          </span>
+          <span>
+            담당 분야{" "}
+            <strong>{routing.duty_label ?? cls.dept ?? "확인 필요"}</strong>
+          </span>
         </div>
+        <p className="hint">{cls.urgency_reason}</p>
+        <ol className="routing-ranks">
+          {[0, 1, 2].map((index) => (
+            <li key={index}>
+              <b>{index + 1}순위</b>
+              <strong>
+                {roles[index]
+                  ? (labels[roles[index]] ?? roles[index])
+                  : "학교 업무분장 확인 필요"}
+              </strong>
+              <span>{index === 0 ? "주 담당 추천" : "협조·대리 후보"}</span>
+            </li>
+          ))}
+        </ol>
         <p className="hint">
-          LLM 분류 → 공식 근거 RAG → 과거 민원 이력 → 학교 업무분장 순서로
-          검토한 뒤 필요한 업무만 요청합니다.
+          {routing.reason} 후보 순서는 주 담당 → 협조 → 업무 대리 기준이며, 최종
+          담당자는 관리자가 확인합니다.
         </p>
-        <h3>핵심 요구</h3>
-        <p>{cls.core_demand ?? cls.summary_for_teacher ?? item.raw_text}</p>
-        <h3>처리 경로</h3>
-        <p>
-          {cls.handling_route ?? "-"} · 단계 {cls.escalation_level ?? "-"}
-        </p>
-        <h3>업무분장 추천</h3>
-        <ul>
-          <li>
-            1순위 담당:{" "}
-            {labels[routing.action_role] ?? routing.action_role ?? "확인 필요"}
-          </li>
-          <li>
-            협조:{" "}
-            {(routing.collaborators ?? [])
-              .map((x: string) => labels[x] ?? x)
-              .join(", ") || "없음"}
-          </li>
-          <li>
-            승인·조정:{" "}
-            {labels[routing.approver] ?? routing.approver ?? "확인 필요"}
-          </li>
-          <li>
-            부재 시 업무 대리:{" "}
-            {labels[routing.backup_role] ?? routing.backup_role ?? "확인 필요"}
-          </li>
-          <li>콜백: {routing.callback_needed ?? "UNDECIDED"}</li>
-        </ul>
-        {tools.history_review?.history_action &&
-        tools.history_review.history_action !== "NONE" ? (
-          <>
-            <h3>과거 민원 검토</h3>
+        {risky ? (
+          <div className="notice">
+            <strong>교육활동 침해 소지 · 이관 검토를 제안합니다</strong>
             <p>
-              <strong>{tools.history_review.history_action}</strong> ·{" "}
-              {tools.history_review.reason}
+              민원대응팀·관리자가 원문과 근거를 검토한 후 이관 여부를
+              결정하세요.
             </p>
-          </>
+            <Link to={`${url}?tab=support`}>학교 지원·이관 요청 검토 →</Link>
+          </div>
         ) : null}
-        {workflow.initial_response_draft ? (
+        {cls.is_informational ? (
           <>
-            <h3>근거 기반 1차 답변 초안</h3>
-            <p className="preserve">{workflow.initial_response_draft}</p>
-            <p className="hint">
-              자동 발송되지 않으며 담당자 확인이 필요합니다.
+            <h3>정보성 민원 응답 초안</h3>
+            <p className="preserve">
+              {workflow.initial_response_draft ||
+                "추가 사실 확인이 필요해 초안이 보류되었습니다. AI 지원 검토에서 확인하세요."}
             </p>
+            <p className="hint">담당자 검토 전에는 발송되지 않습니다.</p>
           </>
         ) : null}
-        <h3>교사 보호 원칙</h3>
+      </section>
+      <section className="work-item">
+        <h3>03 담임교사를 위한 요약·필요한 행동</h3>
+        {session.role === "ADMIN" && record.data ? (
+          <CommandForm
+            key={`${caseId}-${record.data.version}`}
+            caseId={caseId}
+            version={record.data.version}
+            path={`/api/cases/${encodeURIComponent(caseId)}/teacher-brief`}
+            button="요약·행동 수정 저장"
+            disabled={record.data.status === "CLOSED" || record.isError}
+            onSaved={() => {
+              void query.refetch();
+            }}
+          >
+            <label>
+              담임교사용 요약
+              <textarea
+                name="summary"
+                required
+                maxLength={10000}
+                rows={3}
+                defaultValue={card.summary ?? cls.summary_for_teacher ?? ""}
+              />
+            </label>
+            <label>
+              필요한 행동
+              <textarea
+                name="action"
+                required
+                maxLength={10000}
+                rows={3}
+                defaultValue={card.action ?? cls.action_for_teacher ?? ""}
+              />
+            </label>
+          </CommandForm>
+        ) : (
+          <>
+            <h4>요약</h4>
+            <p className="preserve">
+              {card.summary ?? cls.summary_for_teacher}
+            </p>
+            <h4>필요한 행동</h4>
+            <p className="preserve">{card.action ?? cls.action_for_teacher}</p>
+          </>
+        )}
+        {record.error ? <ErrorNotice error={record.error} /> : null}
+      </section>
+      <section className="work-item">
+        <h3>04 담당자에게 전달·처리 확인</h3>
         <p>
-          {plan.teacher_scope ??
-            "교사는 필요한 확인·상담만 수행하고 민원 총괄은 학교 대응체계에 유지합니다."}
+          검토한 내용을 바탕으로 실제 담당자를 지정하고 확인 업무를 요청하세요.
         </p>
-        <p>
-          <strong>보호자 직접 연락:</strong>{" "}
-          {plan.teacher_direct_contact
-            ? "필요 — 학교 지원 방향 확인 후 진행"
-            : "현재 단계에서는 요청하지 않음"}
-        </p>
-        <h3>Agent가 사용한 도구</h3>
-        <ul>
-          <li>
-            LLM 분류:{" "}
-            {workflow.agent?.classifier_mode ??
-              cls.classifier_mode ??
-              "확인 필요"}
-          </li>
-          <li>RAG 공식 근거: {(tools.rag ?? []).length}건 검색</li>
-          <li>과거 관련 민원: {(tools.history ?? []).length}건 확인</li>
-          <li>
-            업무분장:{" "}
-            {tools.duty?.duty_label ?? routing.duty_label ?? "학교별 확인 필요"}
-          </li>
-        </ul>
-        {(tools.rag ?? []).length ? (
-          <details>
-            <summary>검색한 공식 근거 보기</summary>
-            <ul>
-              {tools.rag.map((x: any, i: number) => (
-                <li key={i}>
-                  <strong>{x.title ?? x.source_id}</strong>
-                  {x.article ? ` · ${x.article}` : ""}
-                  {x.pdf_page ? ` · PDF p.${x.pdf_page}` : ""}
-                  <br />
-                  <small>{x.text}</small>
-                </li>
-              ))}
-            </ul>
-          </details>
-        ) : null}
-        <p className="hint">
-          AI가 대응계획을 준비하지만 실제 담당·승인·콜백·대외 답변은 학교
-          권한자가 확정합니다.
-        </p>
+        <Link to={`${url}?tab=tasks`}>담당자 지정·업무 요청 →</Link>
       </section>
       <details>
-        <summary>민원 원문 보기</summary>
-        <p className="preserve">{item.raw_text}</p>
+        <summary>분류 근거·추가 검토</summary>
+        <p>
+          분류 방식:{" "}
+          {workflow.agent?.classifier_mode ??
+            cls.classifier_mode ??
+            "확인 필요"}
+        </p>
+        {(workflow.tools?.rag ?? []).map((entry: any, index: number) => (
+          <p key={index}>
+            <strong>{entry.title ?? entry.source_id}</strong>
+            <br />
+            {entry.text}
+          </p>
+        ))}
+        <Link to={`${url}?tab=agent-review`}>AI 지원 검토</Link>
       </details>
     </>
   );

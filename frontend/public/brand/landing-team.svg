@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 660" role="img" aria-labelledby="title desc">
+<title id="title">큰 우산 아래 함께하는 선생님과 민원대응팀</title><desc id="desc">가운데 선생님을 교감과 동료가 감싸고 교장과 행정실장이 양옆에서 함께합니다.</desc>
+<rect x="25" y="35" width="710" height="600" rx="150" fill="#FFF4D6"/>
+<circle cx="652" cy="107" r="39" fill="#F6C343"/><g fill="#fff"><ellipse cx="136" cy="133" rx="61" ry="20"/><ellipse cx="156" cy="117" rx="30" ry="25"/><ellipse cx="584" cy="228" rx="66" ry="20"/></g>
+<ellipse cx="380" cy="567" rx="294" ry="33" fill="#EFE6D6"/>
+<path d="M380 74V486q0 29 27 29t27-29" fill="none" stroke="#6E655A" stroke-width="12" stroke-linecap="round"/>
+<path d="M80 265Q118 85 380 74q262 11 300 191-54-38-99 0-54-38-101 0-54-38-100 0-54-38-100 0-54-38-101 0-54-38-99 0" fill="#F6C343" stroke="#E0A91F" stroke-width="5" stroke-linejoin="round"/>
+<path d="M380 75Q243 108 179 265M380 75q137 33 201 190M380 75q-58 80-100 190M380 75q58 80 100 190" fill="none" stroke="#E0A91F" stroke-width="4"/>
+<!-- 교장과 행정실장 -->
+<g><path d="M98 529V409q0-49 49-49t49 49v120" fill="#6A8F78"/><circle cx="147" cy="323" r="36" fill="#F0C9AB"/><path d="M111 321q-8-52 36-50t37 50q-18-8-31-28-19 28-42 28" fill="#686258"/><path d="M127 337q20 17 40 0" fill="none" stroke="#9D614E" stroke-width="3" stroke-linecap="round"/><path d="M122 528v40m50-40v40" stroke="#6E655A" stroke-width="19" stroke-linecap="round"/></g>
+<g><path d="M562 529V409q0-49 49-49t49 49v120" fill="#8AA8CB"/><circle cx="611" cy="323" r="36" fill="#F0C9AB"/><path d="M575 315q0-48 36-44 43-4 38 53l-19-30q-27 27-55 21" fill="#686258"/><path d="M591 337q20 17 40 0" fill="none" stroke="#9D614E" stroke-width="3" stroke-linecap="round"/><path d="M586 528v40m50-40v40" stroke="#6E655A" stroke-width="19" stroke-linecap="round"/></g>
+<!-- 교감과 동료가 가운데 교사를 감싸요 -->
+<g><path d="M219 538V406q0-50 49-50t49 50v132" fill="#5B8FD1"/><circle cx="268" cy="320" r="37" fill="#F0C9AB"/><path d="M232 316q-7-51 37-48 43 1 37 53l-25-25q-20 22-49 20" fill="#514B44"/><path d="M251 335q17 13 34 0" fill="none" stroke="#9D614E" stroke-width="3" stroke-linecap="round"/><path d="M243 537v31m50-31v31" stroke="#6E655A" stroke-width="20" stroke-linecap="round"/></g>
+<g><path d="M443 538V406q0-50 49-50t49 50v132" fill="#ECA28E"/><circle cx="492" cy="320" r="37" fill="#F0C9AB"/><path d="M454 339v-26q-1-51 38-47 41-4 39 47v26l-18-42q-31 22-40 8z" fill="#625043"/><path d="M475 335q17 13 34 0" fill="none" stroke="#9D614E" stroke-width="3" stroke-linecap="round"/><path d="M467 537v31m50-31v31" stroke="#6E655A" stroke-width="20" stroke-linecap="round"/></g>
+<path d="M285 395q34-31 73 11m116-11q-34-31-73 11" fill="none" stroke="#F0C9AB" stroke-width="24" stroke-linecap="round"/>
+<g><path d="M330 548V424q0-49 50-49t50 49v124" fill="#FFF" stroke="#E0A91F" stroke-width="4"/><circle cx="380" cy="341" r="39" fill="#F0C9AB"/><path d="M341 342q-10-61 39-59 45-2 40 58l-25-30q-24 28-54 31" fill="#514B44"/><path d="M361 356q19 16 38 0" fill="none" stroke="#9D614E" stroke-width="3" stroke-linecap="round"/><path d="M355 548v24m50-24v24" stroke="#6E655A" stroke-width="21" stroke-linecap="round"/><path d="M362 432l18 18 18-18" fill="none" stroke="#6A8F78" stroke-width="6" stroke-linecap="round"/></g>
+<g fill="#2B2620" font-family="'Noto Sans KR','Malgun Gothic',sans-serif" font-size="18" text-anchor="middle"><text x="147" y="611">교장</text><text x="268" y="611">교감</text><text x="380" y="611" font-weight="700">선생님</text><text x="492" y="611">동료</text><text x="611" y="611">행정실장</text></g>
+</svg>

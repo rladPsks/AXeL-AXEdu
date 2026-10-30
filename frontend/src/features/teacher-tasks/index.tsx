@@ -1,5 +1,6 @@
 import { personName } from "../../shared/names";
-import { useSession } from "../../app/providers";
+import { useScope, useSession } from "../../app/providers";
+import { useQuery } from "@tanstack/react-query";
 import type { CaseDetail, Member } from "../../lib/api/types";
 import { CommandForm } from "../../shared/CommandForm";
 import { Badge, Empty, label, date } from "../../shared/ui";
@@ -12,7 +13,14 @@ export function TeacherTasks({
   record: CaseDetail;
   members: Member[];
 }) {
-  const { session } = useSession();
+  const { api, session } = useSession();
+  const scope = useScope();
+  const brief = useQuery({
+    queryKey: ["intake", ...scope, record.id],
+    enabled: session.role === "ADMIN",
+    queryFn: ({ signal }) => api.get<{ workflow: { teacher_card?: { summary: string; action: string } } | null }>(`/api/cases/${encodeURIComponent(record.id)}/intake`, signal),
+  });
+  const card = brief.data?.workflow?.teacher_card;
   return (
     <>
       <div className="section-heading">
@@ -151,7 +159,7 @@ export function TeacherTasks({
             </div>
             <label>
               확인할 내용
-              <textarea name="question" required maxLength={10000} />
+              <textarea key={brief.dataUpdatedAt} name="question" required maxLength={10000} defaultValue={card ? `${card.summary}\n\n필요한 행동: ${card.action}` : ""} />
             </label>
             <label>
               콜백 필요 여부

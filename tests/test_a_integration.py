@@ -46,6 +46,7 @@ def test_integrated_intake_creates_shared_case_and_routed_tasks(monkeypatch, tmp
                 "raw_text": "우리 아이만 자주 혼나는 것 같아 지도 상황을 확인해 주세요.",
                 "related_people": [],
                 "incident_context": "전화 접수",
+                "occurred_at": "2026-10-30T09:30:00+09:00",
             },
         )
         assert response.status_code == 201
@@ -62,12 +63,33 @@ def test_integrated_intake_creates_shared_case_and_routed_tasks(monkeypatch, tmp
 
         intake = client.get(f"/api/cases/{case_id}/intake", headers=auth(tokens)).json()
         assert intake["raw_text"].startswith("우리 아이만")
+        assert intake["occurred_at"] == "2026-10-30T00:30:00+00:00"
+        assert intake["received_at"] != intake["occurred_at"]
+        listing = client.get("/api/cases", headers=auth(tokens)).json()["items"]
+        summary = next(c for c in listing if c["id"] == case_id)
+        assert summary["stage"] == "review"
+        assert summary["channel"] == "phone"
+        assert "classification_json" not in summary
         assert intake["classification"]["core_demand"] == "생활지도 상황과 지도 기준 확인 요청"
         assert intake["routing"]["approver"] == "VICE_PRINCIPAL"
         assert intake["workflow"]["agent"]["orchestrator"] == "AXeL"
         assert "rag" in intake["workflow"]["tools"]
         assert "history" in intake["workflow"]["tools"]
         assert intake["workflow"]["action_plan"]["case_owner"] == "admin"
+
+        brief_path = f"/api/cases/{case_id}/teacher-brief"
+        brief = {"expected_version": 1, "summary": "관리자가 확인한 요약", "action": "지도 기록을 확인해 주세요."}
+        assert client.post(brief_path, headers=auth(tokens, "teacher", "brief-denied"), json=brief).status_code == 403
+        assert client.post(brief_path, headers=auth(tokens, "other-admin", "brief-cross-school"), json=brief).status_code == 404
+        saved = client.post(brief_path, headers=auth(tokens, key="brief-save"), json=brief)
+        assert saved.status_code == 200
+        assert saved.json()["version"] == 2
+        assert client.post(brief_path, headers=auth(tokens, key="brief-save"), json=brief).json() == saved.json()
+        assert client.post(brief_path, headers=auth(tokens, key="brief-stale"), json=brief).status_code == 409
+        updated = client.get(f"/api/cases/{case_id}/intake", headers=auth(tokens)).json()
+        assert updated["workflow"]["teacher_card"]["summary"] == brief["summary"]
+        assert updated["workflow"]["teacher_card"]["action"] == brief["action"]
+        assert updated["raw_text"] == intake["raw_text"]
 
         repeated = client.post(
             "/api/intakes",
@@ -80,6 +102,7 @@ def test_integrated_intake_creates_shared_case_and_routed_tasks(monkeypatch, tmp
                 "raw_text": "우리 아이만 자주 혼나는 것 같아 지도 상황을 확인해 주세요.",
                 "related_people": [],
                 "incident_context": "전화 접수",
+                "occurred_at": "2026-10-30T09:30:00+09:00",
             },
         )
         assert repeated.status_code == 201

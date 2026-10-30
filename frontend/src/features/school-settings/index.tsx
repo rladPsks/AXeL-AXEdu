@@ -52,25 +52,23 @@ function ResponseTeam({
   members: Member[];
   responsibilities: Responsibility[];
 }) {
+  const named = (title: string) =>
+    members.filter((m) => personName(m.user_id).endsWith(title));
+  const duty = (title: string) =>
+    members.filter(
+      (m) =>
+        !/교장$|교감$/.test(personName(m.user_id)) &&
+        (personName(m.user_id).endsWith(title) ||
+          responsibilities.some(
+            (r) => r.user_id === m.user_id && r.label.includes(title),
+          )),
+    );
   const groups = [
-    {
-      title: "교장",
-      people: members.filter((m) => personName(m.user_id).endsWith("교장")),
-    },
-    {
-      title: "교감",
-      people: members.filter((m) => personName(m.user_id).endsWith("교감")),
-    },
-    {
-      title: "행정실장",
-      people: members.filter((m) => personName(m.user_id).endsWith("행정실장")),
-    },
-    {
-      title: "담당자",
-      people: members.filter(
-        (m) => !/교장$|교감$|행정실장$/.test(personName(m.user_id)),
-      ),
-    },
+    { title: "팀장 · 교장", people: named("교장") },
+    { title: "총괄 · 교감", people: named("교감") },
+    { title: "행정실장", people: duty("행정실장") },
+    { title: "교무부장", people: duty("교무부장") },
+    { title: "생활인성부장", people: duty("생활인성부장") },
   ];
   return (
     <div className="response-team" aria-label="민원대응팀 업무분장 조직도">
@@ -87,7 +85,9 @@ function ResponseTeam({
                   {responsibilities
                     .filter((r) => r.user_id === member.user_id)
                     .map((r) => (
-                      <li key={r.id}>{r.label}</li>
+                      <li key={r.id}>
+                        {r.label.replace("생활체육부장", "생활인성부장")}
+                      </li>
                     ))}
                 </ul>
               </div>
@@ -232,9 +232,17 @@ export function SchoolSettings() {
           내 권한 변경은 다른 교장·교감 선생님께 요청해 주세요.
         </p>
         {members.data?.map((person) => (
-          <article className="work-item" key={person.user_id}>
+          <article className="work-item member-item" key={person.user_id}>
             <div className="item-top">
-              <strong>{personName(person.user_id)}</strong>
+              <strong className="member-name">
+                <span
+                  className={`member-avatar ${person.role === "ADMIN" ? "member-admin" : ""}`}
+                  aria-hidden="true"
+                >
+                  {personName(person.user_id).slice(0, 1)}
+                </span>
+                {personName(person.user_id)}
+              </strong>
               <span className="badge">
                 {label(person.role)} · {person.active ? "활성" : "비활성"}
               </span>
