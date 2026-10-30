@@ -1,5 +1,146 @@
 import { test, expect } from "@playwright/test";
 
+test("versioned originals, configurable repeat review and reversible same-school relations", async ({
+  page,
+  request,
+}, info) => {
+  await page.goto("/cases/demo-case?tab=documents");
+  await page
+    .getByRole("button", { name: "학교 관리자 관리자 · admin", exact: true })
+    .click();
+  await page.getByText("새 원문·증거 기록", { exact: true }).click();
+  const createForm = page.locator("form").filter({
+    has: page.getByRole("button", { name: "원문 기록 저장", exact: true }),
+  });
+  await createForm
+    .getByLabel("자료 제목", { exact: true })
+    .fill("[가상] 재문의 원문");
+  await createForm
+    .getByLabel("원문·정정 내용", { exact: true })
+    .fill("[가상] 답변을 받지 못했다는 주장");
+  await createForm
+    .getByLabel("출처·확인 경위", { exact: true })
+    .fill("[가상] 수동 접수");
+  await createForm
+    .getByLabel("기록 대상 시각 (한국 시간)", { exact: true })
+    .fill("2026-10-29T10:00");
+  await createForm
+    .getByRole("button", { name: "원문 기록 저장", exact: true })
+    .click();
+  const article = page.getByRole("article").filter({
+    has: page.getByRole("heading", {
+      name: "[가상] 재문의 원문 · 접수 원문",
+      exact: true,
+    }),
+  });
+  await expect(article).toBeVisible();
+  await article.getByText("정정 버전 추가", { exact: true }).click();
+  const appendForm = article.locator("form");
+  await appendForm
+    .getByLabel("원문·정정 내용", { exact: true })
+    .fill("[가상] 이전 답변 이후 새 증거를 제시한 문의로 정정");
+  await appendForm
+    .getByLabel("출처·확인 경위", { exact: true })
+    .fill("[가상] 이전 접수와 대조");
+  await appendForm
+    .getByLabel("기록 대상 시각 (한국 시간)", { exact: true })
+    .fill("2026-10-30T10:00");
+  await appendForm
+    .getByRole("button", { name: "정정 버전 저장", exact: true })
+    .click();
+  await expect(
+    article.getByText("최신 버전 2", { exact: false }),
+  ).toBeVisible();
+  await article.getByText("모든 버전 대조", { exact: true }).click();
+  await expect(
+    article.getByText("[가상] 답변을 받지 못했다는 주장", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "반복·새 사실", exact: true }).click();
+  await page.getByText("학교의 반복·지연 검토 기준", { exact: true }).click();
+  await page.getByLabel("비교 기간 (일)", { exact: true }).fill("40");
+  await page
+    .getByLabel("재확인 건수 (현재 사건 포함)", { exact: true })
+    .fill("2");
+  await page
+    .getByLabel("답변 기록 재확인 기준 (시간, 선택)", { exact: true })
+    .fill("24");
+  await page
+    .getByRole("button", { name: "반복 검토 기준 저장", exact: true })
+    .click();
+  await expect(
+    page.getByText("학교 검토 기준: 40일 · 2건.", { exact: false }),
+  ).toBeVisible();
+  await page.getByText("동일인·동일 사안 비교 코드", { exact: true }).click();
+  await page
+    .getByLabel("동일인 구분 코드", { exact: true })
+    .fill("sample-person");
+  await page
+    .getByLabel("동일 사안 구분 코드", { exact: true })
+    .fill("sample-issue");
+  await page
+    .getByLabel("접수 시각 (한국 시간)", { exact: true })
+    .fill("2026-10-30T10:00");
+  await page
+    .getByRole("button", { name: "비교 코드 저장", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "원문 대조: comparison-example", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "[가상] 비교용 이전 문의", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("연결·분리 사유", { exact: true })
+    .fill("[가상] 동일 사안 자료를 함께 대조하기 위해 연결");
+  await page
+    .getByRole("button", { name: "연결·분리 판단 저장", exact: true })
+    .click();
+  await expect(
+    page.getByText("comparison-example · 연결 검토됨", { exact: false }),
+  ).toBeVisible();
+  await page
+    .getByRole("combobox", { name: "검토 결과", exact: true })
+    .selectOption("SEPARATED");
+  await page
+    .getByLabel("연결·분리 사유", { exact: true })
+    .fill("[가상] 새 증거에 따른 별도 쟁점으로 분리");
+  await page
+    .getByRole("button", { name: "연결·분리 판단 저장", exact: true })
+    .click();
+  await expect(
+    page.getByText("comparison-example · 별도 사건으로 분리", { exact: false }),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: info.outputPath("case-comparison-mobile.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "AI 지원 검토", exact: true }).click();
+  await page.getByText("함께 검토할 원문 버전 선택", { exact: true }).click();
+  await page.getByLabel("[가상] 재문의 원문 · 버전 1", { exact: true }).check();
+  await page.getByLabel("[가상] 재문의 원문 · 버전 2", { exact: true }).check();
+  await expect(
+    page.getByRole("button", { name: "AI 지원 검토 시작", exact: true }),
+  ).toBeDisabled();
+  const login = await request.post("/api/demo/login", {
+    data: { account: "admin" },
+  });
+  const auth = { Authorization: `Bearer ${(await login.json()).token}` };
+  const versions = await (
+    await request.get("/api/cases/demo-case/documents", { headers: auth })
+  ).json();
+  expect(
+    versions.filter(
+      (item: { label: string }) => item.label === "[가상] 재문의 원문",
+    ),
+  ).toHaveLength(2);
+});
+
 test("human support decision records cited observations, revisions and stale report checks", async ({
   page,
   request,

@@ -49,6 +49,9 @@ def read_decision(db, actor, decision_id):
     for source in saved['sources']:
         if source['ref']['resource_type'] == 'FILE':
             file_access(db, actor, source['ref']['resource_id'])
+        elif source['ref']['resource_type'] == 'DOCUMENT_VERSION':
+            from .evidence import document_version
+            document_version(db, actor, source['ref']['resource_id'])
     if saved['reviewed_ai']:
         run_access(db, actor, saved['reviewed_ai']['run_id'])
     return row, case, saved

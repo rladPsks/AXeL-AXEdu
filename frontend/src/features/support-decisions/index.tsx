@@ -4,6 +4,7 @@ import { useScope, useSession } from "../../app/providers";
 import type { CaseDetail } from "../../lib/api/types";
 import { CommandForm } from "../../shared/CommandForm";
 import { date, ErrorNotice } from "../../shared/ui";
+import type { DocumentVersion } from "../case-comparison";
 
 type Observation = {
   source_id: string;
@@ -79,7 +80,22 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
         }[]
       >(`/api/cases/${encodeURIComponent(record.id)}/agent-runs`, signal),
   });
+  const documents = useQuery({
+    queryKey: ["documents", ...scope, record.id, record.version],
+    queryFn: ({ signal }) =>
+      api.get<DocumentVersion[]>(
+        `/api/cases/${encodeURIComponent(record.id)}/documents`,
+        signal,
+      ),
+  });
   const sources = [
+    ...(documents.data ?? []).map((item) => ({
+      key: `DOCUMENT_VERSION:${item.id}`,
+      type: "DOCUMENT_VERSION",
+      id: item.id,
+      label: `원문: ${item.label} · 버전 ${item.revision}`,
+      version: item.revision,
+    })),
     {
       key: `CASE:${record.id}`,
       type: "CASE",
@@ -138,6 +154,7 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
       </div>
       {list.error ? <ErrorNotice error={list.error} /> : null}
       {files.error ? <ErrorNotice error={files.error} /> : null}
+      {documents.error ? <ErrorNotice error={documents.error} /> : null}
       {runs.error ? <ErrorNotice error={runs.error} /> : null}
       {record.status !== "CLOSED" && list.data ? (
         <details open={!latest}>
@@ -371,7 +388,8 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
                     style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
                   >
                     {String(
-                      source.data.text ??
+                      source.data.content ??
+                        source.data.text ??
                         source.data.reply ??
                         source.data.question ??
                         source.data.reason ??

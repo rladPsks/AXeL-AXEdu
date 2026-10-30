@@ -5,6 +5,7 @@ import { ApiError, command, type Command } from "../../lib/api/client";
 import type { CaseDetail } from "../../lib/api/types";
 import { CommandForm } from "../../shared/CommandForm";
 import { Badge, date, Empty, ErrorNotice, label } from "../../shared/ui";
+import type { DocumentVersion } from "../case-comparison";
 
 type Review = {
   summary: string;
@@ -29,10 +30,20 @@ type Run = {
 };
 
 export function AgentReview({ record }: { record: CaseDetail }) {
-  const { api } = useSession();
+  const { api, session } = useSession();
   const scope = useScope();
   const queries = useQueryClient();
   const [failed, setFailed] = useState<Command | null>(null);
+  const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
+  const documents = useQuery({
+    queryKey: ["documents", ...scope, record.id, record.version],
+    enabled: session.role === "ADMIN",
+    queryFn: ({ signal }) =>
+      api.get<DocumentVersion[]>(
+        `/api/cases/${encodeURIComponent(record.id)}/documents`,
+        signal,
+      ),
+  });
   const capabilities = useQuery({
     queryKey: ["agent-capabilities", ...scope],
     queryFn: ({ signal }) =>
@@ -79,12 +90,20 @@ export function AgentReview({ record }: { record: CaseDetail }) {
     (c) => c.purpose === "REVIEW_SUPPORT",
   );
   const request = (retryOf?: string) => {
+    const selected = (documents.data ?? [])
+      .filter((item) => selectedDocuments.includes(item.id))
+      .map((item) => ({
+        resource_type: "DOCUMENT_VERSION",
+        resource_id: item.id,
+        version: item.revision,
+      }));
     const input_refs = [
       {
         resource_type: "CASE",
         resource_id: record.id,
         version: record.version,
       },
+      ...selected,
       ...record.tasks.slice(-10).map((t) => ({
         resource_type: "TASK",
         resource_id: t.id,
@@ -95,7 +114,7 @@ export function AgentReview({ record }: { record: CaseDetail }) {
         resource_id: s.id,
         version: record.version,
       })),
-    ];
+    ].slice(0, 20);
     start.mutate(
       command(`/api/cases/${encodeURIComponent(record.id)}/agent-runs`, {
         expected_version: record.version,
@@ -127,6 +146,38 @@ export function AgentReview({ record }: { record: CaseDetail }) {
           함께 대조해 주세요.
         </p>
       ) : null}
+      {session.role === "ADMIN" && documents.data?.length ? (
+        <details>
+          <summary>함께 검토할 원문 버전 선택</summary>
+          <p>
+            선택한 버전만 AI에 포함합니다. 사건 포함 최대 20개 출처이며 원문
+            선택 시 업무·지원 기록 일부가 제외될 수 있습니다.
+          </p>
+          {documents.data.map((item) => (
+            <label key={item.id}>
+              <input
+                type="checkbox"
+                checked={selectedDocuments.includes(item.id)}
+                disabled={
+                  start.isPending ||
+                  !!failed ||
+                  (!selectedDocuments.includes(item.id) &&
+                    selectedDocuments.length >= 10)
+                }
+                onChange={(event) =>
+                  setSelectedDocuments((ids) =>
+                    event.target.checked
+                      ? [...ids, item.id]
+                      : ids.filter((id) => id !== item.id),
+                  )
+                }
+              />
+              {item.label} · 버전 {item.revision}
+            </label>
+          ))}
+        </details>
+      ) : null}
+      {documents.error ? <ErrorNotice error={documents.error} /> : null}
       <button
         className="primary"
         disabled={

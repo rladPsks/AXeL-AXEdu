@@ -33,6 +33,7 @@ import { SchoolSettings, SchoolContacts } from "../features/school-settings";
 import { Entry, GuardianDemo } from "./Entry";
 import { demoEnabled, demoNotice, type GuardianSession } from "./demo";
 import { SupportDecisions } from "../features/support-decisions";
+import { CaseComparison, CaseDocuments } from "../features/case-comparison";
 
 export function App() {
   const [auth, setAuth] = useState<{
@@ -321,7 +322,9 @@ function CaseShell() {
     "timeline",
     "files",
     "agent-review",
-    ...(session.role === "ADMIN" ? ["guardians", "support-decisions"] : []),
+    ...(session.role === "ADMIN"
+      ? ["guardians", "support-decisions", "documents", "comparison"]
+      : []),
     ...additionalCaseFeatures.map((feature) => feature.id),
   ];
   const tab = knownTabs.includes(requestedTab) ? requestedTab : "tasks";
@@ -362,6 +365,8 @@ function CaseShell() {
       ? [
           { id: "guardians", title: "보호자 연결" },
           { id: "support-decisions", title: "지원 판단" },
+          { id: "documents", title: "원문·답변" },
+          { id: "comparison", title: "반복·새 사실" },
         ]
       : []),
     ...additionalCaseFeatures,
@@ -433,6 +438,10 @@ function CaseShell() {
           <AgentReview record={record} />
         ) : tab === "support-decisions" && session.role === "ADMIN" ? (
           <SupportDecisions record={record} />
+        ) : tab === "documents" && session.role === "ADMIN" ? (
+          <CaseDocuments record={record} />
+        ) : tab === "comparison" && session.role === "ADMIN" ? (
+          <CaseComparison record={record} />
         ) : tab === "guardians" && session.role === "ADMIN" ? (
           <GuardianLinks
             caseId={caseId}

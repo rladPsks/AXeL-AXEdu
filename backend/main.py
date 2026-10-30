@@ -22,6 +22,8 @@ from .worker import Worker
 from .seed import seed
 from .demo import router as demo_router
 from .decisions import router as decisions_router
+from .evidence import router as evidence_router
+from .comparisons import router as comparisons_router
 from .coordination import router as coordination_router, resolve_support
 from .scheduling import router as scheduling_router
 from .notifications import router as notifications_router, enqueue, dispatch_once
@@ -81,6 +83,8 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
     app.include_router(scheduling_router)
     app.include_router(notifications_router)
     app.include_router(decisions_router)
+    app.include_router(evidence_router)
+    app.include_router(comparisons_router)
     if os.getenv('SCHOOL_AGENT_DEMO','0')=='1':
         app.include_router(demo_router)
     for router in feature_routers:
@@ -147,6 +151,8 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
             events=[]
             for row in db.execute('SELECT * FROM audit_events WHERE case_id=? ORDER BY new_version',(case_id,)).fetchall():
                 payload=json.loads(row['payload'])
+                if row['action'].startswith(('CASE_COMPARISON_','CASE_DOCUMENT_')) and actor['role']!='ADMIN':
+                    continue
                 if row['action'].startswith('GUARDIAN_LINK_') and actor['role']!='ADMIN':
                     continue
                 if row['action']=='FILE_UPLOADED':

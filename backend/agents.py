@@ -6,7 +6,7 @@ from typing import Callable, Literal
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from .access import accessible_case, authenticate, fail
+from .access import accessible_case, authenticate, fail, DomainError
 from .commands import mutate
 from .db import now, uid
 from .files import file_access
@@ -44,7 +44,7 @@ class Registry:
 
 class InputRef(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    resource_type: Literal['CASE', 'TASK', 'SUPPORT_REQUEST', 'FILE']
+    resource_type: Literal['CASE', 'TASK', 'SUPPORT_REQUEST', 'FILE', 'DOCUMENT_VERSION']
     resource_id: Identifier
     version: int = Field(ge=1)
 
@@ -80,6 +80,9 @@ def run_access(db, actor, run_id):
     for source in json.loads(run['snapshot'])['sources']:
         if source['ref']['resource_type'] == 'FILE':
             file_access(db,actor,source['ref']['resource_id'])
+        elif source['ref']['resource_type'] == 'DOCUMENT_VERSION':
+            from .evidence import document_version
+            document_version(db,actor,source['ref']['resource_id'])
     return run, case
 
 
@@ -98,6 +101,9 @@ def snapshot(db, actor, case, refs):
                 raw = db.execute('SELECT content FROM private_files WHERE id=?', (ref.resource_id,)).fetchone()[0]
                 item['text'] = raw.decode('utf-8-sig')[:10000]
                 item['text_truncated'] = len(raw.decode('utf-8-sig')) > 10000
+        elif ref.resource_type == 'DOCUMENT_VERSION':
+            from .evidence import document_version
+            item = dict(document_version(db,actor,ref.resource_id))
         else:
             table = {'TASK': 'tasks', 'SUPPORT_REQUEST': 'support_requests'}[ref.resource_type]
             row = db.execute(f'SELECT * FROM {table} WHERE id=?', (ref.resource_id,)).fetchone()
@@ -106,7 +112,7 @@ def snapshot(db, actor, case, refs):
             item = dict(row)
         if item.get('case_id', item.get('id')) != case['id']:
             fail(422, 'INPUT_CASE_MISMATCH', '같은 사건의 입력을 선택하세요.')
-        expected = 1 if ref.resource_type == 'FILE' else case['version']
+        expected = item['revision'] if ref.resource_type == 'DOCUMENT_VERSION' else (1 if ref.resource_type == 'FILE' else case['version'])
         if ref.version != expected:
             fail(409, 'INPUT_VERSION_CONFLICT', '입력 자료의 최신 버전을 확인하세요.')
         sources.append({'ref': ref.model_dump(), 'data': item})
@@ -162,8 +168,15 @@ def list_runs(case_id: str, request: Request):
     with request.app.state.db.transaction() as db:
         actor = authenticate(db, request)
         case = accessible_case(db, actor, case_id)
-        return [serialize(r,case) for r in db.execute("SELECT * FROM agent_runs WHERE case_id=? "
-                "AND (?='ADMIN' OR requested_by=?) ORDER BY created_at,id", (case_id,actor['role'],actor['user_id']))]
+        results=[]
+        for run in db.execute("SELECT * FROM agent_runs WHERE case_id=? AND (?='ADMIN' OR requested_by=?) ORDER BY created_at,id",
+                              (case_id,actor['role'],actor['user_id'])).fetchall():
+            try:
+                run_access(db,actor,run['id'])
+            except DomainError:
+                continue
+            results.append(serialize(run,case))
+        return results
 
 
 @router.get('/api/agent-runs/{run_id}')
