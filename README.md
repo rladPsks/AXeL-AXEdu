@@ -1,6 +1,6 @@
 # AXeL-AXEdu
 
-Vercel 프론트 + Railway API/내부 worker + SQLite 볼륨 배포는 [배포 안내](docs/배포_안내.md)를 따릅니다. 서버 환경변수 설정은 운영자가 한 번 수행하며, 현재 방문자는 개발용 토큰으로 로그인합니다.
+Vercel 프론트 + Render 무료 API/내부 worker + 임시 SQLite 시연 배포는 [배포 안내](docs/배포_안내.md)를 따릅니다. 자동 시드·계정 버튼은 서버 `SCHOOL_AGENT_AUTO_SEED=1`/`SCHOOL_AGENT_DEMO=1`, 프론트 `VITE_SCHOOL_AGENT_DEMO=1`에서만 동작합니다. 기본 로컬 인증은 기존 토큰 방식입니다. Render가 잠들면 시연 데이터는 초기화됩니다.
 
 A·B 통합 시 [확정 계약 v1.3](docs/개발자_AB_통합계약_확정_v1.md)을 우선 적용합니다. React 공통 구조·레이아웃·API 클라이언트도 B 담당입니다. B 기준 충돌 방지 규칙과 현재 구현·후속 구현 계약을 구분한 문서입니다.
 

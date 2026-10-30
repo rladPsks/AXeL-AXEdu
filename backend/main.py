@@ -19,6 +19,8 @@ from .guardians import router as guardians_router
 from .agents import router as agents_router
 from .runtime import build_registry
 from .worker import Worker
+from .seed import seed
+from .demo import router as demo_router
 from .coordination import router as coordination_router, resolve_support
 from .scheduling import router as scheduling_router
 from .notifications import router as notifications_router, enqueue, dispatch_once
@@ -29,6 +31,8 @@ from .models import (CaseTransition, Command, HandoverCreate, SupportCreate,
 def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_bytes=None, agent_registry=None, inbox_worker=True):
     @asynccontextmanager
     async def lifespan(app):
+        if os.getenv('SCHOOL_AGENT_AUTO_SEED','0')=='1':
+            seed(app.state.db.path,if_empty=True)
         stop=Event()
         def deliver():
             while not stop.is_set():
@@ -75,6 +79,8 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
     app.include_router(coordination_router)
     app.include_router(scheduling_router)
     app.include_router(notifications_router)
+    if os.getenv('SCHOOL_AGENT_DEMO','0')=='1':
+        app.include_router(demo_router)
     for router in feature_routers:
         app.include_router(router)
 

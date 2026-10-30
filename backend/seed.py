@@ -6,10 +6,12 @@ from .db import Database, audit, issue_session
 from .guardians import issue_guardian_session
 
 
-def seed(path):
+def seed(path, *, if_empty=False):
     database = Database(path)
     with database.transaction() as db:
         if db.execute("SELECT 1 FROM memberships LIMIT 1").fetchone():
+            if if_empty:
+                return None
             raise SystemExit("비어 있는 개발 DB에만 가상 사례를 생성할 수 있습니다.")
         accounts = [("admin", "demo-school", "ADMIN"), ("deputy", "demo-school", "ADMIN"),
                     ("teacher", "demo-school", "TEACHER"), ("outsider", "demo-school", "TEACHER"),

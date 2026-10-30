@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: axel-axedu-demo
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:create_app --factory --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.12
+      - key: SCHOOL_AGENT_DB
+        value: data/private/demo.sqlite3
+      - key: SCHOOL_AGENT_RUN_WORKER
+        value: "1"
+      - key: SCHOOL_AGENT_AUTO_SEED
+        value: "1"
+      - key: SCHOOL_AGENT_DEMO
+        value: "1"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        sync: false

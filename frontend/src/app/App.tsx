@@ -30,6 +30,8 @@ import { GuardianLinks } from "../features/guardian-links";
 import { AgentReview } from "../features/agent-review";
 import { Inbox, InboxIndicator } from "../features/inbox";
 import { SchoolSettings, SchoolContacts } from "../features/school-settings";
+import { Entry, GuardianDemo } from "./Entry";
+import { demoEnabled, demoNotice, type GuardianSession } from "./demo";
 
 export function App() {
   const [auth, setAuth] = useState<{
@@ -37,76 +39,26 @@ export function App() {
     session: Session;
     id: string;
   } | null>(null);
-  const [error, setError] = useState<unknown>(null);
-  const [pending, setPending] = useState(false);
+  const [guardian, setGuardian] = useState<{
+    api: ApiClient;
+    session: GuardianSession;
+  } | null>(null);
+  if (guardian)
+    return (
+      <GuardianDemo
+        api={guardian.api}
+        session={guardian.session}
+        disconnect={() => setGuardian(null)}
+      />
+    );
   if (!auth)
     return (
-      <main className="login">
-        <section className="login-story">
-          <div className="brand">
-            함께<span>학교 민원 지원</span>
-          </div>
-          <h1>
-            교사를 혼자
-            <br />
-            두지 않는 대응.
-          </h1>
-          <p>
-            확인할 일은 명확하게.
-            <br />
-            필요한 지원은 학교와 함께.
-          </p>
-          <div className="story-line">
-            업무 확인 <span>—</span> 학교 지원 <span>—</span> 함께 마무리
-          </div>
-        </section>
-        <section className="login-form">
-          <h2>학교 업무 공간 연결</h2>
-          <p>개발 계정으로 업무와 지원 흐름을 확인합니다.</p>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (pending) return;
-              const form = e.currentTarget;
-              const token = String(
-                new FormData(form).get("token") ?? "",
-              ).trim();
-              setPending(true);
-              setError(null);
-              const api = new ApiClient(token);
-              try {
-                const session = await api.get<Session>("/api/session");
-                form.reset();
-                setAuth({ api, session, id: crypto.randomUUID() });
-              } catch (err) {
-                api.dispose();
-                setError(err);
-              } finally {
-                setPending(false);
-              }
-            }}
-          >
-            <label>
-              개발 세션 토큰
-              <input
-                type="password"
-                name="token"
-                required
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </label>
-            <p className="hint">
-              개발용 계정 발급 시 받은 토큰을 입력하세요. 계정마다 접근할 수
-              있는 업무가 다릅니다.
-            </p>
-            <button className="primary" disabled={pending}>
-              {pending ? "연결 확인 중…" : "업무 공간 열기"}
-            </button>
-          </form>
-          {error ? <ErrorNotice error={error} /> : null}
-        </section>
-      </main>
+      <Entry
+        onStaff={(api, session) =>
+          setAuth({ api, session, id: crypto.randomUUID() })
+        }
+        onGuardian={(api, session) => setGuardian({ api, session })}
+      />
     );
   return (
     <SessionProvider
@@ -197,6 +149,11 @@ function Layout() {
           <span className="dev-label">개발 시연</span>
         </header>
         <main id="content" className="content">
+          {demoEnabled ? (
+            <p className="demo-notice" role="note">
+              {demoNotice}
+            </p>
+          ) : null}
           <Outlet />
         </main>
       </div>
