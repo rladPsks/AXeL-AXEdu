@@ -88,7 +88,7 @@ def build_history_review(current_case: dict[str, Any], related: list[dict[str, A
 
     repeat_candidate = bool(high_similarity_answered) and not not_substantively_answered
     if not_substantively_answered:
-        reason = "유사한 기존 사건이 있어도 검토·전달까지 끝난 실질 답변이 확인되지 않은 건이 있어 반복 민원으로 보지 않고 미해결 사건을 먼저 연결합니다."
+        reason = "유사한 기존 사건 중 미응답 또는 검토·전달까지 끝난 실질 답변이 확인되지 않은 건이 있어 반복 민원으로 보지 않고 미해결 사건을 먼저 연결합니다."
     elif high_similarity_answered:
         reason = "실질 답변이 완료된 유사 사건이 있습니다. 동일 요구 반복인지 새 사실·요구가 추가되었는지 사람이 비교해야 합니다."
     else:
