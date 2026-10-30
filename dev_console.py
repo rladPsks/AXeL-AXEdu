@@ -69,10 +69,13 @@ st.subheader("1. 민원 접수 → 사건 생성")
 with st.form("create_case"):
     c1, c2 = st.columns(2)
     with c1:
-        channel = st.selectbox("접수 경로", ["web", "sms", "call_memo", "visit"])
+        channel = st.selectbox("접수 경로", ["phone", "message", "visit", "ieodream", "homepage", "external_transfer", "other", "web", "sms", "call_memo"])
         complainant_id = st.text_input("보호자 ID", "PARENT-TEST")
+        complainant_name = st.text_input("학부모명", "")
     with c2:
         student_ref = st.text_input("학생 식별", "STUDENT-TEST")
+        student_name = st.text_input("학생명", "")
+        complaint_type = st.text_input("민원 종류", "")
         jurisdiction = st.text_input("관할", "")
     text = st.text_area(
         "민원 원문",
@@ -87,6 +90,10 @@ if create_clicked:
         "channel": channel,
         "complainant_id": complainant_id or None,
         "student_ref": student_ref or None,
+        "complainant_name": complainant_name or None,
+        "student_name": student_name or None,
+        "complaint_type": complaint_type or None,
+        "source_type": "EXTERNAL_TRANSFER" if channel == "external_transfer" else "DIRECT",
     }
     if jurisdiction.strip():
         payload["jurisdiction"] = jurisdiction.strip()
@@ -117,6 +124,11 @@ if snapshot:
             "classifier_mode": cls.get("classifier_mode"),
             "category": cls.get("category"),
             "nature": cls.get("nature"),
+            "core_demand": cls.get("core_demand"),
+            "handling_route": cls.get("handling_route"),
+            "escalation_level": cls.get("escalation_level"),
+            "team_consult_required": cls.get("team_consult_required"),
+            "team_consult_reasons": cls.get("team_consult_reasons"),
             "domain_p55": cls.get("domain_p55"),
             "urgency": cls.get("urgency"),
             "stage_reason": cls.get("stage_reason"),
@@ -126,8 +138,16 @@ if snapshot:
             "special_codes": cls.get("special_codes"),
         })
 
-    with st.expander("라우팅"):
-        st.json(routing)
+    with st.expander("라우팅", expanded=True):
+        labels = routing.get("role_labels") or {}
+        st.write("**업무 영역**", routing.get("duty_label") or "미분류")
+        st.write("**1순위 담당**", labels.get(routing.get("action_role"), routing.get("action_role")))
+        st.write("**협조**", [labels.get(x, x) for x in routing.get("collaborators") or []] or "없음")
+        st.write("**승인/조정**", labels.get(routing.get("approver"), routing.get("approver")))
+        st.write("**부재 시 대체**", labels.get(routing.get("backup_role"), routing.get("backup_role")))
+        st.write("**콜백**", routing.get("callback_needed"), "-", routing.get("callback_reason"))
+        st.write("**알림 시점**", routing.get("notification_timing"))
+        st.caption(routing.get("reason") or "")
 
     st.subheader("3. 생성된 업무")
     open_task_count = 0
@@ -245,6 +265,10 @@ if snapshot:
             if history_card.get("reason"):
                 st.caption(history_card.get("reason"))
 
+            validator = explanation_view.get("validator") or {}
+            st.write("**Validator**", "통과" if validator.get("passed") else "검토 필요")
+            for issue in validator.get("issues") or []:
+                st.warning(issue.get("message"))
             safety = explanation_view.get("safety") or {}
             st.info(safety.get("note") or "")
 
@@ -282,6 +306,33 @@ if snapshot:
                     st.write("조항/위치:", item.get("article"))
                 st.write(item.get("text") or "")
                 st.divider()
+
+    if case.get("status") == "RESPONSE_APPROVED":
+        st.success("사람 검토·승인이 완료되었습니다. 공식 채널 전달 완료 처리가 가능합니다.")
+        if st.button("보호자 전달 완료 처리", type="primary"):
+            try:
+                updated = api(
+                    "POST",
+                    f"/cases/{case['id']}/deliver",
+                    {"actor": "complaint_response_team", "channel": case.get("channel") or "official_channel", "note": "dev console 전달 완료"},
+                )
+                set_case(updated)
+                st.rerun()
+            except Exception as exc:
+                st.error(str(exc))
+
+    st.subheader("4-2. 교사 → 대응팀 위임")
+    if st.button("대응팀에 위임"):
+        try:
+            updated = api(
+                "POST",
+                f"/cases/{case['id']}/delegate-to-team",
+                {"actor": "homeroom_teacher", "note": "개인 응대 대신 학교 차원의 공동 처리를 요청합니다."},
+            )
+            set_case(updated)
+            st.rerun()
+        except Exception as exc:
+            st.error(str(exc))
 
     st.subheader("5. 학교 지원 요청")
     s1, s2 = st.columns(2)
