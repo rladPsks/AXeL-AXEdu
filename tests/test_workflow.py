@@ -309,3 +309,51 @@ def test_product_explanation_separates_claims_and_suppresses_irrelevant_policy(m
     assert view["facts"]["confirmed"] == ["확인된 사실: 10월 29일 수업 중 자리 이탈 3회."]
     assert view["facts"]["complainant_claims"] == ["민원인은 자녀만 계속 혼난다고 주장함."]
     assert view["official_basis"] == []
+
+
+def test_school_duty_map_routes_life_guidance_to_student_life_team():
+    from agent.routing import route_case
+    out = route_case(
+        "fact_check",
+        text="생활지도 과정에서 아이만 반복적으로 혼났다고 합니다.",
+        classification={"domain_p55": "생활지도/상담"},
+    )
+    assert out["action_role"] == "student_life_staff"
+    assert "homeroom_teacher" in out["collaborators"]
+    assert out["approver"] == "vice_principal"
+
+
+def test_school_duty_map_routes_facilities_to_administration_side():
+    from agent.routing import route_case
+    out = route_case(
+        "fact_check",
+        text="교실 냉난방 시설이 고장났습니다.",
+        classification={"domain_p55": "학교 운영"},
+    )
+    assert out["action_role"] == "facilities_staff"
+    assert out["approver"] == "administration_head"
+
+
+def test_action_router_adds_duty_map_collaborator_task():
+    actions = decide_actions(
+        {
+            "nature": "COMPLAINT",
+            "domain_p55": "생활지도/상담",
+            "urgency": "LOW",
+            "special_codes": [],
+            "infringement_flags": [],
+            "needs_fact_check": ["지도 상황 확인"],
+            "repeat_review": False,
+        },
+        {
+            "action_role": "student_life_staff",
+            "collaborators": ["homeroom_teacher"],
+            "approver": "vice_principal",
+        },
+        [],
+    )
+    assert actions[0]["assignee_role"] == "student_life_staff"
+    assert any(
+        x["task_type"] == "COOP_FACT_CHECK" and x["assignee_role"] == "homeroom_teacher"
+        for x in actions
+    )
