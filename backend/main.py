@@ -16,7 +16,7 @@ from .closure import ClosureRegistry
 from .queries import router as query_router
 from .files import router as files_router, upload_limit, file_access
 from .guardians import router as guardians_router
-from .agents import router as agents_router
+from .agents import router as agents_router, event as agent_event
 from .runtime import build_registry
 from .worker import Worker
 from .seed import seed
@@ -201,7 +201,48 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
                 fail(422, "REPLY_REQUIRED", "완료 회신을 입력하세요.")
             db.execute("UPDATE tasks SET status=?, reply=? WHERE id=?", (body.status, body.reply, task_id))
             enqueue(db,case_id,task['requester_id'],'TASK_UPDATED',task_id,f'task:{task_id}:{body.status}')
-            return {"task_id": task_id, "status": body.status, "reply": body.reply}
+            auto_run_id = None
+            if body.status == "COMPLETED":
+                remaining = db.execute(
+                    "SELECT COUNT(*) FROM tasks WHERE case_id=? AND status!='COMPLETED'", (case_id,)
+                ).fetchone()[0]
+                handler = app.state.agent_registry.handlers.get("REVIEW_SUPPORT")
+                already = db.execute(
+                    "SELECT 1 FROM agent_runs WHERE case_id=? AND purpose='REVIEW_SUPPORT' "
+                    "AND status IN ('QUEUED','RUNNING','WAITING_REVIEW')", (case_id,)
+                ).fetchone()
+                if remaining == 0 and handler is not None and already is None:
+                    next_version = case["version"] + 1
+                    intake = db.execute("SELECT * FROM case_intakes WHERE case_id=?", (case_id,)).fetchone()
+                    case_data = dict(case)
+                    case_data["version"] = next_version
+                    if intake:
+                        intake_data = dict(intake)
+                        intake_data["related_people"] = json.loads(intake_data.get("related_people") or "[]")
+                        intake_data["classification"] = json.loads(intake_data.pop("classification_json")) if intake_data.get("classification_json") else None
+                        intake_data["routing"] = json.loads(intake_data.pop("routing_json")) if intake_data.get("routing_json") else None
+                        intake_data["workflow"] = json.loads(intake_data.pop("workflow_json")) if intake_data.get("workflow_json") else None
+                        case_data["intake"] = intake_data
+                    sources = [{"ref":{"resource_type":"CASE","resource_id":case_id,"version":next_version},"data":case_data}]
+                    refs = [{"resource_type":"CASE","resource_id":case_id,"version":next_version}]
+                    for row in db.execute("SELECT * FROM tasks WHERE case_id=? ORDER BY created_at,id LIMIT 10",(case_id,)).fetchall():
+                        sources.append({"ref":{"resource_type":"TASK","resource_id":row["id"],"version":next_version},"data":dict(row)})
+                        refs.append({"resource_type":"TASK","resource_id":row["id"],"version":next_version})
+                    snapshot = {"case_id":case_id,"input_case_version":next_version,"sources":sources,
+                                "trigger":"ALL_REQUIRED_TASKS_COMPLETED"}
+                    auto_run_id = uid()
+                    db.execute(
+                        "INSERT INTO agent_runs(id,case_id,school_id,requested_by,purpose,input_case_version,input_refs,snapshot,"
+                        "status,step,generation_mode,handler_version,provider_metadata,max_attempts,created_at,updated_at) "
+                        "VALUES (?,?,?,?,?,?,?,?,'QUEUED','queued',?,?,?,?,?,?)",
+                        (auto_run_id,case_id,actor["school_id"],case["owner_id"],"REVIEW_SUPPORT",next_version,
+                         json.dumps({"input_refs":refs},ensure_ascii=False),json.dumps(snapshot,ensure_ascii=False),
+                         handler.generation_mode,handler.version,json.dumps(handler.metadata),handler.max_attempts,now(),now())
+                    )
+                    agent_event(db,auto_run_id,"QUEUED","queued",actor["user_id"],
+                                {"trigger":"ALL_REQUIRED_TASKS_COMPLETED","task_id":task_id})
+            return {"task_id": task_id, "status": body.status, "reply": body.reply,
+                    "agent_run_id": auto_run_id}
         return mutate(request, case_id, body, "TASK_UPDATED", operation)
 
     @app.post("/api/cases/{case_id}/support-requests", status_code=201)

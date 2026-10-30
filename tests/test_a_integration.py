@@ -64,6 +64,10 @@ def test_integrated_intake_creates_shared_case_and_routed_tasks(monkeypatch, tmp
         assert intake["raw_text"].startswith("우리 아이만")
         assert intake["classification"]["core_demand"] == "생활지도 상황과 지도 기준 확인 요청"
         assert intake["routing"]["approver"] == "VICE_PRINCIPAL"
+        assert intake["workflow"]["agent"]["orchestrator"] == "AXeL"
+        assert "rag" in intake["workflow"]["tools"]
+        assert "history" in intake["workflow"]["tools"]
+        assert intake["workflow"]["action_plan"]["case_owner"] == "admin"
 
         repeated = client.post(
             "/api/intakes",

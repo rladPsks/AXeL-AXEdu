@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from agent.classify import classify_complaint
 from agent.routing import route_case
+from agent.retrieval import retrieve as retrieve_official_evidence
 from agent.rules import apply_rules
 from backend.access import authenticate, fail
 from backend.commands import command_identity, replay_command, save_command
@@ -104,6 +105,14 @@ def create_intake(body: IntakeCreate, request: Request):
     cls["handling_route"] = _handling_route(cls)
     cls["escalation_level"] = 2 if cls["handling_route"] == "ADMIN_REVIEW" else 1
     routing = route_case(_routing_domain(cls), text=body.raw_text, classification=cls)
+    evidence = []
+    for item in retrieve_official_evidence(body.raw_text, top_k=4):
+        evidence.append({
+            "source_id": item.get("source_id"), "title": item.get("title"),
+            "source_type": item.get("source_type"), "article": item.get("article"),
+            "pdf_page": item.get("pdf_page"), "printed_page": item.get("printed_page"),
+            "text": str(item.get("text") or "")[:700], "score": item.get("score"),
+        })
 
     with request.app.state.db.transaction() as db:
         actor = authenticate(db, request)
@@ -140,6 +149,40 @@ def create_intake(body: IntakeCreate, request: Request):
                 actor["user_id"], now(),
             ),
         )
+
+        # Agent tool context: RAG + history + school duty map are persisted with the intake.
+        history_rows = db.execute(
+            "SELECT ci.case_id,ci.received_at,ci.complaint_type,ci.raw_text,c.status "
+            "FROM case_intakes ci JOIN cases c ON c.id=ci.case_id "
+            "WHERE c.school_id=? AND ci.case_id<>? AND "
+            "((? IS NOT NULL AND ci.student_name=?) OR ci.complainant_name=?) "
+            "ORDER BY ci.received_at DESC LIMIT 5",
+            (actor["school_id"], case_id, body.student_name, body.student_name, body.complainant_name),
+        ).fetchall()
+        workflow = {
+            "phase": "FACT_CHECK" if cls["handling_route"] == "STAFF_OR_TEAM" else "HUMAN_REVIEW",
+            "agent": {"classifier_mode": cls.get("classifier_mode"), "orchestrator": "AXeL"},
+            "tools": {
+                "rag": evidence,
+                "history": [dict(row) for row in history_rows],
+                "duty": {
+                    "duty_area": routing.get("duty_area"), "duty_label": routing.get("duty_label"),
+                    "action_role": routing.get("action_role"), "collaborators": routing.get("collaborators", []),
+                    "approver": routing.get("approver"), "backup_role": routing.get("backup_role"),
+                    "reason": routing.get("reason"),
+                },
+            },
+            "action_plan": {
+                "case_owner": owner["user_id"],
+                "teacher_direct_contact": routing.get("callback_needed") == "REQUIRED",
+                "callback_needed": routing.get("callback_needed", "UNDECIDED"),
+                "teacher_scope": "필요한 사실 확인·상담만 수행하고 사건 총괄과 보호자 답변 책임은 학교 대응체계에 유지",
+                "why": cls.get("core_demand"),
+                "next": "필요한 확인 업무 완료 후 Agent가 회신·이력·공식 근거를 다시 종합",
+            },
+        }
+        db.execute("UPDATE case_intakes SET workflow_json=? WHERE case_id=?",
+                   (json.dumps(workflow, ensure_ascii=False), case_id))
         db.execute("INSERT OR IGNORE INTO case_participants(case_id,user_id) VALUES (?,?)", (case_id, actor["user_id"]))
         db.execute("INSERT OR IGNORE INTO case_participants(case_id,user_id) VALUES (?,?)", (case_id, owner["user_id"]))
 
@@ -201,4 +244,5 @@ def get_intake(case_id: str, request: Request):
         item["related_people"] = json.loads(item["related_people"])
         item["classification"] = json.loads(item.pop("classification_json")) if item.get("classification_json") else None
         item["routing"] = json.loads(item.pop("routing_json")) if item.get("routing_json") else None
+        item["workflow"] = json.loads(item.pop("workflow_json")) if item.get("workflow_json") else None
         return item

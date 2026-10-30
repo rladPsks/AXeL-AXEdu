@@ -27,6 +27,9 @@ class SupportReviewResult(BaseModel):
     missing_information: list[str]
     suggested_support: Literal['INTERNAL_SUPPORT', 'SPECIALIST_SUPPORT', 'EXTERNAL_SUPPORT', 'KEEP_REVIEWING']
     action_options: list[str]
+    response_draft: str
+    validation_checks: list[str]
+    evidence_used: list[str]
 
 
 class SummaryItem(BaseModel):
@@ -74,7 +77,11 @@ INSTRUCTIONS += '''
 관찰마다 실제 입력 ref.resource_id를 source_id로 인용한다. 없는 출처·규정·기관·공문·기한을 만들지 않는다.
 반복 횟수·감정·신고 표현만으로 부당 민원이라 단정하거나 외부 이관을 제안하지 않는다.
 미응답·새 사실·학교의 이전 조치·필요 지원을 함께 살피고 부족한 정보는 missing_information에 남긴다.
-결과는 권한자가 검토할 지원 제안이다. 자동 배정·기관 제출·총괄 변경·종결·법적 판단을 하지 않는다.
+모든 사실확인 업무가 완료된 입력이면 보호자에게 보낼 수 있는 response_draft도 작성한다.
+response_draft는 확인된 사실과 공식 근거 범위만 사용하고, 교사 개인에게 책임을 전가하거나 미확인 사실을 단정하지 않는다.
+validation_checks에는 최소한 '미확인 사실 단정 여부', '근거 없는 법령·정책 인용 여부', '교사 단독 직접응대 유도 여부', '과도한 책임 인정 여부'를 점검한 결과를 적는다.
+evidence_used에는 실제 사용한 official_evidence source_id만 넣는다. 관련 근거가 없으면 빈 배열로 둔다.
+결과는 권한자가 검토할 지원·답변 제안이다. 자동 발송·배정·기관 제출·총괄 변경·종결·법적 판단을 하지 않는다.
 근거가 부족하면 KEEP_REVIEWING을 제안한다. 모든 서술은 한국어로 간결하게 작성한다.'''
 
 COMPARISON_INSTRUCTIONS='''학교 관리자의 검토를 위해 선택한 두 사건의 저장 자료만 대조한다.

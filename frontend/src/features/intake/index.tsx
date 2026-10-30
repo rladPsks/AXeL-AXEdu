@@ -25,6 +25,7 @@ type IntakeRecord = {
   source_type: string;
   classification: Record<string, any> | null;
   routing: Record<string, any> | null;
+  workflow: Record<string, any> | null;
 };
 
 export function IntakeCreate() {
@@ -113,6 +114,9 @@ export function IntakeDetail({ caseId }: { caseId: string }) {
   const cls = item.classification ?? {};
   const routing = item.routing ?? {};
   const labels = routing.role_labels ?? {};
+  const workflow = item.workflow ?? {};
+  const tools = workflow.tools ?? {};
+  const plan = workflow.action_plan ?? {};
   return (
     <>
       <h2>접수·AI 분류</h2>
@@ -122,6 +126,8 @@ export function IntakeDetail({ caseId }: { caseId: string }) {
         <span>긴급도 <strong>{cls.urgency ?? "-"}</strong></span>
       </div>
       <section className="work-item">
+        <div className="item-top"><strong>AXeL Agent 대응계획</strong><span>{workflow.phase ?? "TRIAGE"}</span></div>
+        <p className="hint">LLM 분류 → 공식 근거 RAG → 과거 사건 이력 → 학교 업무분장 순서로 검토한 뒤 필요한 업무만 요청합니다.</p>
         <h3>핵심 요구</h3>
         <p>{cls.core_demand ?? cls.summary_for_teacher ?? item.raw_text}</p>
         <h3>처리 경로</h3>
@@ -134,7 +140,18 @@ export function IntakeDetail({ caseId }: { caseId: string }) {
           <li>부재 시 대체: {labels[routing.backup_role] ?? routing.backup_role ?? "확인 필요"}</li>
           <li>콜백: {routing.callback_needed ?? "UNDECIDED"}</li>
         </ul>
-        <p className="hint">AI 추천이며 실제 담당·승인·콜백 여부는 학교 권한자가 확정합니다.</p>
+        <h3>교사 보호 원칙</h3>
+        <p>{plan.teacher_scope ?? "교사는 필요한 확인·상담만 수행하고 사건 총괄은 학교 대응체계에 유지합니다."}</p>
+        <p><strong>보호자 직접 연락:</strong> {plan.teacher_direct_contact ? "필요 — 학교 지원 방향 확인 후 진행" : "현재 단계에서는 요청하지 않음"}</p>
+        <h3>Agent가 사용한 도구</h3>
+        <ul>
+          <li>LLM 분류: {workflow.agent?.classifier_mode ?? cls.classifier_mode ?? "확인 필요"}</li>
+          <li>RAG 공식 근거: {(tools.rag ?? []).length}건 검색</li>
+          <li>과거 관련 사건: {(tools.history ?? []).length}건 확인</li>
+          <li>업무분장: {tools.duty?.duty_label ?? routing.duty_label ?? "학교별 확인 필요"}</li>
+        </ul>
+        {(tools.rag ?? []).length ? <details><summary>검색한 공식 근거 보기</summary><ul>{tools.rag.map((x: any, i: number) => <li key={i}><strong>{x.title ?? x.source_id}</strong>{x.article ? ` · ${x.article}` : ""}{x.pdf_page ? ` · PDF p.${x.pdf_page}` : ""}<br/><small>{x.text}</small></li>)}</ul></details> : null}
+        <p className="hint">AI가 대응계획을 준비하지만 실제 담당·승인·콜백·대외 답변은 학교 권한자가 확정합니다.</p>
       </section>
       <details>
         <summary>민원 원문 보기</summary>
