@@ -52,19 +52,32 @@ def read_decision(db, actor, decision_id):
         elif source['ref']['resource_type'] == 'DOCUMENT_VERSION':
             from .evidence import document_version
             document_version(db, actor, source['ref']['resource_id'])
+        elif source['ref']['resource_type']=='COMPARISON_REVIEW':
+            from .comparison_review import review_access
+            review_access(db,actor,source['ref']['resource_id'])
+        elif source['ref']['resource_type']=='COMPARISON_INPUT':
+            from .comparison_review import input_access
+            input_access(db,actor,source['ref']['resource_id'])
     if saved['reviewed_ai']:
         run_access(db, actor, saved['reviewed_ai']['run_id'])
     return row, case, saved
 
 
-def serialize(db, row, case, saved):
+def serialize(db, row, case, saved, actor):
     current = latest(db, case['id'])
     superseded = current['id'] != row['id']
+    from .comparison_review import review_dependency_stale,input_stale
+    dependency_stale=any((source['ref']['resource_type']=='COMPARISON_REVIEW' and review_dependency_stale(db,actor,source['data'])) or
+                         (source['ref']['resource_type']=='COMPARISON_INPUT' and input_stale(db,actor,source['data'],ignore_anchor=True)) for source in saved['sources'])
+    if saved['reviewed_ai']:
+        from .agents import comparison_dependencies_stale
+        run,_=run_access(db,actor,saved['reviewed_ai']['run_id'])
+        dependency_stale=dependency_stale or comparison_dependencies_stale(db,actor,run)
     return {'decision_id': row['id'], 'case_id': row['case_id'], 'revision': row['revision'],
             'supersedes_id': row['supersedes_id'], 'decided_by': row['decided_by'],
             'input_case_version': row['input_case_version'], 'recorded_case_version': row['recorded_case_version'],
             'current_case_version': case['version'], 'superseded': superseded,
-            'stale': superseded or row['recorded_case_version'] != case['version'],
+            'stale': superseded or row['recorded_case_version'] != case['version'] or dependency_stale,
             'created_at': row['created_at'], 'snapshot': saved}
 
 
@@ -75,7 +88,7 @@ def require_current_decision(db, actor, case, decision_id):
         fail(409, 'DECISION_CASE_MISMATCH', '같은 사건의 지원 판단을 선택하세요.')
     if actual['version'] != case['version']:
         fail(409, 'VERSION_CONFLICT', '최신 사건을 조회한 뒤 다시 확인하세요.')
-    result = serialize(db, row, actual, saved)
+    result = serialize(db, row, actual, saved, actor)
     if result['stale']:
         fail(409, 'STALE_SUPPORT_DECISION', '사건이나 지원 판단이 변경되었습니다. 현재 기록을 검토해 새 판단을 남기세요.')
     return result
@@ -127,7 +140,7 @@ def list_decisions(case_id: str, request: Request):
         results = []
         for row in db.execute('SELECT * FROM support_decisions WHERE case_id=? ORDER BY revision DESC', (case_id,)):
             _, _, saved = read_decision(db, actor, row['id'])
-            results.append(serialize(db, row, case, saved))
+            results.append(serialize(db, row, case, saved, actor))
         return results
 
 
@@ -136,7 +149,7 @@ def get_decision(decision_id: str, request: Request):
     with request.app.state.db.transaction() as db:
         actor = authenticate(db, request)
         row, case, saved = read_decision(db, actor, decision_id)
-        return serialize(db, row, case, saved)
+        return serialize(db, row, case, saved, actor)
 
 
 @router.get('/api/support-decisions/{decision_id}/snapshot')

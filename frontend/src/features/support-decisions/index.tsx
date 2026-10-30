@@ -5,6 +5,7 @@ import type { CaseDetail } from "../../lib/api/types";
 import { CommandForm } from "../../shared/CommandForm";
 import { date, ErrorNotice } from "../../shared/ui";
 import type { DocumentVersion } from "../case-comparison";
+import type { ComparisonReview } from "../case-comparison/ReviewPanel";
 
 type Observation = {
   source_id: string;
@@ -51,8 +52,9 @@ type Draft = { key: string; kind: Observation["kind"]; detail: string };
 export function SupportDecisions({ record }: { record: CaseDetail }) {
   const { api } = useSession();
   const scope = useScope();
-  const list = useQuery({
+  const list = useQuery<Decision[]>({
     queryKey: ["support-decisions", ...scope, record.id, record.version],
+    placeholderData: (previous) => previous,
     queryFn: ({ signal }) =>
       api.get<Decision[]>(
         `/api/cases/${encodeURIComponent(record.id)}/support-decisions`,
@@ -88,7 +90,24 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
         signal,
       ),
   });
+  const comparisons = useQuery({
+    queryKey: ["comparison-reviews", ...scope, record.id, record.version],
+    queryFn: ({ signal }) =>
+      api.get<ComparisonReview[]>(
+        `/api/cases/${encodeURIComponent(record.id)}/comparison-reviews`,
+        signal,
+      ),
+  });
   const sources = [
+    ...(comparisons.data ?? [])
+      .filter((item) => !item.stale)
+      .map((item) => ({
+        key: `COMPARISON_REVIEW:${item.id}`,
+        type: "COMPARISON_REVIEW",
+        id: item.id,
+        label: `비교 검토: ${item.related_case_id} · 판단 ${item.revision}`,
+        version: item.revision,
+      })),
     ...(documents.data ?? []).map((item) => ({
       key: `DOCUMENT_VERSION:${item.id}`,
       type: "DOCUMENT_VERSION",
@@ -144,6 +163,15 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
   return (
     <>
       <h2>학교의 지원 판단</h2>
+      <button
+        disabled={list.isFetching || comparisons.isFetching}
+        onClick={() => {
+          void list.refetch();
+          void comparisons.refetch();
+        }}
+      >
+        판단 이력 새로고침
+      </button>
       <p>
         기록을 대조하고 사람이 결정합니다. 반복 횟수나 감정만으로 외부 지원을
         정하지 않습니다.
@@ -155,6 +183,7 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
       {list.error ? <ErrorNotice error={list.error} /> : null}
       {files.error ? <ErrorNotice error={files.error} /> : null}
       {documents.error ? <ErrorNotice error={documents.error} /> : null}
+      {comparisons.error ? <ErrorNotice error={comparisons.error} /> : null}
       {runs.error ? <ErrorNotice error={runs.error} /> : null}
       {record.status !== "CLOSED" && list.data ? (
         <details open={!latest}>
@@ -166,6 +195,7 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
             version={record.version}
             path={`/api/cases/${encodeURIComponent(record.id)}/support-decisions`}
             button="지원 판단 저장"
+            disabled={list.isFetching || comparisons.isFetching}
             onSaved={() => setObservations(initial())}
             transformValues={(values) => ({
               ...values,

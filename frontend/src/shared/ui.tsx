@@ -32,6 +32,7 @@ export const labels: Record<string, string> = {
   CASE_DOCUMENT_RECORDED: "원문 버전 기록",
   CASE_COMPARISON_PROFILE_UPDATED: "사건 비교 코드 기록",
   CASE_COMPARISON_RELATION_CHANGED: "관련 사건 연결·분리 판단",
+  CASE_COMPARISON_REVIEW_RECORDED: "사람의 비교 검토 기록",
   REPEAT_SETTINGS_UPDATED: "반복 검토 기준 변경",
   FACT_CHECK: "사실 확인",
   COUNSEL: "상담",

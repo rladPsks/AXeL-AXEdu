@@ -22,4 +22,13 @@ if '--comparison-fixture' in sys.argv[2:]:
 os.environ['SCHOOL_AGENT_AUTO_SEED'] = '1'
 os.environ['SCHOOL_AGENT_DEMO'] = '1'
 os.environ['SCHOOL_AGENT_RUN_WORKER'] = '1'
-uvicorn.run(create_app(directory / 'demo.sqlite3', agent_registry=Registry()), host='127.0.0.1', port=8000, log_level='warning')
+registry=Registry()
+if '--comparison-ai-fixture' in sys.argv[2:]:
+    from backend.agents import Handler
+    from backend.comparison_review import ComparisonResult
+    def fictional_comparison(snapshot):
+        source=snapshot['sources'][0]['data']['sources'][0]['ref']['resource_id']
+        return {'summary':'[가상 규칙] 비교 제안 — 실제 모델 호출 아님','findings':[{'category':'UNANSWERED_FOLLOWUP','assessment':'UNVERIFIED','detail':'[가상] 기록만으로 실제 미응답을 단정할 수 없음','source_ids':[source]}],
+                'missing_information':['실제 답변 전달 증빙'],'follow_up_questions':['[가상] 이전 답변 전달 여부 확인']}
+    registry.register(Handler('COMPARE_CASES',fictional_comparison,ComparisonResult,'browser-comparison-test',generation_mode='RULE'))
+uvicorn.run(create_app(directory / 'demo.sqlite3', agent_registry=registry), host='127.0.0.1', port=8000, log_level='warning')

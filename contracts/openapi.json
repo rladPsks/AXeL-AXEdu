@@ -2342,6 +2342,254 @@
         ]
       }
     },
+    "/api/cases/{case_id}/comparison-inputs": {
+      "post": {
+        "summary": "Prepare Input",
+        "operationId": "prepare_input_api_cases__case_id__comparison_inputs_post",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "description": "같은 요청 재시도에는 같은 키와 본문 사용"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InputCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Session": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "Inputs",
+        "operationId": "inputs_api_cases__case_id__comparison_inputs_get",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Session": []
+          }
+        ]
+      }
+    },
+    "/api/cases/{case_id}/comparison-reviews": {
+      "post": {
+        "summary": "Record Review",
+        "operationId": "record_review_api_cases__case_id__comparison_reviews_post",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "description": "같은 요청 재시도에는 같은 키와 본문 사용"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Session": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "Reviews",
+        "operationId": "reviews_api_cases__case_id__comparison_reviews_get",
+        "parameters": [
+          {
+            "name": "case_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Case Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Session": []
+          }
+        ]
+      }
+    },
+    "/api/comparison-reviews/{review_id}": {
+      "get": {
+        "summary": "Get Review",
+        "operationId": "get_review_api_comparison_reviews__review_id__get",
+        "parameters": [
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Review Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Session": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health",
@@ -3550,6 +3798,96 @@
         ],
         "title": "HandoverCreate"
       },
+      "HumanFinding": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "NEW_FACT",
+              "NEW_EVIDENCE",
+              "UNANSWERED_FOLLOWUP",
+              "UNFULFILLED_ACTION",
+              "REPEATED_CONTENT",
+              "REPORTING_LANGUAGE",
+              "NEEDS_CONFIRMATION"
+            ],
+            "title": "Category"
+          },
+          "assessment": {
+            "type": "string",
+            "enum": [
+              "FACT",
+              "CLAIM",
+              "UNVERIFIED"
+            ],
+            "title": "Assessment"
+          },
+          "detail": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Detail"
+          },
+          "source_ids": {
+            "items": {
+              "type": "string",
+              "maxLength": 128,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Source Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "category",
+          "assessment",
+          "detail",
+          "source_ids"
+        ],
+        "title": "HumanFinding"
+      },
+      "InputCreate": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Version"
+          },
+          "related_case_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Related Case Id"
+          },
+          "expected_related_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Related Version"
+          },
+          "source_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ScopedRef"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 2,
+            "title": "Source Refs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "related_case_id",
+          "expected_related_version",
+          "source_refs"
+        ],
+        "title": "InputCreate"
+      },
       "InputRef": {
         "properties": {
           "resource_type": {
@@ -3559,7 +3897,9 @@
               "TASK",
               "SUPPORT_REQUEST",
               "FILE",
-              "DOCUMENT_VERSION"
+              "DOCUMENT_VERSION",
+              "COMPARISON_INPUT",
+              "COMPARISON_REVIEW"
             ],
             "title": "Resource Type"
           },
@@ -3851,6 +4191,71 @@
         ],
         "title": "ResponsibilityCreate"
       },
+      "ReviewCreate": {
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Version"
+          },
+          "input_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Input Id"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/HumanFinding"
+            },
+            "type": "array",
+            "maxItems": 40,
+            "minItems": 1,
+            "title": "Findings"
+          },
+          "reviewed_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed Run Id"
+          },
+          "supersedes_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_version",
+          "input_id",
+          "reason",
+          "findings"
+        ],
+        "title": "ReviewCreate"
+      },
       "RunCancel": {
         "properties": {
           "expected_version": {
@@ -3999,6 +4404,47 @@
           "reason"
         ],
         "title": "ScheduleUpdate"
+      },
+      "ScopedRef": {
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Case Id"
+          },
+          "resource_type": {
+            "type": "string",
+            "enum": [
+              "CASE",
+              "TASK",
+              "SUPPORT_REQUEST",
+              "FILE",
+              "DOCUMENT_VERSION"
+            ],
+            "title": "Resource Type"
+          },
+          "resource_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Resource Id"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "case_id",
+          "resource_type",
+          "resource_id",
+          "version"
+        ],
+        "title": "ScopedRef"
       },
       "SettingRemoval": {
         "properties": {

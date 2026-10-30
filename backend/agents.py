@@ -44,7 +44,7 @@ class Registry:
 
 class InputRef(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    resource_type: Literal['CASE', 'TASK', 'SUPPORT_REQUEST', 'FILE', 'DOCUMENT_VERSION']
+    resource_type: Literal['CASE', 'TASK', 'SUPPORT_REQUEST', 'FILE', 'DOCUMENT_VERSION', 'COMPARISON_INPUT', 'COMPARISON_REVIEW']
     resource_id: Identifier
     version: int = Field(ge=1)
 
@@ -83,6 +83,12 @@ def run_access(db, actor, run_id):
         elif source['ref']['resource_type'] == 'DOCUMENT_VERSION':
             from .evidence import document_version
             document_version(db,actor,source['ref']['resource_id'])
+        elif source['ref']['resource_type'] == 'COMPARISON_INPUT':
+            from .comparison_review import input_access
+            input_access(db,actor,source['ref']['resource_id'])
+        elif source['ref']['resource_type'] == 'COMPARISON_REVIEW':
+            from .comparison_review import review_access
+            review_access(db,actor,source['ref']['resource_id'])
     return run, case
 
 
@@ -104,6 +110,12 @@ def snapshot(db, actor, case, refs):
         elif ref.resource_type == 'DOCUMENT_VERSION':
             from .evidence import document_version
             item = dict(document_version(db,actor,ref.resource_id))
+        elif ref.resource_type == 'COMPARISON_INPUT':
+            from .comparison_review import fresh_input
+            item = fresh_input(db,actor,ref.resource_id)
+        elif ref.resource_type == 'COMPARISON_REVIEW':
+            from .comparison_review import fresh_review
+            item = fresh_review(db,actor,ref.resource_id)
         else:
             table = {'TASK': 'tasks', 'SUPPORT_REQUEST': 'support_requests'}[ref.resource_type]
             row = db.execute(f'SELECT * FROM {table} WHERE id=?', (ref.resource_id,)).fetchone()
@@ -112,20 +124,31 @@ def snapshot(db, actor, case, refs):
             item = dict(row)
         if item.get('case_id', item.get('id')) != case['id']:
             fail(422, 'INPUT_CASE_MISMATCH', '같은 사건의 입력을 선택하세요.')
-        expected = item['revision'] if ref.resource_type == 'DOCUMENT_VERSION' else (1 if ref.resource_type == 'FILE' else case['version'])
+        expected = item['revision'] if ref.resource_type in {'DOCUMENT_VERSION','COMPARISON_REVIEW'} else (1 if ref.resource_type in {'FILE','COMPARISON_INPUT'} else case['version'])
         if ref.version != expected:
             fail(409, 'INPUT_VERSION_CONFLICT', '입력 자료의 최신 버전을 확인하세요.')
         sources.append({'ref': ref.model_dump(), 'data': item})
     return {'case_id': case['id'], 'input_case_version': case['version'], 'sources': sources}
 
 
-def serialize(run, case):
+def comparison_dependencies_stale(db,actor,run):
+    from .comparison_review import input_access,input_stale,review_access,review_dependency_stale
+    for source in json.loads(run['snapshot'])['sources']:
+        if source['ref']['resource_type']=='COMPARISON_INPUT' and input_stale(db,actor,input_access(db,actor,source['ref']['resource_id'])):
+            return True
+        if source['ref']['resource_type']=='COMPARISON_REVIEW' and review_dependency_stale(db,actor,review_access(db,actor,source['ref']['resource_id'])):
+            return True
+    return False
+
+
+def serialize(db,actor,run,case):
     return {'run_id': run['id'], 'case_id': run['case_id'], 'purpose': run['purpose'],
             'status': run['status'], 'step': run['step'], 'input_case_version': run['input_case_version'],
             'result': json.loads(run['result']) if run['result'] else None,
             'error': json.loads(run['error']) if run['error'] else None,
             'generation_mode': run['generation_mode'], 'attempts': run['attempts'],
-            'retry_of_run_id': run['retry_of_run_id'], 'stale': run['input_case_version'] != case['version'],
+            'input_refs': json.loads(run['input_refs'])['input_refs'],
+            'retry_of_run_id': run['retry_of_run_id'], 'stale': run['input_case_version'] != case['version'] or comparison_dependencies_stale(db,actor,run),
             'reviewed_case_version': run['reviewed_case_version'], 'created_at': run['created_at']}
 
 
@@ -143,6 +166,9 @@ def start_run(case_id: str, body: RunStart, request: Request):
         handler = request.app.state.agent_registry.handlers.get(body.purpose)
         if handler is None:
             fail(503, 'AGENT_UNAVAILABLE', '이 생성 기능의 공급자 설정 또는 핸들러가 준비되지 않았습니다.')
+        comparison_refs=[ref for ref in body.input_refs if ref.resource_type=='COMPARISON_INPUT']
+        if (body.purpose=='COMPARE_CASES' and (len(comparison_refs)!=1 or len(body.input_refs)!=1)) or (comparison_refs and body.purpose!='COMPARE_CASES'):
+            fail(422,'COMPARISON_INPUT_REQUIRED','교차 사건 비교에는 저장한 비교 자료 묶음 하나를 선택하세요.')
         if body.retry_of_run_id:
             old, _ = run_access(db, actor, body.retry_of_run_id)
             if old['case_id'] != case_id or old['purpose'] != body.purpose or old['status'] not in {'FAILED', 'CANCELLED'}:
@@ -175,7 +201,7 @@ def list_runs(case_id: str, request: Request):
                 run_access(db,actor,run['id'])
             except DomainError:
                 continue
-            results.append(serialize(run,case))
+            results.append(serialize(db,actor,run,case))
         return results
 
 
@@ -184,7 +210,7 @@ def get_run(run_id: str, request: Request):
     with request.app.state.db.transaction() as db:
         actor = authenticate(db, request)
         run, case = run_access(db,actor,run_id)
-        return serialize(run,case)
+        return serialize(db,actor,run,case)
 
 
 def case_for_run(request, run_id):
@@ -198,9 +224,12 @@ def review_run(run_id: str, body: RunReview, request: Request):
     case_id = case_for_run(request,run_id)
     def operation(db, actor, case):
         run, _ = run_access(db,actor,run_id)
-        can_recheck = run['status'] == 'SUCCEEDED' and run['reviewed_case_version'] != case['version']
+        dependency_stale=comparison_dependencies_stale(db,actor,run)
+        can_recheck = run['status'] == 'SUCCEEDED' and (run['reviewed_case_version'] != case['version'] or dependency_stale)
         if run['status'] != 'WAITING_REVIEW' and not can_recheck:
             fail(409,'INVALID_TRANSITION','검토 대기 결과만 확인할 수 있습니다.')
+        if body.decision=='ACCEPT' and dependency_stale:
+            fail(409,'STALE_COMPARISON_INPUT','두 사건이나 학교 기준이 변경되었습니다. 현재 자료로 비교를 다시 준비하세요.')
         if body.decision == 'ACCEPT' and run['input_case_version'] != case['version'] and not body.accept_stale:
             fail(409,'STALE_AGENT_RESULT','생성 후 사건이 변경되었습니다. 변경 내용을 대조한 뒤 다시 검토하세요.')
         status = 'SUCCEEDED' if body.decision == 'ACCEPT' else 'CANCELLED'
@@ -232,4 +261,6 @@ def require_usable_result(db, actor, case, run_id, purpose):
     version = run['reviewed_case_version'] if run['reviewed_case_version'] is not None else run['input_case_version']
     if version != case['version']:
         fail(409,'STALE_AGENT_RESULT','사건이 변경되어 결과를 다시 검토해야 합니다.')
+    if comparison_dependencies_stale(db,actor,run):
+        fail(409,'STALE_COMPARISON_INPUT','비교 사건이나 기준이 변경되어 다시 검토해야 합니다.')
     return json.loads(run['result'])

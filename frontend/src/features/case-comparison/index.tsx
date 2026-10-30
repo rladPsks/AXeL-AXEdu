@@ -9,6 +9,7 @@ import type { CaseDetail } from "../../lib/api/types";
 import { CommandForm } from "../../shared/CommandForm";
 import { date, ErrorNotice, label } from "../../shared/ui";
 import { koreanTime, localInput } from "../../shared/dates";
+import { ComparisonReviewPanel } from "./ReviewPanel";
 
 export type DocumentVersion = {
   id: string;
@@ -137,8 +138,9 @@ export function CaseDocuments({ record }: { record: CaseDetail }) {
         signal,
       ),
   });
-  const query = useQuery({
+  const query = useQuery<DocumentVersion[]>({
     queryKey: ["documents", ...scope, record.id, record.version],
+    placeholderData: (previous) => previous,
     queryFn: ({ signal }) =>
       api.get<DocumentVersion[]>(
         `/api/cases/${encodeURIComponent(record.id)}/documents`,
@@ -169,6 +171,7 @@ export function CaseDocuments({ record }: { record: CaseDetail }) {
             version={record.version}
             path={`/api/cases/${encodeURIComponent(record.id)}/documents`}
             button="원문 기록 저장"
+            disabled={query.isFetching}
             transformValues={versionValues}
           >
             <label>
@@ -230,6 +233,7 @@ export function CaseDocuments({ record }: { record: CaseDetail }) {
                 version={record.version}
                 path={`/api/documents/${encodeURIComponent(document.document_id)}/versions`}
                 button="정정 버전 저장"
+                disabled={query.isFetching}
                 transformValues={(values) => ({
                   ...versionValues(values),
                   expected_document_revision: Number(
@@ -252,7 +256,7 @@ export function CaseDocuments({ record }: { record: CaseDetail }) {
   );
 }
 
-type PairEvidence = {
+export type PairEvidence = {
   case: { id: string; title: string; version: number; status: string };
   documents: DocumentVersion[];
   tasks: {
@@ -331,6 +335,17 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
   const scope = useScope();
   const queries = useQueryClient();
   const [related, setRelated] = useState("");
+  const chooseRelated = (next: string) => {
+    if (
+      next !== related &&
+      document.querySelector('.comparison-review form[data-dirty="true"]') &&
+      !window.confirm(
+        "저장하지 않은 비교 검토가 있습니다. 다른 사건을 대조하면 입력이 사라집니다. 이동할까요?",
+      )
+    )
+      return;
+    setRelated(next);
+  };
   const list = useInfiniteQuery({
     queryKey: ["comparison", ...scope, record.id, record.version],
     initialPageParam: "",
@@ -351,8 +366,18 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
         response_delay_hours: number | null;
       }>("/api/school/repeat-settings", signal),
   });
-  const pair = useQuery({
+  const pair = useQuery<{
+    current: PairEvidence;
+    related: PairEvidence;
+    relation_history: Relation[];
+    notice: string;
+  }>({
     queryKey: ["comparison-pair", ...scope, record.id, record.version, related],
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey.at(-1) === related &&
+      previousQuery?.queryKey.at(-3) === record.id
+        ? previous
+        : undefined,
     enabled: !!related,
     queryFn: ({ signal }) =>
       api.get<{
@@ -375,6 +400,12 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
         onClick={() => {
           void list.refetch();
           void settings.refetch();
+          void queries.invalidateQueries({
+            queryKey: ["comparison-inputs", ...scope],
+          });
+          void queries.invalidateQueries({
+            queryKey: ["comparison-reviews", ...scope],
+          });
           if (related) void pair.refetch();
         }}
       >
@@ -511,7 +542,7 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
               {candidate.matches.map((match) => bases[match]).join(", ")} ·{" "}
               {date(candidate.received_at)}
             </p>
-            <button onClick={() => setRelated(candidate.id)}>
+            <button onClick={() => chooseRelated(candidate.id)}>
               원문 대조: {candidate.id}
             </button>
           </div>
@@ -540,7 +571,7 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
               · {bases[relation.basis]}
             </p>
             <p>{relation.reason}</p>
-            <button onClick={() => setRelated(other)}>
+            <button onClick={() => chooseRelated(other)}>
               연결 사건 대조: {other}
             </button>
           </div>
@@ -549,7 +580,7 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          setRelated(
+          chooseRelated(
             String(
               new FormData(event.currentTarget).get("related") ?? "",
             ).trim(),
@@ -570,6 +601,15 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
             <Evidence item={pair.data.current} />
             <Evidence item={pair.data.related} />
           </div>
+          <ComparisonReviewPanel
+            key={`${record.id}:${related}`}
+            record={record}
+            pair={pair.data}
+            ready={
+              !pair.isFetching &&
+              pair.data.current.case.version === record.version
+            }
+          />
           {record.status !== "CLOSED" &&
           pair.data.related.case.status !== "CLOSED" ? (
             <CommandForm
@@ -577,6 +617,7 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
               version={record.version}
               path={`/api/cases/${encodeURIComponent(record.id)}/relations`}
               button="연결·분리 판단 저장"
+              disabled={pair.isFetching}
               onSaved={() => {
                 void queries.invalidateQueries({
                   queryKey: ["case", ...scope],

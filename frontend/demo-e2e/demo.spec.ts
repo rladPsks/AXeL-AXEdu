@@ -412,3 +412,208 @@ test("wake-up gives up after two minutes and retry can succeed", async ({
     }),
   ).toBeVisible();
 });
+
+test("cross-case proposal, human review and report dependency use the same recorded sources", async ({
+  page,
+  request,
+}, info) => {
+  await page.goto("/cases/demo-case?tab=comparison");
+  await page
+    .getByRole("button", { name: "학교 관리자 관리자 · admin", exact: true })
+    .click();
+  await page
+    .getByLabel("직접 비교할 사건 ID", { exact: true })
+    .fill("comparison-example");
+  await page.getByRole("button", { name: "사건 대조", exact: true }).click();
+  await page.getByText("비교할 원문·업무 선택", { exact: true }).click();
+  await page
+    .getByLabel("demo-case · [가상] 재문의 원문 · 버전 2", { exact: true })
+    .check();
+  await page
+    .getByLabel("comparison-example · [가상] 이전 접수 · 버전 1", {
+      exact: true,
+    })
+    .check();
+  await page
+    .getByRole("button", { name: "선택한 자료로 비교 준비", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "AI 사건 비교 시작", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", {
+      name: "AI 비교 제안 · 검토 대기",
+      exact: true,
+    }),
+  ).toBeVisible({ timeout: 10000 });
+  await expect(
+    page.getByText("규칙/검증용 결과 — 실제 모델 호출 아님", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("AI 검토 사유", { exact: true })
+    .fill("[가상] 원문 대조 후 제안 검토");
+  await page
+    .getByRole("button", { name: "AI 제안 검토 기록", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "검토한 AI 관찰을 사람 기록에 불러오기",
+      exact: true,
+    })
+    .click();
+  await page
+    .getByLabel("비교 검토 사유", { exact: true })
+    .fill("[가상] 두 사건의 자료와 답변 기록을 함께 대조함");
+  await page
+    .getByRole("listbox", { name: "비교 관찰 1 출처", exact: true })
+    .selectOption(["demo-case", "comparison-example"]);
+  const ai = page.getByRole("combobox", {
+    name: "참고한 검토 완료 AI (선택)",
+    exact: true,
+  });
+  await expect(ai.locator("option")).toHaveCount(2);
+  await ai.selectOption({ index: 1 });
+  await page
+    .getByRole("button", { name: "사람의 비교 검토 저장", exact: true })
+    .click();
+  await expect(
+    page.getByText("현재 사건과 일치하는 비교 검토입니다.", { exact: true }),
+  ).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: info.outputPath("cross-case-review-mobile.png"),
+    fullPage: true,
+  });
+  const login = await request.post("/api/demo/login", {
+    data: { account: "admin" },
+  });
+  const auth = { Authorization: `Bearer ${(await login.json()).token}` };
+  const review = (
+    await (
+      await request.get("/api/cases/demo-case/comparison-reviews", {
+        headers: auth,
+      })
+    ).json()
+  )[0];
+  await page.getByRole("button", { name: "지원 판단", exact: true }).click();
+  await page.getByText("검토 후 새 판단 기록", { exact: true }).click();
+  await page
+    .getByLabel("판단 사유·변경 사유", { exact: true })
+    .fill("[가상] 사람의 교차 비교 검토를 지원 판단에 참조");
+  await page.getByLabel("지원 대상", { exact: true }).fill("[가상] 담당 교사");
+  await page
+    .getByLabel("지원 경로·담당 역할", { exact: true })
+    .fill("[가상] 학교 공동 검토");
+  await page
+    .getByLabel("남은 학교 업무", { exact: true })
+    .fill("[가상] 실제 답변 전달 확인");
+  await page
+    .getByRole("combobox", { name: "관찰 1 출처", exact: true })
+    .selectOption(`COMPARISON_REVIEW:${review.id}`);
+  await page
+    .getByLabel("관찰 1 내용", { exact: true })
+    .fill("[가상] 비교 기록상 추가 증빙 확인 필요");
+  await page
+    .getByRole("button", { name: "지원 판단 저장", exact: true })
+    .click();
+  await expect(
+    page.getByText("현재 사건과 일치하는 최신 판단입니다.", { exact: true }),
+  ).toBeVisible();
+  const decision = (
+    await (
+      await request.get("/api/cases/demo-case/support-decisions", {
+        headers: auth,
+      })
+    ).json()
+  )[0];
+  const related = await (
+    await request.get("/api/cases/comparison-example", { headers: auth })
+  ).json();
+  expect(
+    (
+      await request.post("/api/cases/comparison-example/tasks", {
+        headers: { ...auth, "Idempotency-Key": crypto.randomUUID() },
+        data: {
+          expected_version: related.version,
+          type: "FOLLOW_UP",
+          assignee_id: "teacher",
+          question: "[가상] 비교 사건의 후속 확인",
+        },
+      })
+    ).status(),
+  ).toBe(201);
+  await page
+    .getByRole("button", { name: "판단 이력 새로고침", exact: true })
+    .click();
+  await expect(
+    page.getByText("현재 사건과 일치하는 최신 판단입니다.", { exact: true }),
+  ).not.toBeVisible();
+  expect(
+    (
+      await request.get(
+        `/api/support-decisions/${decision.decision_id}/snapshot?expected_case_version=${decision.current_case_version}`,
+        { headers: auth },
+      )
+    ).status(),
+  ).toBe(409);
+});
+
+test("a concurrent change preserves the unsaved comparison text while blocking old inputs", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/cases/demo-case?tab=comparison");
+  await page
+    .getByRole("button", { name: "학교 관리자 관리자 · admin", exact: true })
+    .click();
+  await page
+    .getByLabel("직접 비교할 사건 ID", { exact: true })
+    .fill("comparison-example");
+  await page.getByRole("button", { name: "사건 대조", exact: true }).click();
+  await page
+    .getByRole("button", { name: "선택한 자료로 비교 준비", exact: true })
+    .click();
+  await page
+    .getByLabel("비교 검토 사유", { exact: true })
+    .fill("[가상] 충돌 후에도 보존할 검토 사유");
+  await page
+    .getByLabel("비교 관찰 1 내용", { exact: true })
+    .fill("[가상] 원문을 대조 중이며 아직 확인되지 않은 관찰");
+  const issued = await request.post("/api/demo/login", {
+    data: { account: "admin" },
+  });
+  const auth = { Authorization: `Bearer ${(await issued.json()).token}` };
+  const related = await (
+    await request.get("/api/cases/comparison-example", { headers: auth })
+  ).json();
+  expect(
+    (
+      await request.post("/api/cases/comparison-example/tasks", {
+        headers: { ...auth, "Idempotency-Key": crypto.randomUUID() },
+        data: {
+          expected_version: related.version,
+          type: "FACT_CHECK",
+          assignee_id: "teacher",
+          question: "[가상] 동시에 추가된 사실 확인",
+        },
+      })
+    ).status(),
+  ).toBe(201);
+  await page
+    .getByRole("button", { name: "사람의 비교 검토 저장", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toContainText(
+    "현재 자료로 비교를 다시 준비하세요",
+  );
+  await expect(page.getByLabel("비교 검토 사유", { exact: true })).toHaveValue(
+    "[가상] 충돌 후에도 보존할 검토 사유",
+  );
+  await expect(
+    page.getByLabel("비교 관찰 1 내용", { exact: true }),
+  ).toHaveValue("[가상] 원문을 대조 중이며 아직 확인되지 않은 관찰");
+});

@@ -7,6 +7,20 @@
 .comparison-columns > section {
   min-width: 0;
 }
+.comparison-review {
+  min-width: 0;
+}
+.comparison-review fieldset {
+  min-width: 0;
+}
+.comparison-review select {
+  max-width: 100%;
+}
+.comparison-review p,
+.comparison-review li,
+.comparison-review small {
+  overflow-wrap: anywhere;
+}
 .comparison-columns p,
 .comparison-columns summary,
 .comparison-columns li {

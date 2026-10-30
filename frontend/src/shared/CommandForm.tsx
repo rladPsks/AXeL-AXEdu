@@ -20,6 +20,7 @@ export function CommandForm({
   versionField = "expected_version",
   transformValues,
   onSaved,
+  disabled = false,
 }: {
   caseId: string;
   version: number;
@@ -32,6 +33,7 @@ export function CommandForm({
     values: Record<string, unknown>,
   ) => Record<string, unknown>;
   onSaved?: () => void;
+  disabled?: boolean;
 }) {
   const { api } = useSession();
   const scope = useScope();
@@ -66,6 +68,8 @@ export function CommandForm({
       queries.invalidateQueries({ queryKey: ["school-settings", ...scope] }),
       queries.invalidateQueries({ queryKey: ["repeat-settings", ...scope] }),
       queries.invalidateQueries({ queryKey: ["comparison", ...scope] }),
+      queries.invalidateQueries({ queryKey: ["comparison-inputs", ...scope] }),
+      queries.invalidateQueries({ queryKey: ["comparison-reviews", ...scope] }),
       queries.invalidateQueries({ queryKey: ["comparison-pair", ...scope] }),
       queries.invalidateQueries({ queryKey: ["documents", ...scope] }),
       queries.invalidateQueries({ queryKey: ["school-members", ...scope] }),
@@ -101,7 +105,7 @@ export function CommandForm({
       onChange={() => setDirty(true)}
       onSubmit={(event) => {
         event.preventDefault();
-        if (busy || failed) return;
+        if (busy || disabled || failed) return;
         const values = Object.fromEntries(
           [...new FormData(event.currentTarget)].map(([key, value]) => [
             key,
@@ -121,7 +125,7 @@ export function CommandForm({
         );
       }}
     >
-      <fieldset disabled={busy || !!failed}>
+      <fieldset disabled={busy || disabled || !!failed}>
         {children}
         <button type="submit" className="primary">
           {busy ? "저장 중…" : button}

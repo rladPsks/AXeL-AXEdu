@@ -96,6 +96,12 @@ class Worker:
                             raise
                         self._heartbeat(job)
             result = handler.result_model.model_validate(raw).model_dump(mode='json')
+            if job['purpose']=='COMPARE_CASES':
+                from .comparison_review import ComparisonResult,validate_citations
+                parsed=ComparisonResult.model_validate(result)
+                sources=json.loads(job['snapshot'])['sources'][0]['data']['sources']
+                if not validate_citations(parsed.findings,sources):
+                    raise ProviderFailure('INVALID_CITATION','비교 입력에 없는 출처가 포함되어 재검토가 필요합니다.')
             if len(json.dumps(result,ensure_ascii=False).encode()) > 1024*1024:
                 raise ProviderFailure('RESULT_TOO_LARGE','생성 결과 크기가 허용 범위를 초과했습니다.')
             self._finish(job,result=result)
