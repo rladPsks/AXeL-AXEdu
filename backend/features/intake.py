@@ -246,6 +246,19 @@ def create_intake(body: IntakeCreate, request: Request):
                         question=f"{collaborator_label or '협조 담당'} 사실 확인: {question}",
                         callback_needed=routing.get("callback_needed", "UNDECIDED"),
                     ))
+            if history_review["history_action"] != "NONE":
+                history_task_id = uid()
+                db.execute(
+                    "INSERT INTO tasks(id,case_id,type,assignee_id,requester_id,question,callback_needed,status,reply,created_at) "
+                    "VALUES (?,?,?,?,?,?,'NOT_REQUIRED','REQUESTED',NULL,?)",
+                    (history_task_id, case_id, "FOLLOW_UP", owner["user_id"], actor["user_id"],
+                     "과거 사건 연결 검토: " + history_review["reason"], now()),
+                )
+                db.execute("INSERT OR IGNORE INTO case_participants(case_id,user_id) VALUES (?,?)",
+                           (case_id, owner["user_id"]))
+                enqueue(db, case_id, owner["user_id"], "TASK_CREATED", history_task_id,
+                        f"history-review:{history_task_id}:created")
+                task_ids.append(history_task_id)
 
         audit(db, actor, case_id, "CASE_INTAKE_CREATED", 1, {
             "channel": body.channel,

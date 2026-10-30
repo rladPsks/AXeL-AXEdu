@@ -140,6 +140,8 @@ export function IntakeDetail({ caseId }: { caseId: string }) {
           <li>부재 시 대체: {labels[routing.backup_role] ?? routing.backup_role ?? "확인 필요"}</li>
           <li>콜백: {routing.callback_needed ?? "UNDECIDED"}</li>
         </ul>
+        {tools.history_review?.history_action && tools.history_review.history_action !== "NONE" ? <><h3>과거 사건 검토</h3><p><strong>{tools.history_review.history_action}</strong> · {tools.history_review.reason}</p></> : null}
+        {workflow.initial_response_draft ? <><h3>근거 기반 1차 답변 초안</h3><p className="preserve">{workflow.initial_response_draft}</p><p className="hint">자동 발송되지 않으며 담당자 확인이 필요합니다.</p></> : null}
         <h3>교사 보호 원칙</h3>
         <p>{plan.teacher_scope ?? "교사는 필요한 확인·상담만 수행하고 사건 총괄은 학교 대응체계에 유지합니다."}</p>
         <p><strong>보호자 직접 연락:</strong> {plan.teacher_direct_contact ? "필요 — 학교 지원 방향 확인 후 진행" : "현재 단계에서는 요청하지 않음"}</p>
