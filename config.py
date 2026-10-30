@@ -1,5 +1,8 @@
 from pathlib import Path
 import os
+from backend.envfile import load_env_file
+
+load_env_file()
 
 ROOT_DIR = Path(__file__).resolve().parent
 DATA_DIR = ROOT_DIR / "data"

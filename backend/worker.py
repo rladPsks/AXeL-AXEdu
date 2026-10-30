@@ -126,6 +126,8 @@ class Worker:
 
 
 if __name__ == '__main__':
+    from .envfile import load_env_file
+    load_env_file()
     from .runtime import build_registry
     parser = argparse.ArgumentParser()
     parser.add_argument('--db',default=os.getenv('SCHOOL_AGENT_DB','data/private/dev.sqlite3'))

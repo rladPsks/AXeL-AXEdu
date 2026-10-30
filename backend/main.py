@@ -4,6 +4,10 @@ import os
 from contextlib import asynccontextmanager
 from threading import Event, Thread
 
+from .envfile import load_env_file
+
+load_env_file()
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.openapi.utils import get_openapi
@@ -39,6 +43,7 @@ from .models import (CaseTransition, Command, HandoverCreate, SupportCreate,
 
 
 def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_bytes=None, agent_registry=None, inbox_worker=True):
+    load_env_file()
     @asynccontextmanager
     async def lifespan(app):
         if os.getenv('SCHOOL_AGENT_AUTO_SEED','0')=='1':

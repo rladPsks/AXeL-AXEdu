@@ -3,10 +3,13 @@ import importlib
 import os
 import re
 
+from .envfile import load_env_file
+
 from .agents import Registry
 
 
 def build_registry():
+    load_env_file()
     target = os.getenv('SCHOOL_AGENT_REGISTRY_FACTORY', 'backend.openai_provider:create_registry')
     if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_]*',target):
         raise ValueError('Registry factory must be a trusted local module:function')
