@@ -73,3 +73,13 @@ def test_workflow_persists_case_task_and_event(monkeypatch, tmp_path: Path):
     assert snapshot["case"]["next_action"] == "FACT_CHECK"
     assert snapshot["tasks"][0]["task_type"] == "FACT_CHECK"
     assert any(e["event_type"] == "AI_TRIAGE_COMPLETED" for e in snapshot["events"])
+
+
+def test_rules_accept_timezone_aware_history():
+    from agent.rules import apply_rules
+    out = apply_rules(
+        {"urgency": "LOW", "stage": 2, "infringement_flags": []},
+        [{"received_at": "2026-10-30T16:14:16.131341+00:00", "status": "IN_PROGRESS"}],
+    )
+    assert out["repeat_count"] == 2
+    assert out["repeat_review"] is False
