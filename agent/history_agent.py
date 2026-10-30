@@ -4,6 +4,8 @@ import re
 from difflib import SequenceMatcher
 from typing import Any
 
+from db import connect
+
 
 
 HIGH_SIMILARITY = 0.55
@@ -89,6 +91,49 @@ def find_related_cases_from_rows(*, raw_text: str, rows: list[dict[str, Any]], l
         item["comparison"] = comparison
         item["has_substantive_response"] = bool(item.get("has_substantive_response"))
         candidates.append(item)
+    candidates.sort(key=lambda x: x["similarity"], reverse=True)
+    return candidates[:limit]
+
+def find_related_cases(
+    *,
+    current_case_id: str,
+    complainant_id: str | None,
+    student_ref: str | None,
+    raw_text: str,
+    limit: int = 5,
+) -> list[dict[str, Any]]:
+    """Legacy A-prototype adapter kept for its regression tests and console."""
+    if not complainant_id and not student_ref:
+        return []
+    with connect() as conn:
+        rows = conn.execute(
+            """SELECT id, received_at, complainant_id, student_ref, raw_text, status, response_draft
+               FROM cases WHERE id != ?
+               AND ((? IS NOT NULL AND complainant_id = ?)
+                 OR (? IS NOT NULL AND student_ref = ?))
+               ORDER BY received_at DESC LIMIT 20""",
+            (current_case_id, complainant_id, complainant_id, student_ref, student_ref),
+        ).fetchall()
+        candidates = []
+        for row in rows:
+            item = dict(row)
+            comparison = compare_case_text(raw_text, item["raw_text"])
+            if comparison["similarity"] < 0.20:
+                continue
+            events = [r["event_type"] for r in conn.execute(
+                "SELECT event_type FROM case_events WHERE case_id=? ORDER BY id", (item["id"],)
+            ).fetchall()]
+            tasks = [dict(r) for r in conn.execute(
+                "SELECT task_type,status FROM tasks WHERE case_id=?", (item["id"],)
+            ).fetchall()]
+            item["similarity"] = comparison["similarity"]
+            item["comparison"] = comparison
+            item["has_substantive_response"] = (
+                "RESPONSE_DELIVERED" in events
+                or "RESPONSE_APPROVED" in events
+                or any(t["task_type"] == "RESPONSE_REVIEW" and t["status"] == "COMPLETED" for t in tasks)
+            )
+            candidates.append(item)
     candidates.sort(key=lambda x: x["similarity"], reverse=True)
     return candidates[:limit]
 
