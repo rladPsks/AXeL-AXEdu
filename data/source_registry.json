@@ -33,7 +33,8 @@
       "relevant_articles": [
         "제65조"
       ],
-      "notes": "학교장이 중지 요청 후 전화·면담 종료, 퇴거, 일시적 출입 제한, 수사기관 신고를 할 수 있는 절차 및 긴급 예외를 규정합니다."
+      "notes": "학교장이 중지 요청 후 전화·면담 종료, 퇴거, 일시적 출입 제한, 수사기관 신고를 할 수 있는 절차 및 긴급 예외를 규정합니다.",
+      "law_number": "대통령령 제36785호"
     },
     {
       "source_id": "LAW-TEACHER-STATUS-21350",
@@ -43,8 +44,7 @@
       "law_number": "법률 제21350호",
       "promulgated_at": "2026-02-19",
       "effective_from": "2026-02-19",
-      "effective_to": "2026-12-02",
-      "status": "in_force_until_2026_12_02",
+      "status": "in_force_as_of_2026_10_30",
       "uploaded_file": true,
       "uploaded_filename": "교원의 지위 향상 및 교육활동 보호를 위한 특별법(법률)(제21350호)(20260219).pdf",
       "official_url": "https://www.law.go.kr/LSW/lsRvsDocListP.do?chrClsCd=010202&lsId=000886",
