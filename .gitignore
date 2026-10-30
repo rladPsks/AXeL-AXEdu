@@ -30,3 +30,7 @@ documents/parsed/*
 !documents/parsed/.gitkeep
 documents/chunks/*
 !documents/chunks/.gitkeep
+
+# Human-in-the-Loop 검수 기록·수정본은 로컬에서 관리하고 원본 저장소에 커밋하지 않음
+documents/review/*
+!documents/review/.gitkeep
