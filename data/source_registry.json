@@ -1,0 +1,308 @@
+{
+  "as_of_date": "2026-10-30",
+  "description": "RAG에서 참조할 원문 문서의 성격·적용 범위·시행일을 관리하는 출처 목록입니다.",
+  "sources": [
+    {
+      "source_id": "LAW-SCHOOL-ACT",
+      "title": "초·중등교육법",
+      "source_type": "law",
+      "issuer": "국가법령정보센터",
+      "law_number": "법률 제21580호",
+      "promulgated_at": "2026-04-28",
+      "effective_from": "2026-10-29",
+      "status": "in_force",
+      "uploaded_file": false,
+      "official_url": "https://www.law.go.kr/lsInfoP.do?efYd=20261029&lsiSeq=285599",
+      "relevant_articles": [
+        "제35조",
+        "제36조",
+        "제37조"
+      ],
+      "notes": "2026-10-29 시행된 학교민원 대응 절을 우선 반영합니다."
+    },
+    {
+      "source_id": "DECREE-SCHOOL-ACT",
+      "title": "초·중등교육법 시행령",
+      "source_type": "decree",
+      "issuer": "국가법령정보센터",
+      "promulgated_at": "2026-10-27",
+      "effective_from": "2026-10-29",
+      "status": "in_force",
+      "uploaded_file": false,
+      "official_url": "https://www.law.go.kr/lsInfoP.do?efYd=20261029&lsiSeq=291283",
+      "relevant_articles": [
+        "제65조"
+      ],
+      "notes": "학교장이 중지 요청 후 전화·면담 종료, 퇴거, 일시적 출입 제한, 수사기관 신고를 할 수 있는 절차 및 긴급 예외를 규정합니다.",
+      "law_number": "대통령령 제36785호"
+    },
+    {
+      "source_id": "LAW-TEACHER-STATUS-21350",
+      "title": "교원의 지위 향상 및 교육활동 보호를 위한 특별법",
+      "source_type": "law",
+      "issuer": "국가법령정보센터",
+      "law_number": "법률 제21350호",
+      "promulgated_at": "2026-02-19",
+      "effective_from": "2026-02-19",
+      "status": "in_force_as_of_2026_10_30",
+      "uploaded_file": true,
+      "uploaded_filename": "교원의 지위 향상 및 교육활동 보호를 위한 특별법(법률)(제21350호)(20260219).pdf",
+      "official_url": "https://www.law.go.kr/LSW/lsRvsDocListP.do?chrClsCd=010202&lsId=000886",
+      "relevant_articles": [
+        "제18조",
+        "제19조",
+        "제20조",
+        "제25조",
+        "제26조"
+      ],
+      "notes": "2026-10-30 현재 적용 중인 버전으로 색인합니다. 같은 법의 2026-05-19 및 2026-06-02 개정 내용 중 시행일이 도래하지 않은 조항은 별도 예정 버전으로 관리합니다."
+    },
+    {
+      "source_id": "LAW-TEACHER-STATUS-21655",
+      "title": "교원지위법 제18조 개정 예정 조문",
+      "source_type": "law_amendment_scheduled",
+      "issuer": "국가법령정보센터",
+      "law_number": "법률 제21655호",
+      "promulgated_at": "2026-05-19",
+      "effective_from": "2026-11-20",
+      "status": "scheduled",
+      "uploaded_file": false,
+      "official_url": "https://www.law.go.kr/LSW/lsRvsDocListP.do?chrClsCd=010202&lsId=000886",
+      "relevant_articles": [
+        "제18조"
+      ],
+      "notes": "2026-10-30 현재 아직 시행 전입니다. 시행일 이후 적용하도록 예약 색인합니다."
+    },
+    {
+      "source_id": "LAW-TEACHER-STATUS-21717",
+      "title": "교원지위법 제19조·제29조 개정 예정 조문",
+      "source_type": "law_amendment_scheduled",
+      "issuer": "국가법령정보센터",
+      "law_number": "법률 제21717호",
+      "promulgated_at": "2026-06-02",
+      "effective_from": "2026-12-03",
+      "status": "scheduled",
+      "uploaded_file": false,
+      "official_url": "https://www.law.go.kr/LSW/lsRvsDocListP.do?chrClsCd=010202&lsId=000886",
+      "relevant_articles": [
+        "제19조",
+        "제29조"
+      ],
+      "notes": "제19조의 대면·비대면 교육활동 문구 및 교육활동에 현저한 지장을 주는 방식의 민원 관련 개정은 2026-12-03 시행 예정입니다. 시행 전 현행 규칙에 섞지 않습니다."
+    },
+    {
+      "source_id": "LAW-CIVIL-PETITION",
+      "title": "민원 처리에 관한 법률",
+      "source_type": "law",
+      "issuer": "국가법령정보센터",
+      "effective_from": "2022-07-12",
+      "status": "in_force_as_of_2026_10_30",
+      "uploaded_file": false,
+      "official_url": "https://www.law.go.kr/lsInfoP.do?lsiSeq=195076",
+      "relevant_articles": [
+        "제4조",
+        "제5조",
+        "제7조",
+        "제21조",
+        "제23조"
+      ],
+      "notes": "학교민원 매뉴얼에서 인용하는 민원인의 권리·의무, 담당자 보호, 정보보호, 반복·중복 민원 관련 근거입니다. 학교 특례 조항 및 최신 개정 여부와 함께 확인합니다."
+    },
+    {
+      "source_id": "DECREE-CIVIL-PETITION",
+      "title": "민원 처리에 관한 법률 시행령",
+      "source_type": "decree",
+      "issuer": "국가법령정보센터",
+      "law_number": "대통령령 제36296호",
+      "promulgated_at": "2026-05-06",
+      "effective_from": "2026-05-06",
+      "status": "in_force",
+      "uploaded_file": false,
+      "official_url": "https://law.go.kr/LSW/lsRvsDocListP.do?chrClsCd=010102&lsId=003540",
+      "relevant_articles": [
+        "제4조",
+        "제14조",
+        "제21조"
+      ],
+      "notes": "담당자 보호조치, 질의민원 처리기간, 처리기간 연장 사유를 보완합니다."
+    },
+    {
+      "source_id": "MOE-MANUAL-2026",
+      "title": "학교민원 처리 매뉴얼",
+      "source_type": "official_manual",
+      "issuer": "교육부·한국교육개발원",
+      "published_at": "2026-02",
+      "effective_from": "2026-02",
+      "status": "official_guidance",
+      "uploaded_file": true,
+      "uploaded_filename": "학교민원 처리 매뉴얼 (1).pdf",
+      "page_count": 63,
+      "relevant_pages": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        17,
+        18,
+        19,
+        20,
+        23,
+        28,
+        29,
+        30,
+        36,
+        37,
+        55
+      ],
+      "notes": "법령 자체가 아니라 학교 현장 적용을 위한 공식 매뉴얼입니다. 법령과 충돌할 경우 법령을 우선합니다."
+    },
+    {
+      "source_id": "MOE-POLICY-2026-01",
+      "title": "학교민원 대응 및 교육활동 보호 강화 방안",
+      "source_type": "policy_plan",
+      "issuer": "교육부",
+      "published_at": "2026-01",
+      "status": "policy_context",
+      "uploaded_file": true,
+      "uploaded_filename": "[별첨]+학교민원+대응+및+교육활동+보호+강화+방안+-+복사본.pdf",
+      "page_count": 23,
+      "relevant_pages": [
+        1,
+        6,
+        8,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23
+      ],
+      "notes": "정책 추진 배경·현황·추진 방향 자료입니다. 계획·정책 설명을 법적 의무로 오인하지 않도록 합니다."
+    },
+    {
+      "source_id": "MOE-PRESS-2025-05",
+      "title": "교육활동보호 제도의 현장 안착을 위해 노력",
+      "source_type": "press_release_statistics",
+      "issuer": "교육부",
+      "published_at": "2025-05-14",
+      "status": "historical_context",
+      "uploaded_file": true,
+      "uploaded_filename": "[교육부 05-14(수) 조간보도자료] 교육활동보호 제도의 현장 안착을 위해 노력.pdf",
+      "page_count": 12,
+      "relevant_pages": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "notes": "2024학년도 실태조사 및 당시 정책 발표 자료입니다. 통계의 조사시점·대상연도를 항상 함께 표시하고 현행 법적 기준으로 사용하지 않습니다."
+    },
+    {
+      "source_id": "PRIVACY-ACT-21445",
+      "title": "개인정보 보호법",
+      "source_type": "law",
+      "issuer": "국가법령정보센터",
+      "law_number": "법률 제21445호",
+      "promulgated_at": "2026-03-10",
+      "effective_from": "2026-09-11",
+      "status": "in_force_as_of_2026_10_30",
+      "uploaded_file": false,
+      "official_url": "https://www.law.go.kr/lsInfoR.do?ancYnChk=0&chrClsCd=010202&efYd=20260911&lsiSeq=283839&urlMode=lsInfoP",
+      "relevant_articles": [
+        "제15조",
+        "제16조",
+        "제17조",
+        "제18조",
+        "제29조"
+      ],
+      "notes": "민원 원문과 학생·보호자 정보의 AI 분석·저장·외부 제공 시 적용되는 개인정보 처리 근거입니다."
+    },
+    {
+      "source_id": "PRIVACY-ACT-21910",
+      "title": "개인정보 보호법 개정 예정 조문",
+      "source_type": "law_amendment_scheduled",
+      "issuer": "국가법령정보센터",
+      "law_number": "법률 제21910호",
+      "promulgated_at": "2026-09-08",
+      "effective_from": "2027-03-09",
+      "status": "scheduled",
+      "uploaded_file": false,
+      "official_url": "https://www.law.go.kr/LSW/lsInfoP.do?ancNo=21910&ancYd=20260908&efYd=20270309&lsiSeq=289415",
+      "relevant_articles": [
+        "개정 조문 전체"
+      ],
+      "notes": "2026-10-30 현재 미시행이므로 시행일 전에는 현행 근거로 사용하지 않습니다."
+    },
+    {
+      "source_id": "DECREE-PRIVACY-36671",
+      "title": "개인정보 보호법 시행령",
+      "source_type": "decree",
+      "issuer": "국가법령정보센터",
+      "law_number": "대통령령 제36671호",
+      "promulgated_at": "2026-09-10",
+      "effective_from": "2026-09-11",
+      "status": "in_force_as_of_2026_10_30",
+      "uploaded_file": false,
+      "official_url": "https://www.law.go.kr/lsSc.do?query=%EA%B0%9C%EC%9D%B8%EC%A0%95%EB%B3%B4%EB%B3%B4%ED%98%B8%EB%B2%95",
+      "relevant_articles": [
+        "안전조치 관련 조항"
+      ],
+      "notes": "개인정보 보호법의 안전조치 등 하위 절차를 확인할 때 함께 검색합니다."
+    },
+    {
+      "source_id": "MOE-GYEONGGI-COMPLAINT-GUIDE-2024",
+      "title": "학교 민원 응대 안내자료",
+      "source_type": "legacy_operational_guidance",
+      "issuer": "교육부·경기도교육청",
+      "published_at": "2024-03",
+      "status": "legacy_guidance",
+      "jurisdiction": "경기도",
+      "scope": "local",
+      "uploaded_file": true,
+      "uploaded_filename": "학교 민원 응대 안내자료.pdf",
+      "page_count": 63,
+      "legal_authority": false,
+      "use_for": [
+        "response_script",
+        "special_complaint_playbook",
+        "staff_protection_examples",
+        "scenario_examples"
+      ],
+      "do_not_use_for": [
+        "current_law_determination",
+        "current_agency_name",
+        "current_statutory_deadline",
+        "criminal_liability_determination"
+      ],
+      "notes": "2024 운영 안내자료. 2026 현행 법령·교육부 매뉴얼보다 우선하지 않으며, 응대 절차·스크립트·사례의 보조 근거로만 사용합니다.",
+      "source_aliases": [
+        "학교 민원 응대 안내자료"
+      ]
+    }
+  ],
+  "not_yet_uploaded_but_recommended": [
+    {
+      "title": "해당 시도교육청 학교민원 처리 지원계획·조례·업무지침",
+      "reason": "교육감이 정하는 학교민원 처리 절차 및 지역별 이관 경로를 연결하기 위해 필요"
+    }
+  ]
+}

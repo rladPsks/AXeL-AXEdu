@@ -1,0 +1,17 @@
+{
+  "school": "데모초등학교",
+  "academic_year": 2026,
+  "status": "fictional_demo_data",
+  "events": [
+    {
+      "date": "2026-11-02",
+      "title": "2학기 현장체험학습",
+      "grade": "3"
+    },
+    {
+      "date": "2026-11-05",
+      "title": "학부모 공개수업",
+      "grade": "all"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+[
+  {
+    "id": "CASE-001",
+    "complainant_id": "PARENT-A",
+    "text": "다음 주 현장체험학습 준비물과 집결 시간이 언제인가요?",
+    "expected_category": "INFO",
+    "expected_urgency": "LOW",
+    "scenario": "정보성 문의",
+    "note": "가상 시연 사례"
+  },
+  {
+    "id": "CASE-002",
+    "complainant_id": "PARENT-B",
+    "text": "아이가 수업 시간에 계속 지적받는다고 합니다. 어떤 상황인지 확인하고 학교 차원에서 검토해 주세요.",
+    "expected_category": "EDU",
+    "expected_urgency": "MID",
+    "scenario": "복합 민원",
+    "note": "가상 시연 사례; 전문가 라벨 검수 필요"
+  },
+  {
+    "id": "CASE-003",
+    "complainant_id": "PARENT-C",
+    "text": "지난번에도 문의했는데 아직 답을 받지 못했습니다. 진행 상황을 알려 주세요.",
+    "expected_category": "OTHER",
+    "expected_urgency": "MID",
+    "scenario": "미답변 후 재문의",
+    "note": "가상 시연 사례"
+  }
+]
