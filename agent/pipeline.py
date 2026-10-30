@@ -10,10 +10,10 @@ from .validator import validate_response
 def _routing_domain(cls: dict[str, Any]) -> str:
     if cls.get("nature") == "INFO_REQUEST" or cls.get("is_informational"):
         return "simple_inquiry"
-    if cls.get("nature") == "COUNSEL" or cls.get("domain_p55") == "생활지도/상담":
-        return "student_counseling"
     if cls.get("nature") in {"SAFETY", "INFRINGEMENT_REVIEW"} or cls.get("stage") == 4:
         return "complex_or_sensitive"
+    if cls.get("nature") == "COUNSEL" or cls.get("domain_p55") == "생활지도/상담":
+        return "student_counseling"
     return "fact_check"
 
 

@@ -194,6 +194,17 @@ def update_case_state(
         conn.execute(f"UPDATE cases SET {', '.join(fields)} WHERE id = ?", values)
 
 
+def update_case_owner(case_id: str, owner_role: str, *, next_action: str | None = None):
+    fields = ["owner_role = ?", "updated_at = ?"]
+    values: list[object] = [owner_role, utc_now()]
+    if next_action is not None:
+        fields.append("next_action = ?")
+        values.append(next_action)
+    values.append(case_id)
+    with connect() as conn:
+        conn.execute(f"UPDATE cases SET {', '.join(fields)} WHERE id = ?", values)
+
+
 def create_task_record(task: dict):
     now = utc_now()
     with connect() as conn:
