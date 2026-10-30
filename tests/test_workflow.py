@@ -1,417 +1,198 @@
-from pathlib import Path
+import sqlite3
+from concurrent.futures import ThreadPoolExecutor
+from uuid import uuid4
 
-import db
-from agent.action_router import decide_actions
-from agent import workflow
+import pytest
+from fastapi.testclient import TestClient
 
-
-def test_action_router_creates_fact_check_for_life_guidance():
-    actions = decide_actions(
-        {
-            "nature": "COMPLAINT",
-            "domain_p55": "생활지도/상담",
-            "urgency": "LOW",
-            "special_codes": [],
-            "infringement_flags": [],
-            "needs_fact_check": ["지도 시점", "지도 사유"],
-            "repeat_review": False,
-        },
-        {"action_role": "homeroom_teacher", "approver": "vice_principal"},
-        [],
-    )
-    assert actions[0]["task_type"] == "FACT_CHECK"
-    assert actions[0]["assignee_role"] == "homeroom_teacher"
+from backend.main import create_app
+from backend.seed import seed
 
 
-def test_action_router_info_without_school_evidence_requests_fact_check():
-    actions = decide_actions(
-        {
-            "nature": "INFO_REQUEST",
-            "domain_p55": "교무/학사",
-            "urgency": "LOW",
-            "special_codes": [],
-            "infringement_flags": [],
-            "repeat_review": False,
-        },
-        {"suggested_owner": "complaint_response_team"},
-        [],
-    )
-    assert actions[0]["task_type"] == "FACT_CHECK"
-    assert actions[0]["assignee_role"] == "school_information_owner"
+@pytest.fixture
+def env(tmp_path):
+    path = tmp_path / "test.sqlite3"
+    tokens = seed(path)["tokens"]
+    app = create_app(path)
+    with TestClient(app, raise_server_exceptions=False) as client:
+        yield client, tokens, app.state.db
 
 
-def test_workflow_persists_case_task_and_event(monkeypatch, tmp_path: Path):
-    monkeypatch.setattr(db, "DB_PATH", tmp_path / "workflow.sqlite3")
-    monkeypatch.setattr(workflow, "init_db", db.init_db)
-
-    fake = {
-        "classification": {
-            "nature": "COMPLAINT",
-            "domain_p55": "생활지도/상담",
-            "urgency": "LOW",
-            "special_codes": [],
-            "infringement_flags": [],
-            "needs_fact_check": ["지도 시점"],
-            "repeat_review": False,
-            "classifier_mode": "LLM",
-        },
-        "routing": {
-            "suggested_owner": "complaint_response_team",
-            "action_role": "homeroom_teacher",
-            "approver": "vice_principal",
-        },
-        "evidence": [],
-        "response_draft": "검토 필요",
-    }
-    monkeypatch.setattr(workflow, "process", lambda complaint, history=None: fake)
-
-    snapshot = workflow.create_case(
-        {"text": "우리 아이만 계속 혼난다고 합니다.", "channel": "web"},
-        case_id="CASE-TEST",
-    )
-    assert snapshot["case"]["status"] == "IN_PROGRESS"
-    assert snapshot["case"]["next_action"] == "FACT_CHECK"
-    assert snapshot["tasks"][0]["task_type"] == "FACT_CHECK"
-    assert any(e["event_type"] == "AI_TRIAGE_COMPLETED" for e in snapshot["events"])
+def headers(tokens, user="admin", key=None):
+    return {"Authorization": "Bearer " + tokens[user], "Idempotency-Key": key or str(uuid4())}
 
 
-def test_rules_accept_timezone_aware_history():
-    from agent.rules import apply_rules
-    out = apply_rules(
-        {"urgency": "LOW", "stage": 2, "infringement_flags": []},
-        [{"received_at": "2026-10-30T16:14:16.131341+00:00", "status": "IN_PROGRESS"}],
-    )
-    assert out["repeat_count"] == 2
-    assert out["repeat_review"] is False
+def task(client, tokens, version=1, **changes):
+    body = {"expected_version": version, "type": "CALLBACK", "assignee_id": "teacher",
+            "question": "[가상] 상담 일정을 확인해 주세요.", "callback_needed": "REQUIRED", **changes}
+    return client.post("/api/cases/demo-case/tasks", json=body, headers=headers(tokens))
 
 
-def test_info_policy_question_allows_official_sources():
-    from agent.pipeline import _allowed_source_types
-    cls = {"nature": "INFO_REQUEST"}
-    assert _allowed_source_types(cls, "교육활동 침해가 발생하면 학교는 어떤 조치를 해야 하나요?") == {"law", "decree", "official_manual", "local_rule", "policy_plan"}
-    assert _allowed_source_types(cls, "내일 체험학습 몇 시까지 등교하나요?") == {"school_policy"}
+def test_teacher_support_flow_persists_and_keeps_owner(env):
+    client, tokens, database = env
+    response = task(client, tokens)
+    assert response.status_code == 201
+    task_id = response.json()["task_id"]
+    response = client.patch(f"/api/tasks/{task_id}", headers=headers(tokens, "teacher"),
+                            json={"expected_version": 2, "status": "COMPLETED", "reply": "일정 확인 완료"})
+    assert response.status_code == 200
+    response = client.post("/api/cases/demo-case/support-requests", headers=headers(tokens, "teacher"),
+                           json={"expected_version": 3, "coordinator_id": "admin", "type": "ATTEND",
+                                 "reason": "동석을 요청합니다."})
+    assert response.status_code == 201
+    support_id = response.json()["support_request_id"]
+    for version, status in [(4, "ACKNOWLEDGED"), (5, "COMPLETED")]:
+        response = client.patch(f"/api/support-requests/{support_id}", headers=headers(tokens),
+                                json={"expected_version": version, "status": status,
+                                      "result": "동석 지원 완료" if status == "COMPLETED" else None})
+        assert response.status_code == 200
+    with TestClient(create_app(database.path)) as restarted:
+        case = restarted.get("/api/cases/demo-case", headers=headers(tokens, "teacher")).json()
+        assert case["version"] == 6 and case["owner_id"] == "admin"
+        assert case["tasks"][0]["reply"] == "일정 확인 완료"
+        assert case["support_requests"][0]["result"] == "동석 지원 완료"
+        timeline = restarted.get("/api/cases/demo-case/timeline", headers=headers(tokens)).json()
+        assert len(timeline) == 6
+        assert [event["new_version"] for event in timeline] == list(range(1, 7))
 
 
-def test_history_draft_is_not_substantive_response():
-    from agent.history_agent import build_history_review
-    review = build_history_review(
-        {"id": "CURRENT"},
-        [{
-            "id": "OLD",
-            "similarity": 1.0,
-            "status": "IN_PROGRESS",
-            "response_status": "DRAFTED",
-            "has_substantive_response": False,
-        }],
-    )
-    assert review["repeat_candidate"] is False
-    assert review["unanswered_count"] == 1
+def test_session_and_case_scope(env):
+    client, tokens, _ = env
+    assert client.get("/api/cases/demo-case").status_code == 401
+    assert client.get("/api/cases/demo-case", headers=headers(tokens, "other-admin")).status_code == 404
+    assert client.get("/api/cases/demo-case", headers=headers(tokens, "outsider")).status_code == 403
+    assert task(client, tokens).status_code == 201
+    assert client.get("/api/cases/demo-case", headers=headers(tokens, "teacher")).status_code == 200
+    response = client.post("/api/cases/demo-case/tasks", headers=headers(tokens, "teacher"),
+                           json={"expected_version": 2, "type": "FACT_CHECK", "assignee_id": "teacher",
+                                 "question": "검증", "role": "ADMIN"})
+    assert response.status_code == 422
+    assert "input" not in response.json()
 
 
-def test_history_review_same_answered_request_is_repeat_candidate():
-    from agent.history_agent import build_history_review
-    review = build_history_review(
-        {"id": "CURRENT", "raw_text": "우리 아이만 계속 혼낸다고 합니다. 확인해주세요."},
-        [{
-            "id": "OLD",
-            "raw_text": "우리 아이만 계속 혼낸다고 합니다. 확인해주세요.",
-            "similarity": 1.0,
-            "status": "RESOLVED",
-            "response_status": "DELIVERED",
-            "has_substantive_response": True,
-            "comparison": {
-                "similarity": 1.0,
-                "has_new_information": False,
-                "new_terms": [],
-                "new_numbers": [],
-                "new_dates": [],
-                "new_requests": [],
-            },
-        }],
-    )
-    assert review["repeat_candidate"] is True
-    assert review["follow_up_candidate"] is False
-    assert review["history_action"] == "REVIEW_REPEAT"
+def test_expired_and_deactivated_sessions(env):
+    client, tokens, database = env
+    with database.transaction() as db:
+        db.execute("UPDATE sessions SET expires_at='2000-01-01T00:00:00+00:00' WHERE user_id='teacher'")
+        db.execute("UPDATE memberships SET active=0 WHERE user_id='deputy'")
+    assert client.get("/api/session", headers=headers(tokens, "teacher")).status_code == 401
+    assert client.get("/api/session", headers=headers(tokens, "deputy")).status_code == 401
 
 
-def test_history_review_new_date_or_request_is_follow_up_not_repeat():
-    from agent.history_agent import build_history_review, compare_case_text
-    old = "아이 생활지도 상황을 확인해주세요."
-    current = "지난주 10월 29일에도 같은 일이 있었습니다. 관리자 면담도 요청합니다."
-    comparison = compare_case_text(current, old)
-    review = build_history_review(
-        {"id": "CURRENT", "raw_text": current},
-        [{
-            "id": "OLD",
-            "raw_text": old,
-            "similarity": 0.65,
-            "status": "RESOLVED",
-            "response_status": "DELIVERED",
-            "has_substantive_response": True,
-            "comparison": comparison,
-        }],
-    )
-    assert comparison["has_new_information"] is True
-    assert review["repeat_candidate"] is False
-    assert review["follow_up_candidate"] is True
-    assert review["history_action"] == "REVIEW_FOLLOW_UP"
+def test_idempotency_replays_and_rejects_different_body(env):
+    client, tokens, _ = env
+    body = {"expected_version": 1, "type": "FACT_CHECK", "assignee_id": "teacher", "question": "확인"}
+    h = headers(tokens, key="retry-key")
+    first = client.post("/api/cases/demo-case/tasks", json=body, headers=h)
+    repeat = client.post("/api/cases/demo-case/tasks", json=body, headers=h)
+    assert first.status_code == repeat.status_code == 201
+    assert first.json() == repeat.json()
+    conflict = client.post("/api/cases/demo-case/tasks", json={**body, "question": "다름"}, headers=h)
+    assert conflict.status_code == 409
+    assert conflict.json()["code"] == "IDEMPOTENCY_CONFLICT"
+    case = client.get("/api/cases/demo-case", headers=h).json()
+    assert case["version"] == 2 and len(case["tasks"]) == 1
 
 
-def test_history_review_unanswered_related_case_links_without_repeat():
-    from agent.history_agent import build_history_review
-    review = build_history_review(
-        {"id": "CURRENT", "raw_text": "같은 내용입니다."},
-        [{
-            "id": "OLD",
-            "raw_text": "같은 내용입니다.",
-            "similarity": 1.0,
-            "status": "IN_PROGRESS",
-            "response_status": "DRAFTED",
-            "has_substantive_response": False,
-            "comparison": {"similarity": 1.0, "has_new_information": False},
-        }],
-    )
-    assert review["repeat_candidate"] is False
-    assert review["history_action"] == "LINK_UNRESOLVED"
+def test_stale_version_and_parallel_updates(env):
+    client, tokens, _ = env
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(lambda _: task(client, tokens), range(2)))
+    assert sorted(r.status_code for r in responses) == [201, 409]
+    conflict = next(r for r in responses if r.status_code == 409)
+    assert conflict.json()["current_version"] == 2
 
 
-def test_action_router_creates_history_task_for_follow_up():
-    actions = decide_actions(
-        {
-            "nature": "COMPLAINT",
-            "domain_p55": "생활지도/상담",
-            "urgency": "LOW",
-            "special_codes": [],
-            "infringement_flags": [],
-            "needs_fact_check": [],
-            "repeat_review": False,
-            "history_review_required": True,
-            "history_action": "REVIEW_FOLLOW_UP",
-        },
-        {"action_role": "homeroom_teacher", "approver": "vice_principal"},
-        [],
-    )
-    history = [x for x in actions if x["task_type"] == "HISTORY_REVIEW"]
-    assert len(history) == 1
-    assert "후속 민원" in history[0]["reason"]
+def test_handover_requires_acceptance_by_recipient(env):
+    client, tokens, _ = env
+    response = client.post("/api/cases/demo-case/handovers", headers=headers(tokens),
+                           json={"expected_version": 1, "to_owner_id": "deputy", "reason": "부재 대체"})
+    assert response.status_code == 201
+    assert response.json()["owner_id"] == "admin"
+    handover_id = response.json()["handover_id"]
+    wrong_actor = client.post(f"/api/handovers/{handover_id}/accept", headers=headers(tokens),
+                              json={"expected_version": 2})
+    assert wrong_actor.status_code == 403
+    response = client.post(f"/api/handovers/{handover_id}/accept", headers=headers(tokens, "deputy"),
+                           json={"expected_version": 2})
+    assert response.status_code == 200 and response.json()["owner_id"] == "deputy"
 
 
-
-def test_product_explanation_hides_raw_rag_fields(monkeypatch, tmp_path: Path):
-    monkeypatch.setattr(db, "DB_PATH", tmp_path / "explanation.sqlite3")
-    monkeypatch.setattr(workflow, "init_db", db.init_db)
-    db.init_db()
-
-    result = {
-        "classification": {
-            "nature": "INFO_REQUEST",
-            "category": "INFO",
-            "domain_p55": "학교 운영",
-            "urgency": "LOW",
-            "classifier_mode": "LLM",
-        },
-        "routing": {"suggested_owner": "complaint_response_team"},
-        "response_draft": "검토용 초안",
-    }
-    db.create_case_record(
-        "CASE-X",
-        {"text": "교육활동 침해 시 조치는?", "channel": "web"},
-        result,
-        status="RESPONSE_REVIEW",
-        owner_role="complaint_response_team",
-        next_action="RESPONSE_REVIEW",
-    )
-    db.save_ai_run("CASE-X", "INITIAL_TRIAGE", {"text": "질문"}, {
-        "classification": {
-            "stage_reason": "일반 절차 문의",
-            "urgency_reason": "긴급 위험 없음",
-        },
-        "routing": {},
-        "evidence": [{
-            "title": "교원지위법",
-            "source_id": "LAW-X",
-            "source_type": "law",
-            "article": "제25조",
-            "pdf_page": 9,
-            "score": 99.9,
-            "verification_status": "pending",
-            "text": "아주 긴 원문 청크",
-        }],
-    })
-    monkeypatch.setattr(workflow, "review_case_history", lambda case_id: {
-        "history_action": "NONE",
-        "reason": "이력 없음",
-        "related_count": 0,
-        "comparison_summary": None,
-    })
-    view = workflow.get_case_explanation("CASE-X")
-    assert view["official_basis"][0]["title"] == "교원지위법"
-    assert view["official_basis"][0]["location"] == "제25조"
-    assert "score" not in view["official_basis"][0]
-    assert "text" not in view["official_basis"][0]
+def test_close_guards_and_reopen_preserve_history(env):
+    client, tokens, _ = env
+    task_id = task(client, tokens).json()["task_id"]
+    response = client.post("/api/cases/demo-case/close", headers=headers(tokens),
+                           json={"expected_version": 2, "reason": "검토"})
+    assert response.status_code == 409 and response.json()["pending"]["tasks"] == 1
+    assert client.patch(f"/api/tasks/{task_id}", headers=headers(tokens, "teacher"),
+                        json={"expected_version": 2, "status": "COMPLETED", "reply": "완료"}).status_code == 200
+    response = client.post("/api/cases/demo-case/close", headers=headers(tokens),
+                           json={"expected_version": 3, "reason": "업무 완료"})
+    assert response.status_code == 200
+    assert task(client, tokens, 4).json()["code"] == "CASE_CLOSED"
+    response = client.post("/api/cases/demo-case/reopen", headers=headers(tokens),
+                           json={"expected_version": 4, "reason": "새 사실 접수"})
+    assert response.status_code == 200 and response.json()["version"] == 5
+    assert len(client.get("/api/cases/demo-case/timeline", headers=headers(tokens)).json()) == 5
 
 
-def test_product_explanation_separates_claims_and_suppresses_irrelevant_policy(monkeypatch, tmp_path: Path):
-    monkeypatch.setattr(db, "DB_PATH", tmp_path / "explanation-claims.sqlite3")
-    monkeypatch.setattr(workflow, "init_db", db.init_db)
-    db.init_db()
-
-    result = {
-        "classification": {
-            "nature": "COMPLAINT",
-            "category": "STAFF",
-            "domain_p55": "생활지도/상담",
-            "urgency": "LOW",
-            "classifier_mode": "LLM",
-            "special_codes": [],
-            "infringement_flags": [],
-        },
-        "routing": {"suggested_owner": "complaint_response_team"},
-        "response_draft": "초안",
-    }
-    db.create_case_record(
-        "CASE-C",
-        {"text": "우리 아이만 계속 혼난다고 합니다.", "channel": "web"},
-        result,
-        status="RESPONSE_REVIEW",
-        owner_role="complaint_response_team",
-        next_action="RESPONSE_REVIEW",
-    )
-    db.save_ai_run("CASE-C", "POST_TASK_REVIEW", {"text": "질문"}, {
-        "classification": {
-            "stage_reason": "사실 확인 진행",
-            "urgency_reason": "긴급 위험 없음",
-        },
-        "routing": {},
-        "response_generation": {
-            "basis_summary": [
-                "확인된 사실: 10월 29일 수업 중 자리 이탈 3회.",
-                "민원인은 자녀만 계속 혼난다고 주장함.",
-            ],
-            "missing_information": [],
-            "claims_requiring_review": [],
-        },
-        "evidence": [{
-            "title": "학교민원 처리 매뉴얼",
-            "source_id": "MOE-MANUAL-2026",
-            "source_type": "official_manual",
-            "pdf_page": 23,
-            "text": "원문",
-        }],
-    })
-    monkeypatch.setattr(workflow, "review_case_history", lambda case_id: {
-        "history_action": "NONE",
-        "reason": "이력 없음",
-        "related_count": 0,
-        "comparison_summary": None,
-    })
-    view = workflow.get_case_explanation("CASE-C")
-    assert view["facts"]["confirmed"] == ["확인된 사실: 10월 29일 수업 중 자리 이탈 3회."]
-    assert view["facts"]["complainant_claims"] == ["민원인은 자녀만 계속 혼난다고 주장함."]
-    assert view["official_basis"] == []
+def test_support_cannot_skip_ack_or_change_owner(env):
+    client, tokens, _ = env
+    task(client, tokens)
+    response = client.post("/api/cases/demo-case/support-requests", headers=headers(tokens, "teacher"),
+                           json={"expected_version": 2, "coordinator_id": "admin", "type": "TAKEOVER",
+                                 "reason": "공동 대응 요청"})
+    support_id = response.json()["support_request_id"]
+    response = client.patch(f"/api/support-requests/{support_id}", headers=headers(tokens),
+                            json={"expected_version": 3, "status": "COMPLETED", "result": "완료"})
+    assert response.status_code == 409
+    assert client.get("/api/cases/demo-case", headers=headers(tokens)).json()["owner_id"] == "admin"
+    response = client.post("/api/cases/demo-case/close", headers=headers(tokens),
+                           json={"expected_version": 3, "reason": "검토"})
+    assert response.json()["pending"]["support_requests"] == 1
 
 
-def test_school_duty_map_routes_life_guidance_to_student_life_team():
-    from agent.routing import route_case
-    out = route_case(
-        "fact_check",
-        text="생활지도 과정에서 아이만 반복적으로 혼났다고 합니다.",
-        classification={"domain_p55": "생활지도/상담"},
-    )
-    assert out["action_role"] == "HEAD_LIFE_PE"
-    assert "HOMEROOM" in out["collaborators"]
-    assert out["approver"] == "VICE_PRINCIPAL"
+def test_wrong_task_actor_and_invalid_member(env):
+    client, tokens, _ = env
+    assert task(client, tokens, assignee_id="other-admin").status_code == 422
+    assert task(client, tokens, question="   ").status_code == 422
+    task_id = task(client, tokens).json()["task_id"]
+    response = client.patch(f"/api/tasks/{task_id}", headers=headers(tokens, "deputy"),
+                            json={"expected_version": 2, "status": "COMPLETED", "reply": "위장 회신"})
+    assert response.status_code == 403
+    response = client.patch(f"/api/tasks/{task_id}", headers=headers(tokens, "teacher"),
+                            json={"expected_version": 2, "status": "COMPLETED"})
+    assert response.status_code == 422
 
 
-def test_school_duty_map_routes_facilities_to_administration_side():
-    from agent.routing import route_case
-    out = route_case(
-        "fact_check",
-        text="교실 냉난방 시설이 고장났습니다.",
-        classification={"domain_p55": "학교 운영"},
-    )
-    assert out["action_role"] == "ADMIN_FACILITY"
-    assert out["approver"] == "ADMIN_CHIEF"
+def test_audit_failure_rolls_back_domain_version_and_idempotency(env):
+    client, tokens, database = env
+    with database.transaction() as db:
+        db.execute("CREATE TRIGGER fail_audit BEFORE INSERT ON audit_events "
+                   "BEGIN SELECT RAISE(ABORT, 'test failure'); END")
+    response = task(client, tokens)
+    assert response.status_code == 500
+    assert response.json()["code"] == "INTERNAL_ERROR"
+    with database.transaction() as db:
+        assert db.execute("SELECT version FROM cases").fetchone()[0] == 1
+        assert db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 0
+        assert db.execute("SELECT COUNT(*) FROM idempotency").fetchone()[0] == 0
+        assert db.execute("SELECT COUNT(*) FROM case_participants").fetchone()[0] == 0
 
 
-def test_action_router_adds_duty_map_collaborator_task():
-    actions = decide_actions(
-        {
-            "nature": "COMPLAINT",
-            "domain_p55": "생활지도/상담",
-            "urgency": "LOW",
-            "special_codes": [],
-            "infringement_flags": [],
-            "needs_fact_check": ["지도 상황 확인"],
-            "repeat_review": False,
-        },
-        {
-            "action_role": "student_life_staff",
-            "collaborators": ["homeroom_teacher"],
-            "approver": "vice_principal",
-        },
-        [],
-    )
-    assert actions[0]["assignee_role"] == "student_life_staff"
-    assert any(
-        x["task_type"] == "COOP_FACT_CHECK" and x["assignee_role"] == "homeroom_teacher"
-        for x in actions
-    )
+def test_audit_is_append_only(env):
+    _, _, database = env
+    for query in ("UPDATE audit_events SET action='changed'", "DELETE FROM audit_events"):
+        with pytest.raises(sqlite3.IntegrityError):
+            with database.transaction() as db:
+                db.execute(query)
 
 
-def test_confirmed_facts_exclude_history_and_review_notes(monkeypatch, tmp_path: Path):
-    monkeypatch.setattr(db, "DB_PATH", tmp_path / "task-separation.sqlite3")
-    monkeypatch.setattr(workflow, "init_db", db.init_db)
-    db.init_db()
-    fake = {
-        "classification": {"nature": "COMPLAINT", "domain_p55": "생활지도/상담", "urgency": "LOW"},
-        "routing": {"suggested_owner": "complaint_response_team"},
-        "response_draft": "초안",
-    }
-    db.create_case_record(
-        "CASE-S",
-        {"text": "확인해주세요.", "channel": "web"},
-        fake,
-        status="IN_PROGRESS",
-        owner_role="complaint_response_team",
-        next_action="FACT_CHECK",
-    )
-    for task_type, result in [
-        ("FACT_CHECK", "10월 29일 자리 이탈을 확인함"),
-        ("HISTORY_REVIEW", "이전 사건은 미해결"),
-        ("ADMIN_REVIEW", "관리자 검토 메모"),
-    ]:
-        task = {
-            "id": f"TASK-{task_type}",
-            "case_id": "CASE-S",
-            "task_type": task_type,
-            "assignee_role": "staff",
-            "status": "REQUESTED",
-            "reason": "test",
-            "instructions": [],
-        }
-        db.create_task_record(task)
-        db.complete_task_record(task["id"], result)
-    assert workflow._confirmed_fact_results("CASE-S") == ["10월 29일 자리 이탈을 확인함"]
-
-
-def test_delivery_requires_approval_and_records_delivered_event(monkeypatch, tmp_path: Path):
-    monkeypatch.setattr(db, "DB_PATH", tmp_path / "delivery.sqlite3")
-    monkeypatch.setattr(workflow, "init_db", db.init_db)
-    db.init_db()
-    fake = {
-        "classification": {"nature": "INFO_REQUEST", "domain_p55": "교무/학사", "urgency": "LOW"},
-        "routing": {"suggested_owner": "complaint_response_team"},
-        "response_draft": "승인된 답변",
-    }
-    db.create_case_record(
-        "CASE-D",
-        {"text": "문의", "channel": "web"},
-        fake,
-        status="RESPONSE_APPROVED",
-        owner_role="complaint_response_team",
-        next_action="AWAITING_DELIVERY",
-    )
-    out = workflow.deliver_response("CASE-D", actor="vice_principal", channel="web")
-    assert out["case"]["status"] == "RESOLVED"
-    assert any(e["event_type"] == "RESPONSE_DELIVERED" for e in out["events"])
+def test_contract_contains_b_endpoints(env):
+    client, _, _ = env
+    schema = client.get("/openapi.json").json()
+    assert "/api/cases/{case_id}/support-requests" in schema["paths"]
+    assert "/api/handovers/{handover_id}/accept" in schema["paths"]
+    operation = schema["paths"]["/api/cases/{case_id}/tasks"]["post"]
+    assert operation["security"] == [{"Session": []}]
+    assert any(p["name"] == "Idempotency-Key" and p["required"] for p in operation["parameters"])

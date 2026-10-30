@@ -1,0 +1,86 @@
+from fastapi.testclient import TestClient
+
+from backend.main import create_app
+from backend.seed import seed
+import backend.features.intake as intake_feature
+
+
+def auth(tokens, user="admin", key="intake"):
+    return {
+        "Authorization": f"Bearer {tokens[user]}",
+        "Idempotency-Key": key,
+    }
+
+
+def test_integrated_intake_creates_shared_case_and_routed_tasks(monkeypatch, tmp_path):
+    path = tmp_path / "integration.sqlite3"
+    tokens = seed(path)["tokens"]
+
+    monkeypatch.setattr(
+        intake_feature,
+        "classify_complaint",
+        lambda text: {
+            "category": "EDU",
+            "nature": "COMPLAINT",
+            "domain_p55": "생활지도/상담",
+            "urgency": "LOW",
+            "stage": 2,
+            "is_informational": False,
+            "needs_fact_check": ["수업 당시 지도 상황 확인", "다른 학생과 동일 기준인지 확인"],
+            "special_codes": [],
+            "infringement_flags": [],
+            "summary_for_teacher": "생활지도 상황과 지도 기준 확인 요청",
+            "classifier_mode": "TEST",
+        },
+    )
+
+    with TestClient(create_app(path)) as client:
+        response = client.post(
+            "/api/intakes",
+            headers=auth(tokens),
+            json={
+                "channel": "phone",
+                "complainant_name": "가상보호자",
+                "student_name": "가상학생",
+                "complaint_type": "생활지도 불만",
+                "raw_text": "우리 아이만 자주 혼나는 것 같아 지도 상황을 확인해 주세요.",
+                "related_people": [],
+                "incident_context": "전화 접수",
+            },
+        )
+        assert response.status_code == 201
+        result = response.json()
+        case_id = result["case_id"]
+        assert result["classification"]["handling_route"] == "STAFF_OR_TEAM"
+        assert result["routing"]["duty_label"] == "생활지도·학생 갈등"
+
+        case = client.get(f"/api/cases/{case_id}", headers=auth(tokens)).json()
+        assert case["id"] == case_id
+        assert case["owner_id"] == "admin"
+        assert {task["assignee_id"] for task in case["tasks"]} == {"deputy", "teacher"}
+        assert all(task["type"] == "FACT_CHECK" for task in case["tasks"])
+
+        intake = client.get(f"/api/cases/{case_id}/intake", headers=auth(tokens)).json()
+        assert intake["raw_text"].startswith("우리 아이만")
+        assert intake["classification"]["core_demand"] == "생활지도 상황과 지도 기준 확인 요청"
+        assert intake["routing"]["approver"] == "VICE_PRINCIPAL"
+        assert intake["workflow"]["agent"]["orchestrator"] == "AXeL"
+        assert "rag" in intake["workflow"]["tools"]
+        assert "history" in intake["workflow"]["tools"]
+        assert intake["workflow"]["action_plan"]["case_owner"] == "admin"
+
+        repeated = client.post(
+            "/api/intakes",
+            headers=auth(tokens),
+            json={
+                "channel": "phone",
+                "complainant_name": "가상보호자",
+                "student_name": "가상학생",
+                "complaint_type": "생활지도 불만",
+                "raw_text": "우리 아이만 자주 혼나는 것 같아 지도 상황을 확인해 주세요.",
+                "related_people": [],
+                "incident_context": "전화 접수",
+            },
+        )
+        assert repeated.status_code == 201
+        assert repeated.json()["case_id"] == case_id

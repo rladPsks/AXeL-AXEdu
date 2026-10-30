@@ -1,0 +1,34 @@
+.comparison-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  margin: 20px 0;
+}
+.comparison-columns > section {
+  min-width: 0;
+}
+.comparison-review {
+  min-width: 0;
+}
+.comparison-review fieldset {
+  min-width: 0;
+}
+.comparison-review select {
+  max-width: 100%;
+}
+.comparison-review p,
+.comparison-review li,
+.comparison-review small {
+  overflow-wrap: anywhere;
+}
+.comparison-columns p,
+.comparison-columns summary,
+.comparison-columns li {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+@media (max-width: 850px) {
+  .comparison-columns {
+    grid-template-columns: 1fr;
+  }
+}
