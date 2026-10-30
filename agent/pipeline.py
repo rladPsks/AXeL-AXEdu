@@ -16,6 +16,26 @@ def _routing_domain(cls: dict[str, Any]) -> str:
     return "fact_check"
 
 
+def _derive_handling_route(cls: dict[str, Any]) -> str:
+    special = set(cls.get("special_codes") or [])
+    risky = bool(cls.get("infringement_flags") or special.intersection({
+        "VERBAL_ABUSE_REVIEW", "THREAT_REVIEW", "SAFETY_RISK"
+    }))
+    if cls.get("urgency") == "HIGH" or risky or cls.get("nature") in {"SAFETY", "INFRINGEMENT_REVIEW"}:
+        return "ADMIN_REVIEW"
+    if cls.get("nature") == "INFO_REQUEST":
+        return "FRONT_DESK_RESOLVE"
+    return "STAFF_OR_TEAM"
+
+
+def _derive_core_demand(text: str, cls: dict[str, Any]) -> str:
+    summary = str(cls.get("summary_for_teacher") or "").strip()
+    if summary:
+        return summary[:180]
+    compact = " ".join(text.split())
+    return compact[:180]
+
+
 def _allowed_source_types(cls: dict[str, Any], text: str) -> set[str] | None:
     if cls.get("nature") != "INFO_REQUEST":
         return None
@@ -34,6 +54,13 @@ def process(complaint: dict[str, Any], history: list[dict[str, Any]] | None = No
         raise ValueError("민원 내용이 비어 있습니다.")
 
     cls = apply_rules(classify_complaint(text), history or [])
+    cls["core_demand"] = _derive_core_demand(text, cls)
+    cls["handling_route"] = _derive_handling_route(cls)
+    cls["escalation_level"] = {
+        "FRONT_DESK_RESOLVE": 1,
+        "STAFF_OR_TEAM": 1,
+        "ADMIN_REVIEW": 2,
+    }[cls["handling_route"]]
     routing = route_case(_routing_domain(cls), text=text, classification=cls)
     allowed_source_types = _allowed_source_types(cls, text)
     evidence = retrieve(

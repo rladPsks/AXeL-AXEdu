@@ -50,6 +50,8 @@ def route_case(domain: str, *, text: str = "", classification: dict[str, Any] | 
     action_role = base.get("action_role")
     approver = base.get("approver")
     collaborators: list[str] = []
+    backup_role = None
+    callback_needed = "UNDECIDED"
     duty_area = None
     duty_label = None
 
@@ -57,6 +59,8 @@ def route_case(domain: str, *, text: str = "", classification: dict[str, Any] | 
         action_role = area.get("primary_role") or action_role
         approver = area.get("approver") or approver
         collaborators = area.get("collaborators", [])
+        backup_role = area.get("backup_role")
+        callback_needed = area.get("callback_default", "UNDECIDED")
         duty_area = area.get("id")
         duty_label = area.get("label")
         reason = (
@@ -64,12 +68,18 @@ def route_case(domain: str, *, text: str = "", classification: dict[str, Any] | 
             "실제 학교의 해당 학년도 업무분장표에 따라 최종 담당자를 확정해야 합니다."
         )
     else:
-        reason = "세부 업무영역 매칭이 없어 학교별 업무분장 확인이 필요합니다."
+        fallback = duty_map.get("fallback", {})
+        action_role = fallback.get("primary_role") or action_role
+        approver = fallback.get("approver") or approver
+        backup_role = fallback.get("backup_role") or "PRINCIPAL"
+        reason = fallback.get("reason") or "세부 업무영역 매칭이 없어 학교별 업무분장 확인이 필요합니다."
 
     owner = base.get("owner") or "complaint_response_team"
     if domain == "complex_or_sensitive":
-        owner = "principal"
-        approver = "principal"
+        owner = "complaint_response_team"
+        approver = "PRINCIPAL"
+        backup_role = "PRINCIPAL"
+        callback_needed = "NOT_REQUIRED"
 
     return {
         "matched": bool(candidates),
@@ -77,6 +87,14 @@ def route_case(domain: str, *, text: str = "", classification: dict[str, Any] | 
         "action_role": action_role,
         "collaborators": collaborators,
         "approver": approver,
+        "backup_role": backup_role,
+        "callback_needed": callback_needed,
+        "callback_reason": (
+            "생활지도 심층 여부와 관리자 대응 방향을 확인한 뒤 결정"
+            if callback_needed == "UNDECIDED"
+            else ("담당 부서 또는 대응팀 회신을 우선" if callback_needed == "NOT_REQUIRED" else "담임 직접 상담 필요")
+        ),
+        "notification_timing": "BEFORE_CLASS_IF_URGENT" if (classification or {}).get("urgency") == "HIGH" else "BREAK_OR_AFTER_SCHOOL",
         "processing_level": base.get("level"),
         "source_pages": base.get("pages", []),
         "duty_area": duty_area,
