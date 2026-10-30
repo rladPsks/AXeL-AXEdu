@@ -15,6 +15,12 @@ def connect():
     return conn
 
 
+def _ensure_column(conn, table: str, column: str, ddl: str):
+    existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    if column not in existing:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+
+
 def init_db():
     with connect() as conn:
         conn.executescript("""
@@ -42,6 +48,7 @@ def init_db():
           classification_json TEXT NOT NULL,
           routing_json TEXT NOT NULL,
           response_draft TEXT,
+          intake_json TEXT,
           updated_at TEXT NOT NULL
         );
 
@@ -93,6 +100,7 @@ def init_db():
           FOREIGN KEY(case_id) REFERENCES cases(id)
         );
         """)
+        _ensure_column(conn, "cases", "intake_json", "TEXT")
 
 
 def append_event(case_id: str, event_type: str, actor: str, payload: dict | None = None):
@@ -132,8 +140,8 @@ def create_case_record(case_id: str, complaint: dict, result: dict, *, status: s
             """INSERT INTO cases
                (id, received_at, channel, complainant_id, student_ref, raw_text, status,
                 owner_role, next_action, urgency, classification_json, routing_json,
-                response_draft, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                response_draft, intake_json, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 case_id,
                 now,
@@ -148,6 +156,16 @@ def create_case_record(case_id: str, complaint: dict, result: dict, *, status: s
                 json.dumps(cls, ensure_ascii=False),
                 json.dumps(routing, ensure_ascii=False),
                 result.get("response_draft"),
+                json.dumps({
+                    "received_at": complaint.get("received_at") or now,
+                    "complainant_name": complaint.get("complainant_name"),
+                    "student_name": complaint.get("student_name"),
+                    "complaint_type": complaint.get("complaint_type"),
+                    "related_people": complaint.get("related_people") or [],
+                    "incident_context": complaint.get("incident_context"),
+                    "source_type": complaint.get("source_type", "DIRECT"),
+                    "jurisdiction": complaint.get("jurisdiction"),
+                }, ensure_ascii=False),
                 now,
             ),
         )
@@ -293,3 +311,61 @@ def get_latest_ai_run(case_id: str) -> dict | None:
             (case_id,),
         ).fetchone()
         return dict(row) if row else None
+
+
+
+def dashboard_metrics() -> dict:
+    init_db()
+    with connect() as conn:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT id, received_at, status, classification_json, owner_role FROM cases"
+        ).fetchall()]
+        delivered = [dict(r) for r in conn.execute(
+            """SELECT case_id, MAX(created_at) AS delivered_at
+               FROM case_events WHERE event_type = 'RESPONSE_DELIVERED'
+               GROUP BY case_id"""
+        ).fetchall()]
+        overdue = conn.execute(
+            """SELECT COUNT(*) AS n FROM tasks
+               WHERE status != 'COMPLETED' AND due_at IS NOT NULL AND due_at < ?""",
+            (utc_now(),),
+        ).fetchone()["n"]
+        owner_load_rows = [dict(r) for r in conn.execute(
+            """SELECT assignee_role, COUNT(*) AS n FROM tasks
+               WHERE status != 'COMPLETED'
+               GROUP BY assignee_role ORDER BY n DESC"""
+        ).fetchall()]
+
+    delivered_map = {x["case_id"]: x["delivered_at"] for x in delivered}
+    durations = []
+    type_counts: dict[str, int] = {}
+    related_history = 0
+    for row in rows:
+        try:
+            cls = json.loads(row.get("classification_json") or "{}")
+        except Exception:
+            cls = {}
+        domain = cls.get("domain_p55") or cls.get("category") or "기타"
+        type_counts[domain] = type_counts.get(domain, 0) + 1
+        if cls.get("history_action") in {"LINK_UNRESOLVED", "REVIEW_FOLLOW_UP", "REVIEW_REPEAT"}:
+            related_history += 1
+        if row["id"] in delivered_map:
+            try:
+                start = datetime.fromisoformat(row["received_at"])
+                end = datetime.fromisoformat(delivered_map[row["id"]])
+                durations.append((end - start).total_seconds() / 3600)
+            except Exception:
+                pass
+
+    total = len(rows)
+    return {
+        "total_cases": total,
+        "open_cases": sum(1 for x in rows if x.get("status") not in {"RESOLVED", "CLOSED"}),
+        "resolved_cases": sum(1 for x in rows if x.get("status") in {"RESOLVED", "CLOSED"}),
+        "average_processing_hours": round(sum(durations) / len(durations), 2) if durations else None,
+        "related_history_rate": round(related_history / total, 4) if total else 0.0,
+        "overdue_task_count": int(overdue),
+        "type_counts": type_counts,
+        "open_task_load": owner_load_rows,
+        "metric_note": "related_history_rate는 동일인·동일학생 관련 이력이 연결된 사건 비율이며 교직원 평가 지표가 아닙니다.",
+    }
