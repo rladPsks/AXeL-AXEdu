@@ -29,9 +29,9 @@ class SupportReviewResult(BaseModel):
     missing_information: list[str]
     suggested_support: Literal['INTERNAL_SUPPORT', 'SPECIALIST_SUPPORT', 'EXTERNAL_SUPPORT', 'KEEP_REVIEWING']
     action_options: list[str]
-    response_draft: str
-    validation_checks: list[str]
-    evidence_used: list[str]
+    response_draft: str = ""
+    validation_checks: list[str] = []
+    evidence_used: list[str] = []
     translated_response: dict[str, str] | None = None
 
 
