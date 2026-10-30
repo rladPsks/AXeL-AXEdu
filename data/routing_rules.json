@@ -1,0 +1,84 @@
+{
+  "scope": "demo_template_not_school_verified",
+  "roles": [
+    {
+      "role": "complaint_response_team",
+      "label": "민원대응팀",
+      "responsibility": "공식 창구 접수·내용 검토·단순 질의 처리·담당 배분"
+    },
+    {
+      "role": "principal",
+      "label": "학교장",
+      "responsibility": "학교 민원 처리 총괄 책임"
+    },
+    {
+      "role": "vice_principal",
+      "label": "교감",
+      "responsibility": "교무·학사 업무 조정 및 관리자 검토 후보"
+    },
+    {
+      "role": "administration_head",
+      "label": "행정실장",
+      "responsibility": "회계·시설 등 행정업무 처리 조정 후보"
+    },
+    {
+      "role": "homeroom_teacher",
+      "label": "담임교사",
+      "responsibility": "학생 상담 및 필요한 사실 확인"
+    },
+    {
+      "role": "relevant_staff",
+      "label": "관련 담당자",
+      "responsibility": "업무분장에 따른 사실 확인·협조"
+    }
+  ],
+  "examples": [
+    {
+      "domain": "simple_inquiry",
+      "owner": "complaint_response_team",
+      "action_role": null,
+      "approver": "complaint_response_team",
+      "level": "L_SIMPLE",
+      "pages": [
+        10
+      ]
+    },
+    {
+      "domain": "student_counseling",
+      "owner": "complaint_response_team",
+      "action_role": "homeroom_teacher",
+      "approver": "vice_principal",
+      "level": "L_COUNSEL",
+      "pages": [
+        10
+      ]
+    },
+    {
+      "domain": "fact_check",
+      "owner": "complaint_response_team",
+      "action_role": "relevant_staff",
+      "approver": "vice_principal",
+      "level": "L_COOP",
+      "pages": [
+        10
+      ]
+    },
+    {
+      "domain": "complex_or_sensitive",
+      "owner": "principal",
+      "action_role": "relevant_staff",
+      "approver": "principal",
+      "level": "L_ADMIN",
+      "pages": [
+        10,
+        16
+      ]
+    }
+  ],
+  "customization_required": [
+    "실제 학교 업무분장·담당자",
+    "업무분장 적용 학년도·시행일",
+    "학교별 승인·협조 경로",
+    "대체 담당자"
+  ]
+}
