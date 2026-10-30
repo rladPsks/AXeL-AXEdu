@@ -56,6 +56,13 @@ export const labels: Record<string, string> = {
   CASE_CLOSED: "사건 종결",
   CASE_OPEN: "사건 재개",
   DEMO_CASE_CREATED: "가상 사건 등록",
+  DIRECT_CONTACT: "학부모 직접 응대",
+  TASK_WORK: "교사 업무 수행",
+  SUPPORT_ACTION: "지원 조치",
+  ACTIVITY_RECORDED: "활동 기록",
+  AUDIO_CONSENT_RECORDED: "녹취 동의 확인",
+  AUDIO_CONSENT_REVOKED: "녹취 동의 철회",
+  TRANSCRIPT_SAVED: "전사본 저장",
 };
 export const label = (value: string) => labels[value] ?? value;
 export const date = (value: string) =>

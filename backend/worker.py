@@ -44,6 +44,14 @@ class Worker:
             run_access(db,actor,job['id'])
         except DomainError:
             raise ProviderFailure('ACCESS_REVOKED','사건 또는 입력 자료의 접근 권한이 변경되었습니다.') from None
+        from .recordings import consent_guard
+        consent_guard(db,job)
+
+    def _payload(self, db, job):
+        if job['purpose']=='TRANSCRIBE_AUDIO':
+            from .recordings import audio_payload
+            return audio_payload(db,job)
+        return json.loads(job['snapshot'])
 
     def _heartbeat(self, job):
         with self.database.transaction() as db:
@@ -85,8 +93,9 @@ class Worker:
                 raise ProviderFailure('HANDLER_CHANGED','실행 설정이 변경되었습니다. 설정을 확인하고 다시 요청하세요.')
             with self.database.transaction() as db:
                 self._access(db,job)
+                payload = self._payload(db,job)
             with ThreadPoolExecutor(max_workers=1) as pool:
-                future = pool.submit(handler.execute,json.loads(job['snapshot']))
+                future = pool.submit(handler.execute,payload)
                 while True:
                     try:
                         raw = future.result(timeout=max(.2,self.lease_seconds/3))
@@ -102,6 +111,10 @@ class Worker:
                 sources=json.loads(job['snapshot'])['sources'][0]['data']['sources']
                 if not validate_citations(parsed.findings,sources):
                     raise ProviderFailure('INVALID_CITATION','비교 입력에 없는 출처가 포함되어 재검토가 필요합니다.')
+            if job['purpose']=='SUMMARIZE_TRANSCRIPT':
+                from .recordings import summary_citations_valid
+                if not summary_citations_valid(result,json.loads(job['snapshot'])):
+                    raise ProviderFailure('INVALID_CITATION','전사에 없는 구간이 인용되어 재검토가 필요합니다.')
             if len(json.dumps(result,ensure_ascii=False).encode()) > 1024*1024:
                 raise ProviderFailure('RESULT_TOO_LARGE','생성 결과 크기가 허용 범위를 초과했습니다.')
             self._finish(job,result=result)

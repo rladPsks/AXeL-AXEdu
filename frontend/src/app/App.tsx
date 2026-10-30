@@ -34,6 +34,9 @@ import { Entry, GuardianDemo } from "./Entry";
 import { demoEnabled, demoNotice, type GuardianSession } from "./demo";
 import { SupportDecisions } from "../features/support-decisions";
 import { CaseComparison, CaseDocuments } from "../features/case-comparison";
+import { ActivityLog } from "../features/activity-log";
+import { Recordings } from "../features/recordings";
+import { DashboardPage } from "../features/dashboard";
 
 export function App() {
   const [auth, setAuth] = useState<{
@@ -75,6 +78,7 @@ export function App() {
           <Route path="cases" element={<CaseList />} />
           <Route path="my-tasks" element={<MyTasks />} />
           <Route path="inbox" element={<Inbox />} />
+          <Route path="dashboard" element={<DashboardPage />} />
           <Route path="school-settings" element={<SchoolSettings />} />
           <Route path="school-contacts" element={<SchoolContacts />} />
           <Route path="cases/:caseId" element={<CaseShell />} />
@@ -127,6 +131,9 @@ function Layout() {
           <NavLink to="/school-contacts">학교 지원 담당</NavLink>
           {session.role === "ADMIN" ? (
             <NavLink to="/school-settings">학교 지원 설정</NavLink>
+          ) : null}
+          {session.role === "ADMIN" ? (
+            <NavLink to="/dashboard">활동·지원 현황</NavLink>
           ) : null}
         </nav>
         <div className="sidebar-note">
@@ -322,6 +329,8 @@ function CaseShell() {
     "timeline",
     "files",
     "agent-review",
+    "activities",
+    "recordings",
     ...(session.role === "ADMIN"
       ? ["guardians", "support-decisions", "documents", "comparison"]
       : []),
@@ -361,6 +370,8 @@ function CaseShell() {
     { id: "timeline", title: "처리 이력" },
     { id: "files", title: "사건 자료" },
     { id: "agent-review", title: "AI 지원 검토" },
+    { id: "activities", title: "활동 기록" },
+    { id: "recordings", title: "동의 녹취" },
     ...(session.role === "ADMIN"
       ? [
           { id: "guardians", title: "보호자 연결" },
@@ -436,6 +447,10 @@ function CaseShell() {
           />
         ) : tab === "agent-review" ? (
           <AgentReview record={record} />
+        ) : tab === "activities" ? (
+          <ActivityLog record={record} members={members.data ?? []} />
+        ) : tab === "recordings" ? (
+          <Recordings record={record} />
         ) : tab === "support-decisions" && session.role === "ADMIN" ? (
           <SupportDecisions record={record} />
         ) : tab === "documents" && session.role === "ADMIN" ? (

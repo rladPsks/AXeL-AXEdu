@@ -21,6 +21,9 @@ from .runtime import build_registry
 from .worker import Worker
 from .seed import seed
 from .demo import router as demo_router
+from .activities import router as activities_router
+from .recordings import router as recordings_router
+from .dashboard import router as dashboard_router
 from .decisions import router as decisions_router
 from .evidence import router as evidence_router
 from .comparisons import router as comparisons_router
@@ -87,6 +90,9 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
     app.include_router(evidence_router)
     app.include_router(comparisons_router)
     app.include_router(comparison_review_router)
+    app.include_router(activities_router)
+    app.include_router(recordings_router)
+    app.include_router(dashboard_router)
     if os.getenv('SCHOOL_AGENT_DEMO','0')=='1':
         app.include_router(demo_router)
     for router in feature_routers:

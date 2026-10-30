@@ -44,7 +44,7 @@ class Registry:
 
 class InputRef(BaseModel):
     model_config = ConfigDict(extra='forbid')
-    resource_type: Literal['CASE', 'TASK', 'SUPPORT_REQUEST', 'FILE', 'DOCUMENT_VERSION', 'COMPARISON_INPUT', 'COMPARISON_REVIEW']
+    resource_type: Literal['CASE', 'TASK', 'SUPPORT_REQUEST', 'FILE', 'DOCUMENT_VERSION', 'COMPARISON_INPUT', 'COMPARISON_REVIEW', 'TRANSCRIPT']
     resource_id: Identifier
     version: int = Field(ge=1)
 
@@ -89,10 +89,13 @@ def run_access(db, actor, run_id):
         elif source['ref']['resource_type'] == 'COMPARISON_REVIEW':
             from .comparison_review import review_access
             review_access(db,actor,source['ref']['resource_id'])
+        elif source['ref']['resource_type'] == 'TRANSCRIPT':
+            from .recordings import transcript_row
+            transcript_row(db,actor,source['ref']['resource_id'])
     return run, case
 
 
-def snapshot(db, actor, case, refs):
+def snapshot(db, actor, case, refs, purpose=None):
     sources = []
     for ref in refs:
         if ref.resource_type == 'CASE':
@@ -102,8 +105,17 @@ def snapshot(db, actor, case, refs):
         elif ref.resource_type == 'FILE':
             item = dict(file_access(db, actor, ref.resource_id))
             if item['category'] == 'AUDIO':
-                fail(422, 'AUDIO_CONSENT_REQUIRED', '음성은 동의 확인이 포함된 전사 경로에서 처리해야 합니다.')
-            if item['media_type'] == 'text/plain':
+                # Audio is only ever processed by the consent-gated transcription purpose; bytes are never stored here.
+                if purpose != 'TRANSCRIBE_AUDIO':
+                    fail(422, 'AUDIO_CONSENT_REQUIRED', '음성은 동의 확인이 포함된 전사 경로에서 처리해야 합니다.')
+                from .recordings import active_consent
+                consent = active_consent(db, ref.resource_id)
+                if consent is None:
+                    fail(422, 'AUDIO_CONSENT_REQUIRED', '동의가 확인된 음성만 전사할 수 있습니다. 먼저 동의를 기록하세요.')
+                item['consent_id'] = consent['id']
+            elif purpose == 'TRANSCRIBE_AUDIO':
+                fail(422, 'AUDIO_FILE_REQUIRED', '전사에는 음성 자료를 선택하세요.')
+            elif item['media_type'] == 'text/plain':
                 raw = db.execute('SELECT content FROM private_files WHERE id=?', (ref.resource_id,)).fetchone()[0]
                 item['text'] = raw.decode('utf-8-sig')[:10000]
                 item['text_truncated'] = len(raw.decode('utf-8-sig')) > 10000
@@ -116,6 +128,9 @@ def snapshot(db, actor, case, refs):
         elif ref.resource_type == 'COMPARISON_REVIEW':
             from .comparison_review import fresh_review
             item = fresh_review(db,actor,ref.resource_id)
+        elif ref.resource_type == 'TRANSCRIPT':
+            from .recordings import transcript_input
+            item = transcript_input(db,actor,ref.resource_id)
         else:
             table = {'TASK': 'tasks', 'SUPPORT_REQUEST': 'support_requests'}[ref.resource_type]
             row = db.execute(f'SELECT * FROM {table} WHERE id=?', (ref.resource_id,)).fetchone()
@@ -124,7 +139,7 @@ def snapshot(db, actor, case, refs):
             item = dict(row)
         if item.get('case_id', item.get('id')) != case['id']:
             fail(422, 'INPUT_CASE_MISMATCH', '같은 사건의 입력을 선택하세요.')
-        expected = item['revision'] if ref.resource_type in {'DOCUMENT_VERSION','COMPARISON_REVIEW'} else (1 if ref.resource_type in {'FILE','COMPARISON_INPUT'} else case['version'])
+        expected = item['revision'] if ref.resource_type in {'DOCUMENT_VERSION','COMPARISON_REVIEW','TRANSCRIPT'} else (1 if ref.resource_type in {'FILE','COMPARISON_INPUT'} else case['version'])
         if ref.version != expected:
             fail(409, 'INPUT_VERSION_CONFLICT', '입력 자료의 최신 버전을 확인하세요.')
         sources.append({'ref': ref.model_dump(), 'data': item})
@@ -169,11 +184,16 @@ def start_run(case_id: str, body: RunStart, request: Request):
         comparison_refs=[ref for ref in body.input_refs if ref.resource_type=='COMPARISON_INPUT']
         if (body.purpose=='COMPARE_CASES' and (len(comparison_refs)!=1 or len(body.input_refs)!=1)) or (comparison_refs and body.purpose!='COMPARE_CASES'):
             fail(422,'COMPARISON_INPUT_REQUIRED','교차 사건 비교에는 저장한 비교 자료 묶음 하나를 선택하세요.')
+        kinds = [ref.resource_type for ref in body.input_refs]
+        if body.purpose == 'TRANSCRIBE_AUDIO' and kinds != ['FILE']:
+            fail(422, 'AUDIO_INPUT_REQUIRED', '전사에는 동의가 확인된 음성 자료 하나를 선택하세요.')
+        if (body.purpose == 'SUMMARIZE_TRANSCRIPT' and kinds != ['TRANSCRIPT']) or ('TRANSCRIPT' in kinds and body.purpose != 'SUMMARIZE_TRANSCRIPT'):
+            fail(422, 'TRANSCRIPT_INPUT_REQUIRED', '요약에는 저장한 전사 하나를 선택하세요.')
         if body.retry_of_run_id:
             old, _ = run_access(db, actor, body.retry_of_run_id)
             if old['case_id'] != case_id or old['purpose'] != body.purpose or old['status'] not in {'FAILED', 'CANCELLED'}:
                 fail(409, 'INVALID_RETRY', '실패·취소한 같은 목적의 실행만 다시 요청할 수 있습니다.')
-        saved = snapshot(db, actor, case, body.input_refs)
+        saved = snapshot(db, actor, case, body.input_refs, body.purpose)
         if len(json.dumps(saved,ensure_ascii=False).encode()) > 1024*1024:
             fail(413,'AGENT_INPUT_TOO_LARGE','선택한 입력이 너무 큽니다. 자료를 나누어 검토하세요.')
         run_id = uid()

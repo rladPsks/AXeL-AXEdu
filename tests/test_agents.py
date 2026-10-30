@@ -243,7 +243,7 @@ def test_openai_adapter_payload_refusal_and_invalid_citation():
 def test_openai_configuration_does_not_register_a_fake_model(monkeypatch):
     monkeypatch.delenv('OPENAI_API_KEY',raising=False)
     monkeypatch.delenv('OPENAI_MODEL',raising=False)
-    assert create_registry().handlers=={}
+    assert create_registry(speech=False).handlers=={}
 
 
 def test_real_sdk_transport_sends_structured_responses_payload_without_network():
