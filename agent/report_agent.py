@@ -20,8 +20,8 @@ def build_support_report(snapshot: dict[str, Any]) -> dict[str, Any]:
     ]
     pending = [
         {
-            "task_type": t["task_type"],
-            "assignee_role": t["assignee_role"],
+            "task_type": t.get("task_type") or t.get("type"),
+            "assignee_role": t.get("assignee_role") or t.get("assignee_id"),
             "reason": t.get("reason"),
         }
         for t in tasks
