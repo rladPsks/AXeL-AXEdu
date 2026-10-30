@@ -31,6 +31,7 @@ from .comparison_review import router as comparison_review_router
 from .coordination import router as coordination_router, resolve_support
 from .scheduling import router as scheduling_router
 from .notifications import router as notifications_router, enqueue, dispatch_once
+from .features.intake import router as intake_router
 from .models import (CaseTransition, Command, HandoverCreate, SupportCreate,
                      SupportUpdate, TaskCreate, TaskUpdate)
 
@@ -80,6 +81,7 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
     if app.state.max_file_bytes < 1:
         raise ValueError('max_file_bytes must be positive')
     app.include_router(query_router)
+    app.include_router(intake_router)
     app.include_router(files_router)
     app.include_router(guardians_router)
     app.include_router(agents_router)
