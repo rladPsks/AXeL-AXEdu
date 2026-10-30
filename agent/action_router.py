@@ -1,0 +1,100 @@
+from __future__ import annotations
+
+from typing import Any
+
+
+def decide_actions(classification: dict[str, Any], routing: dict[str, Any], evidence: list[dict]) -> list[dict[str, Any]]:
+    """분류 결과를 실제 학교 업무 단위로 변환한다.
+
+    최종 법적 판단·제재·외부 이관은 생성하지 않는다. 이 함수는
+    학교 내부 업무와 검토 요청만 만든다.
+    """
+    actions: list[dict[str, Any]] = []
+    nature = classification.get("nature")
+    domain = classification.get("domain_p55")
+    urgency = classification.get("urgency")
+    special_codes = set(classification.get("special_codes") or [])
+    infringement_flags = set(classification.get("infringement_flags") or [])
+
+    if nature == "INFO_REQUEST":
+        if evidence:
+            actions.append({
+                "task_type": "RESPONSE_REVIEW",
+                "assignee_role": routing.get("suggested_owner") or "complaint_response_team",
+                "reason": "학교 자료 근거가 검색되어 권한 범위 내 답변 검토가 필요합니다.",
+                "instructions": ["검색 근거가 질문을 실제로 뒷받침하는지 확인", "확인 후 보호자 회신"],
+            })
+        else:
+            actions.append({
+                "task_type": "FACT_CHECK",
+                "assignee_role": "school_information_owner",
+                "reason": "현재 연결된 학교 자료에서 답을 찾지 못했습니다.",
+                "instructions": ["학교 공지·학사일정·담당 부서에서 사실 확인", "확인된 내용과 출처를 사건에 회신"],
+            })
+    elif nature == "COUNSEL":
+        actions.append({
+            "task_type": "STUDENT_COUNSEL",
+            "assignee_role": routing.get("action_role") or "homeroom_teacher",
+            "reason": "학생 맥락을 아는 교직원의 상담·확인이 필요한 사안입니다.",
+            "instructions": ["상담 목적과 쟁점을 확인", "업무상 필요한 최소 결과만 기록"],
+        })
+    elif nature in {"SAFETY", "INFRINGEMENT_REVIEW"}:
+        actions.append({
+            "task_type": "ADMIN_REVIEW",
+            "assignee_role": routing.get("approver") or "vice_principal",
+            "reason": "안전 또는 교육활동 보호 관련 검토가 필요한 사안입니다.",
+            "instructions": ["원문 근거 구간 확인", "즉시 필요한 학교 지원 여부 판단"],
+        })
+    elif domain == "생활지도/상담":
+        actions.append({
+            "task_type": "FACT_CHECK",
+            "assignee_role": routing.get("action_role") or "homeroom_teacher",
+            "reason": "생활지도 관련 사실관계와 학생 맥락 확인이 필요합니다.",
+            "instructions": classification.get("needs_fact_check") or [
+                "발생 시점과 상황 확인",
+                "지도 사유와 관련 맥락 확인",
+            ],
+        })
+    else:
+        actions.append({
+            "task_type": "FACT_CHECK",
+            "assignee_role": routing.get("action_role") or "relevant_staff",
+            "reason": "답변 전 소관 사실 확인이 필요합니다.",
+            "instructions": classification.get("needs_fact_check") or ["민원 핵심 요구와 관련 사실 확인"],
+        })
+
+    risk_signal = bool(
+        urgency == "HIGH"
+        or infringement_flags
+        or special_codes.intersection({"VERBAL_ABUSE_REVIEW", "THREAT_REVIEW", "SAFETY_RISK"})
+    )
+    if risk_signal and not any(x["task_type"] == "ADMIN_REVIEW" for x in actions):
+        actions.append({
+            "task_type": "ADMIN_REVIEW",
+            "assignee_role": routing.get("approver") or "vice_principal",
+            "reason": "우려 행동 신호가 있어 교직원 보호와 대응 방향을 관리자에게 확인합니다.",
+            "instructions": ["원문 발화와 맥락 확인", "동석·공동 대응·업무 인수 등 지원 필요 여부 판단"],
+        })
+
+    if classification.get("repeat_review"):
+        actions.append({
+            "task_type": "HISTORY_REVIEW",
+            "assignee_role": "complaint_response_team",
+            "reason": "동일 사안 후보 이력을 맥락과 함께 비교해야 합니다.",
+            "instructions": ["기존 답변 여부", "학교 미이행 여부", "새로운 사실·증거 여부", "요구 변화 비교"],
+        })
+
+    return actions
+
+
+def next_case_state(actions: list[dict[str, Any]]) -> tuple[str, str]:
+    types = {a["task_type"] for a in actions}
+    if "ADMIN_REVIEW" in types:
+        return "IN_PROGRESS", "ADMIN_REVIEW"
+    if "FACT_CHECK" in types:
+        return "IN_PROGRESS", "FACT_CHECK"
+    if "STUDENT_COUNSEL" in types:
+        return "IN_PROGRESS", "STUDENT_COUNSEL"
+    if "RESPONSE_REVIEW" in types:
+        return "RESPONSE_REVIEW", "RESPONSE_REVIEW"
+    return "IN_PROGRESS", "FOLLOW_UP"
