@@ -127,6 +127,20 @@ def create_case(complaint: dict[str, Any], case_id: str | None = None) -> dict[s
     return get_case_snapshot(case_id)
 
 
+FACT_RESULT_TYPES = {"FACT_CHECK", "COOP_FACT_CHECK", "STUDENT_COUNSEL"}
+NON_BLOCKING_TYPES = {"SUPPORT_RESPONSE"}
+
+
+def _confirmed_fact_results(case_id: str) -> list[str]:
+    return [
+        str(t.get("result_text") or "").strip()
+        for t in list_case_tasks(case_id)
+        if t.get("status") == "COMPLETED"
+        and t.get("task_type") in FACT_RESULT_TYPES
+        and str(t.get("result_text") or "").strip()
+    ]
+
+
 def complete_task(task_id: str, result_text: str, actor: str = "staff") -> dict[str, Any]:
     init_db()
     previous = complete_task_record(task_id, result_text)
@@ -141,7 +155,8 @@ def complete_task(task_id: str, result_text: str, actor: str = "staff") -> dict[
     if case is None:
         raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
 
-    if previous["task_type"] == "RESPONSE_REVIEW":
+    task_type = previous["task_type"]
+    if task_type == "RESPONSE_REVIEW":
         update_case_state(case_id, status="RESPONSE_APPROVED", next_action="AWAITING_DELIVERY")
         append_event(case_id, "RESPONSE_APPROVED", actor, {
             "task_id": task_id,
@@ -149,15 +164,10 @@ def complete_task(task_id: str, result_text: str, actor: str = "staff") -> dict[
         })
         return get_case_snapshot(case_id)
 
-    # 사람의 확인 결과가 들어오면 기존 원문과 함께 Agent가 다시 사건을 읽는다.
-    completed_context = "\n".join(
-        f"- {t['task_type']}: {t.get('result_text') or ''}"
-        for t in list_case_tasks(case_id)
-        if t.get("status") == "COMPLETED"
-    )
+    confirmed_facts = _confirmed_fact_results(case_id)
+    completed_context = "\n".join(f"- {x}" for x in confirmed_facts)
     enriched_text = (
-        f"{case['raw_text']}\n\n"
-        f"[학교 내부 확인 결과]\n{completed_context}"
+        f"{case['raw_text']}\n\n[학교에서 확인된 사실]\n{completed_context}"
         if completed_context
         else case["raw_text"]
     )
@@ -167,15 +177,7 @@ def complete_task(task_id: str, result_text: str, actor: str = "staff") -> dict[
         "complainant_id": case.get("complainant_id"),
         "student_ref": case.get("student_ref"),
     }
-    # 같은 사건의 이벤트를 과거 민원으로 세지 않는다.
-    # 반복 판단은 별도 History Agent가 실제 이전 case를 기준으로 수행한다.
     rerun = process(rerun_input, history=[])
-
-    confirmed_facts = [
-        str(t.get("result_text") or "").strip()
-        for t in list_case_tasks(case_id)
-        if t.get("status") == "COMPLETED" and str(t.get("result_text") or "").strip()
-    ]
     response = generate_response_draft(
         complaint_text=case["raw_text"],
         confirmed_facts=confirmed_facts,
@@ -184,35 +186,68 @@ def complete_task(task_id: str, result_text: str, actor: str = "staff") -> dict[
     )
     rerun["response_draft"] = response["draft"]
     rerun["response_generation"] = response
+    rerun["internal_task_context"] = {
+        "history_reviews": [
+            t.get("result_text") for t in list_case_tasks(case_id)
+            if t.get("status") == "COMPLETED" and t.get("task_type") == "HISTORY_REVIEW"
+        ],
+        "admin_reviews": [
+            t.get("result_text") for t in list_case_tasks(case_id)
+            if t.get("status") == "COMPLETED" and t.get("task_type") == "ADMIN_REVIEW"
+        ],
+        "support_responses": [
+            t.get("result_text") for t in list_case_tasks(case_id)
+            if t.get("status") == "COMPLETED" and t.get("task_type") == "SUPPORT_RESPONSE"
+        ],
+    }
     save_ai_run(case_id, "POST_TASK_REVIEW", rerun_input, rerun)
 
-    open_tasks = [t for t in list_case_tasks(case_id) if t["status"] != "COMPLETED"]
-    if open_tasks:
-        next_action = open_tasks[0]["task_type"]
-        update_case_state(case_id, status="IN_PROGRESS", next_action=next_action, response_draft=rerun["response_draft"])
+    blocking_open = [
+        t for t in list_case_tasks(case_id)
+        if t["status"] != "COMPLETED"
+        and t["task_type"] not in NON_BLOCKING_TYPES
+        and t["task_type"] != "RESPONSE_REVIEW"
+    ]
+    if blocking_open:
+        next_action = blocking_open[0]["task_type"]
+        update_case_state(
+            case_id,
+            status="IN_PROGRESS",
+            next_action=next_action,
+            response_draft=rerun["response_draft"],
+        )
     else:
-        # 확인 업무가 끝났으면 자동 발송하지 않고 답변 검토 단계로 이동한다.
+        existing_review = [
+            t for t in list_case_tasks(case_id)
+            if t["task_type"] == "RESPONSE_REVIEW" and t["status"] != "COMPLETED"
+        ]
         update_case_state(
             case_id,
             status="RESPONSE_REVIEW",
             next_action="RESPONSE_REVIEW",
             response_draft=rerun["response_draft"],
         )
-        review_task = {
-            "id": _id("TASK"),
-            "case_id": case_id,
-            "task_type": "RESPONSE_REVIEW",
-            "assignee_role": case.get("owner_role") or "complaint_response_team",
-            "status": "REQUESTED",
-            "reason": "사실 확인 결과를 반영한 답변을 검토해야 합니다.",
-            "instructions": ["보호자 주장과 확인된 사실을 구분", "미확인 내용·과도한 약속이 없는지 확인", "승인 후 전달"],
-        }
-        create_task_record(review_task)
-        append_event(case_id, "TASK_CREATED", "agent", {
-            "task_id": review_task["id"],
-            "task_type": "RESPONSE_REVIEW",
-            "assignee_role": review_task["assignee_role"],
-        })
+        if not existing_review:
+            review_task = {
+                "id": _id("TASK"),
+                "case_id": case_id,
+                "task_type": "RESPONSE_REVIEW",
+                "assignee_role": case.get("owner_role") or "complaint_response_team",
+                "status": "REQUESTED",
+                "reason": "확인된 사실과 내부 검토를 반영한 답변 초안을 사람이 최종 검토해야 합니다.",
+                "instructions": [
+                    "보호자 주장과 확인된 사실 구분",
+                    "내부 이력·검토 메모가 보호자 답변에 노출되지 않았는지 확인",
+                    "미확인 내용·과도한 약속·근거 없는 규정 인용 확인",
+                    "승인 후 공식 채널로 전달",
+                ],
+            }
+            create_task_record(review_task)
+            append_event(case_id, "TASK_CREATED", "agent", {
+                "task_id": review_task["id"],
+                "task_type": "RESPONSE_REVIEW",
+                "assignee_role": review_task["assignee_role"],
+            })
 
     append_event(case_id, "AI_REVIEW_AFTER_TASK", "agent", {
         "classifier_mode": rerun["classification"].get("classifier_mode"),
@@ -220,6 +255,32 @@ def complete_task(task_id: str, result_text: str, actor: str = "staff") -> dict[
     })
     return get_case_snapshot(case_id)
 
+
+def deliver_response(
+    case_id: str,
+    *,
+    actor: str = "complaint_response_team",
+    channel: str = "official_channel",
+    note: str = "",
+) -> dict[str, Any]:
+    init_db()
+    case = get_case(case_id)
+    if case is None:
+        raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
+    if case.get("status") != "RESPONSE_APPROVED":
+        raise ValueError("사람 검토·승인이 완료된 사건만 전달 완료 처리할 수 있습니다.")
+    if not str(case.get("response_draft") or "").strip():
+        raise ValueError("전달할 답변 초안이 없습니다.")
+
+    update_case_state(case_id, status="RESOLVED", next_action="CLOSED")
+    append_event(case_id, "RESPONSE_DELIVERED", actor, {
+        "channel": channel,
+        "note": note,
+    })
+    append_event(case_id, "CASE_RESOLVED", actor, {
+        "reason": "approved_response_delivered",
+    })
+    return get_case_snapshot(case_id)
 
 def request_support(
     case_id: str,
@@ -284,6 +345,12 @@ def get_case_snapshot(case_id: str) -> dict[str, Any]:
         if item.get(key):
             item[key[:-5]] = json.loads(item[key])
         item.pop(key, None)
+    if item.get("intake_json"):
+        try:
+            item["intake"] = json.loads(item["intake_json"])
+        except Exception:
+            item["intake"] = {}
+    item.pop("intake_json", None)
     return {
         "case": item,
         "tasks": list_case_tasks(case_id),
