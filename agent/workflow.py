@@ -50,8 +50,36 @@ def create_case(complaint: dict[str, Any], case_id: str | None = None) -> dict[s
         raise ValueError("민원 내용이 비어 있습니다.")
 
     case_id = case_id or _id("CASE")
-    result = process(complaint)
-    actions = decide_actions(result["classification"], result["routing"], result["evidence"])
+
+    # 새 민원 접수 시 같은 보호자/학생의 기존 사건을 먼저 비교한다.
+    # '3회 이상' 같은 단순 횟수가 아니라 실질 답변 여부와 새 사실/요구를 함께 본다.
+    related = find_related_cases(
+        current_case_id=case_id,
+        complainant_id=complaint.get("complainant_id"),
+        student_ref=complaint.get("student_ref"),
+        raw_text=text,
+    )
+    history_review = build_history_review(
+        {"id": case_id, "raw_text": text},
+        related,
+    )
+
+    # 분류 모델에는 사건 이벤트가 아닌 실제 과거 사건만 history로 전달한다.
+    rule_history = [
+        {"received_at": x.get("received_at"), "status": x.get("status")}
+        for x in related
+    ]
+    result = process(complaint, history=rule_history)
+    cls = result["classification"]
+    cls["repeat_count"] = history_review["high_similarity_count"] + 1
+    cls["repeat_review"] = history_review["repeat_candidate"]
+    cls["history_review_required"] = history_review["history_action"] != "NONE"
+    cls["history_action"] = history_review["history_action"]
+    cls["history_reason"] = history_review["reason"]
+    cls["follow_up_candidate"] = history_review["follow_up_candidate"]
+    cls["history_comparison"] = history_review["comparison_summary"]
+
+    actions = decide_actions(cls, result["routing"], result["evidence"])
     status, next_action = next_case_state(actions)
     owner = result["routing"].get("suggested_owner") or "complaint_response_team"
 
@@ -70,6 +98,16 @@ def create_case(complaint: dict[str, Any], case_id: str | None = None) -> dict[s
         "classifier_mode": result["classification"].get("classifier_mode"),
     })
     save_ai_run(case_id, "INITIAL_TRIAGE", complaint, result)
+    if history_review["history_action"] != "NONE":
+        append_event(case_id, "HISTORY_MATCHED", "agent", {
+            "related_count": history_review["related_count"],
+            "high_similarity_count": history_review["high_similarity_count"],
+            "history_action": history_review["history_action"],
+            "repeat_candidate": history_review["repeat_candidate"],
+            "follow_up_candidate": history_review["follow_up_candidate"],
+            "reason": history_review["reason"],
+            "comparison_summary": history_review["comparison_summary"],
+        })
 
     for action in actions:
         task = {
@@ -129,7 +167,9 @@ def complete_task(task_id: str, result_text: str, actor: str = "staff") -> dict[
         "complainant_id": case.get("complainant_id"),
         "student_ref": case.get("student_ref"),
     }
-    rerun = process(rerun_input, history=_history_from_events(case_id))
+    # 같은 사건의 이벤트를 과거 민원으로 세지 않는다.
+    # 반복 판단은 별도 History Agent가 실제 이전 case를 기준으로 수행한다.
+    rerun = process(rerun_input, history=[])
 
     confirmed_facts = [
         str(t.get("result_text") or "").strip()

@@ -76,12 +76,25 @@ def decide_actions(classification: dict[str, Any], routing: dict[str, Any], evid
             "instructions": ["원문 발화와 맥락 확인", "동석·공동 대응·업무 인수 등 지원 필요 여부 판단"],
         })
 
-    if classification.get("repeat_review"):
+    if classification.get("history_review_required") or classification.get("repeat_review"):
+        history_action = classification.get("history_action")
+        if history_action == "LINK_UNRESOLVED":
+            history_reason = "유사한 미해결 사건이 있어 새 민원을 반복으로 종결하지 않고 기존 처리와 연결해야 합니다."
+        elif history_action == "REVIEW_FOLLOW_UP":
+            history_reason = "기존 답변 이후 새 사실·날짜·요구가 추가된 후속 민원 후보입니다."
+        else:
+            history_reason = "실질 답변이 완료된 동일 사안의 반복 요구 후보를 검토해야 합니다."
         actions.append({
             "task_type": "HISTORY_REVIEW",
             "assignee_role": "complaint_response_team",
-            "reason": "동일 사안 후보 이력을 맥락과 함께 비교해야 합니다.",
-            "instructions": ["기존 답변 여부", "학교 미이행 여부", "새로운 사실·증거 여부", "요구 변화 비교"],
+            "reason": history_reason,
+            "instructions": [
+                "기존 사건의 실질 답변 완료 여부 확인",
+                "학교의 미이행 사항 여부 확인",
+                "새로운 사실·증거·날짜 추가 여부 확인",
+                "요구 내용이 이전과 동일한지 비교",
+                "자동 종결하지 말고 담당자가 연결·후속처리·반복검토 중 하나를 확정",
+            ],
         })
 
     return actions

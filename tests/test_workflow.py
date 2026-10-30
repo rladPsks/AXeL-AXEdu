@@ -106,3 +106,91 @@ def test_history_draft_is_not_substantive_response():
     )
     assert review["repeat_candidate"] is False
     assert review["unanswered_count"] == 1
+
+
+def test_history_review_same_answered_request_is_repeat_candidate():
+    from agent.history_agent import build_history_review
+    review = build_history_review(
+        {"id": "CURRENT", "raw_text": "우리 아이만 계속 혼낸다고 합니다. 확인해주세요."},
+        [{
+            "id": "OLD",
+            "raw_text": "우리 아이만 계속 혼낸다고 합니다. 확인해주세요.",
+            "similarity": 1.0,
+            "status": "RESOLVED",
+            "response_status": "DELIVERED",
+            "has_substantive_response": True,
+            "comparison": {
+                "similarity": 1.0,
+                "has_new_information": False,
+                "new_terms": [],
+                "new_numbers": [],
+                "new_dates": [],
+                "new_requests": [],
+            },
+        }],
+    )
+    assert review["repeat_candidate"] is True
+    assert review["follow_up_candidate"] is False
+    assert review["history_action"] == "REVIEW_REPEAT"
+
+
+def test_history_review_new_date_or_request_is_follow_up_not_repeat():
+    from agent.history_agent import build_history_review, compare_case_text
+    old = "아이 생활지도 상황을 확인해주세요."
+    current = "지난주 10월 29일에도 같은 일이 있었습니다. 관리자 면담도 요청합니다."
+    comparison = compare_case_text(current, old)
+    review = build_history_review(
+        {"id": "CURRENT", "raw_text": current},
+        [{
+            "id": "OLD",
+            "raw_text": old,
+            "similarity": 0.65,
+            "status": "RESOLVED",
+            "response_status": "DELIVERED",
+            "has_substantive_response": True,
+            "comparison": comparison,
+        }],
+    )
+    assert comparison["has_new_information"] is True
+    assert review["repeat_candidate"] is False
+    assert review["follow_up_candidate"] is True
+    assert review["history_action"] == "REVIEW_FOLLOW_UP"
+
+
+def test_history_review_unanswered_related_case_links_without_repeat():
+    from agent.history_agent import build_history_review
+    review = build_history_review(
+        {"id": "CURRENT", "raw_text": "같은 내용입니다."},
+        [{
+            "id": "OLD",
+            "raw_text": "같은 내용입니다.",
+            "similarity": 1.0,
+            "status": "IN_PROGRESS",
+            "response_status": "DRAFTED",
+            "has_substantive_response": False,
+            "comparison": {"similarity": 1.0, "has_new_information": False},
+        }],
+    )
+    assert review["repeat_candidate"] is False
+    assert review["history_action"] == "LINK_UNRESOLVED"
+
+
+def test_action_router_creates_history_task_for_follow_up():
+    actions = decide_actions(
+        {
+            "nature": "COMPLAINT",
+            "domain_p55": "생활지도/상담",
+            "urgency": "LOW",
+            "special_codes": [],
+            "infringement_flags": [],
+            "needs_fact_check": [],
+            "repeat_review": False,
+            "history_review_required": True,
+            "history_action": "REVIEW_FOLLOW_UP",
+        },
+        {"action_role": "homeroom_teacher", "approver": "vice_principal"},
+        [],
+    )
+    history = [x for x in actions if x["task_type"] == "HISTORY_REVIEW"]
+    assert len(history) == 1
+    assert "후속 민원" in history[0]["reason"]
