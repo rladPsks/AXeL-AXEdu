@@ -161,3 +161,20 @@ def test_sidecar_metadata_is_applied(tmp_path: Path):
     parsed = parse_document(path, load_sidecar_metadata(path))
     assert parsed["document_id"] == "DOC-01"
     assert parsed["source_type"] == "school_policy"
+
+
+def test_sidecar_document_id_alias_is_applied(tmp_path: Path):
+    path = tmp_path / "guide.html"
+    path.write_text("<p>내용</p>", encoding="utf-8")
+    sidecar = tmp_path / "guide.html.meta.json"
+    sidecar.write_text(
+        json.dumps({
+            "document_id": "MOE-GYEONGGI-COMPLAINT-GUIDE-2024",
+            "source_type": "legacy_operational_guidance",
+        }, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    from ingestion.parsers import load_sidecar_metadata
+    parsed = parse_document(path, load_sidecar_metadata(path))
+    assert parsed["document_id"] == "MOE-GYEONGGI-COMPLAINT-GUIDE-2024"
+    assert parsed["source_type"] == "legacy_operational_guidance"

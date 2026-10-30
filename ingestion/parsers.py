@@ -45,7 +45,7 @@ def load_sidecar_metadata(path: Path) -> dict[str, Any]:
 
 def _base_document(path: Path, metadata: dict[str, Any], file_type: str) -> dict[str, Any]:
     return {
-        "document_id": str(metadata.get("source_id") or path.stem),
+        "document_id": str(metadata.get("source_id") or metadata.get("document_id") or path.stem),
         "title": str(metadata.get("title") or path.stem),
         "source_type": str(metadata.get("source_type") or "unclassified"),
         "issuer": metadata.get("issuer"),
