@@ -32,6 +32,7 @@ class SupportReviewResult(BaseModel):
     response_draft: str
     validation_checks: list[str]
     evidence_used: list[str]
+    translated_response: dict[str, str] | None = None
 
 
 class SummaryItem(BaseModel):
@@ -172,6 +173,7 @@ class OpenAIAdapter:
             result.get("response_draft") or "",
             classification.get("original_language", "ko"),
         )
+        result["translated_response"] = translated
         if translated:
             result["action_options"].append(
                 "원문 언어 답변 번역본 생성 완료 — 관리자 의미 대조 필요"

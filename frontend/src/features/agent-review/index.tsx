@@ -16,6 +16,7 @@ type Review = {
   response_draft: string;
   validation_checks: string[];
   evidence_used: string[];
+  translated_response?: { target_language: string; translated_text: string; translation_mode: string } | null;
 };
 type Run = {
   run_id: string;
@@ -293,6 +294,7 @@ export function AgentReview({ record }: { record: CaseDetail }) {
                 </ul>
                 <h3>AI가 준비한 보호자 답변</h3>
                 <p className="preserve">{run.result.response_draft}</p>
+                {run.result.translated_response ? <><h3>원문 언어 답변</h3><p className="preserve">{run.result.translated_response.translated_text}</p></> : null}
                 <h3>Validator 점검</h3>
                 <ul>{run.result.validation_checks.map((s, i) => <li key={i}>{s}</li>)}</ul>
                 <p className="hint">사용한 공식 근거: {run.result.evidence_used.join(", ") || "직접 인용 근거 없음"} · 관리자 검토 전에는 발송되지 않습니다.</p>

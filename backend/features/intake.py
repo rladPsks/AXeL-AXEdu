@@ -160,7 +160,9 @@ def create_intake(body: IntakeCreate, request: Request):
 
         # Agent tool context: RAG + history + school duty map are persisted with the intake.
         history_rows = db.execute(
-            "SELECT ci.case_id,ci.received_at,ci.complaint_type,ci.raw_text,c.status "
+            "SELECT ci.case_id,ci.received_at,ci.complaint_type,ci.raw_text,c.status, "
+            "EXISTS(SELECT 1 FROM agent_runs ar WHERE ar.case_id=ci.case_id "
+            "AND ar.purpose='REVIEW_SUPPORT' AND ar.reviewed_by IS NOT NULL) AS has_substantive_response "
             "FROM case_intakes ci JOIN cases c ON c.id=ci.case_id "
             "WHERE c.school_id=? AND ci.case_id<>? AND "
             "((? IS NOT NULL AND ci.student_name=?) OR ci.complainant_name=?) "
@@ -169,7 +171,7 @@ def create_intake(body: IntakeCreate, request: Request):
         ).fetchall()
         history_candidates = find_related_cases_from_rows(
             raw_text=body.raw_text,
-            rows=[{**dict(row), "has_substantive_response": str(row["status"]) == "CLOSED"} for row in history_rows],
+            rows=[dict(row) for row in history_rows],
         )
         history_review = build_history_review({"id": case_id, "raw_text": body.raw_text}, history_candidates)
         cls["repeat_review"] = history_review["repeat_candidate"]
