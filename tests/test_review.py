@@ -12,20 +12,12 @@ from ingestion.review import (
 
 def test_proposes_distinct_current_and_future_article_18_versions():
     chunks = [
-        {
-            "document_id": "LAW-TEACHER-STATUS-21350",
-            "chunk_id": "old18",
-            "article_number": "18",
-            "text": "제18조(위원회) 기존 제3항 내용",
-            "version_status": "in_force",
-        },
-        {
-            "document_id": "LAW-TEACHER-STATUS-21350",
-            "chunk_id": "new18",
-            "article_number": "18",
-            "text": "제18조(위원회) ③ 교사 위원이 전체 위원 정수의 10분의 2 이상",
-            "version_status": "in_force",
-        },
+        {"document_id": "LAW-TEACHER-STATUS-21350", "chunk_id": "old18",
+         "article_number": "18", "text": "제18조(위원회) 기존 제3항 내용",
+         "version_status": "in_force"},
+        {"document_id": "LAW-TEACHER-STATUS-21350", "chunk_id": "new18",
+         "article_number": "18", "text": "제18조(위원회) ③ 교사 위원이 전체 위원 정수의 10분의 2 이상",
+         "version_status": "in_force"},
     ]
     proposals = _propose_law_overrides(chunks)
     updates = {p["chunk_id"]: p["proposed_updates"] for p in proposals if p["operation"] == "update_chunk"}
@@ -33,6 +25,7 @@ def test_proposes_distinct_current_and_future_article_18_versions():
     assert updates["old18"]["version_status"] == "in_force"
     assert updates["new18"]["effective_from"] == "2026-11-20"
     assert updates["new18"]["version_status"] == "scheduled"
+    assert updates["new18"]["verification_status"] == "pending"
 
 
 def test_proposes_article_19_and_29_effective_dates():
@@ -50,6 +43,11 @@ def test_proposes_article_19_and_29_effective_dates():
     assert updates["19new"]["effective_from"] == "2026-12-03"
     assert updates["29old"]["effective_to"] == "2026-12-02"
     assert updates["29new"]["effective_from"] == "2026-12-03"
+    additions = [p for p in proposals if p["operation"] == "add_chunk"]
+    assert {p["proposal_id"] for p in additions} >= {
+        "LAW21655-ADD-TRANSITION-ARTICLE-18",
+        "LAW21717-ADD-TRANSITION-ARTICLE-29",
+    }
 
 
 def test_review_package_marks_every_chunk_pending(tmp_path: Path):

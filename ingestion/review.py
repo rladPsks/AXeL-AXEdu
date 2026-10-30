@@ -33,6 +33,12 @@ ARTICLE_18_TRANSITION = (
     "제1항에 따라 제18조제3항의 개정규정을 충족할 때까지는 종전의 규정에 따른다."
 )
 
+ARTICLE_29_TRANSITION = (
+    "제2조(교육활동보호센터에 대한 경과조치) "
+    "이 법 시행 당시 관할청이 설치ㆍ운영 중인 교육활동보호센터는 "
+    "제29조제1항의 개정규정에 따라 설치된 교육활동보호센터로 본다."
+)
+
 
 def _read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8-sig"))
@@ -115,7 +121,7 @@ def _propose_law_overrides(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]
                 "effective_from": "2026-02-19",
                 "effective_to": "2026-11-19",
                 "version_group": f"{LEGAL_ID}:18",
-                "verification_status": "corrected",
+                "verification_status": "pending",
                 "review_basis": "법률 제21655호 부칙 제1조 및 시행일 2026-11-20",
                 "official_source_url": OFFICIAL_21655,
             },
@@ -216,6 +222,36 @@ def _propose_law_overrides(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]
         },
         "review_note": "원 PDF의 인쇄 쪽수·페이지와 혼동하지 않도록 별도 개정법 출처로 등록한 뒤 승인.",
     })
+    proposals.append({
+        "proposal_id": "LAW21717-ADD-TRANSITION-ARTICLE-29",
+        "operation": "add_chunk",
+        "document_id": "LAW-TEACHER-STATUS-AMENDMENT-21717",
+        "human_approved": False,
+        "proposed_chunk": {
+            "document_id": "LAW-TEACHER-STATUS-AMENDMENT-21717",
+            "title": "교원의 지위 향상 및 교육활동 보호를 위한 특별법 일부개정법률",
+            "source_type": "law",
+            "issuer": "국가법령정보센터",
+            "jurisdiction": "national",
+            "published_at": "2026-06-02",
+            "effective_from": "2026-12-03",
+            "official_url": OFFICIAL_21717,
+            "chunk_type": "law_transitional_provision",
+            "section_title": "제2조(교육활동보호센터에 대한 경과조치)",
+            "locator": "부칙 제2조",
+            "page_start": None,
+            "page_end": None,
+            "text": ARTICLE_29_TRANSITION,
+            "article_number": None,
+            "version_status": "scheduled",
+            "effective_from": "2026-12-03",
+            "effective_to": None,
+            "verification_status": "pending",
+            "requires_review": False,
+        },
+        "review_note": "법률 제21717호 부칙 제2조의 경과조치. 별도 개정법 원문 출처로 등록한 뒤 승인.",
+    })
+
     return proposals
 
 
@@ -345,6 +381,7 @@ def apply_approved_overrides(
             if _chunk_fingerprint(match) != proposal.get("expected_text_sha256"):
                 raise ValueError(f"원문 청크가 제안 이후 변경되었습니다: {proposal.get('chunk_id')}")
             match.update(proposal.get("proposed_updates", {}))
+            match["verification_status"] = "corrected"
             match["human_approval"] = {
                 "status": "approved",
                 "reviewed_by": proposal["reviewed_by"],
@@ -359,6 +396,7 @@ def apply_approved_overrides(
                 (proposed_chunk["document_id"] + proposed_chunk["locator"] + proposed_chunk["text"]).encode("utf-8")
             ).hexdigest()[:12]
             proposed_chunk["chunk_id"] = digest
+            proposed_chunk["verification_status"] = "corrected"
             proposed_chunk["human_approval"] = {
                 "status": "approved",
                 "reviewed_by": proposal["reviewed_by"],
