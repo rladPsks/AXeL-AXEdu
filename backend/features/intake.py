@@ -11,6 +11,11 @@ from agent.classify import classify_complaint
 from agent.routing import route_case
 from agent.retrieval import retrieve as retrieve_official_evidence
 from agent.rules import apply_rules
+from agent.multilingual import translate_to_korean
+from agent.history_agent import find_related_cases_from_rows, build_history_review
+from agent.action_router import decide_actions
+from agent.draft import draft_information_reply, teacher_card
+from agent.validator import validate_response
 from backend.access import authenticate, fail
 from backend.commands import command_identity, replay_command, save_command
 from backend.db import audit, now, uid
@@ -99,14 +104,17 @@ def create_intake(body: IntakeCreate, request: Request):
         if replay is not None:
             return replay
 
-    # Classification happens outside the SQLite write transaction.
-    cls = apply_rules(classify_complaint(body.raw_text), [])
+    language = translate_to_korean(body.raw_text)
+    analysis_text = language["translated_text_ko"]
+    cls = apply_rules(classify_complaint(analysis_text), [])
+    cls["original_language"] = language.get("detected_language", "unknown")
+    cls["translation_mode"] = language.get("translation_mode", "NOT_NEEDED")
     cls["core_demand"] = cls.get("summary_for_teacher") or body.raw_text[:180]
     cls["handling_route"] = _handling_route(cls)
     cls["escalation_level"] = 2 if cls["handling_route"] == "ADMIN_REVIEW" else 1
-    routing = route_case(_routing_domain(cls), text=body.raw_text, classification=cls)
+    routing = route_case(_routing_domain(cls), text=analysis_text, classification=cls)
     evidence = []
-    for item in retrieve_official_evidence(body.raw_text, top_k=4):
+    for item in retrieve_official_evidence(analysis_text, top_k=4):
         evidence.append({
             "source_id": item.get("source_id"), "title": item.get("title"),
             "source_type": item.get("source_type"), "article": item.get("article"),
@@ -159,12 +167,26 @@ def create_intake(body: IntakeCreate, request: Request):
             "ORDER BY ci.received_at DESC LIMIT 5",
             (actor["school_id"], case_id, body.student_name, body.student_name, body.complainant_name),
         ).fetchall()
+        history_candidates = find_related_cases_from_rows(
+            raw_text=body.raw_text,
+            rows=[{**dict(row), "has_substantive_response": str(row["status"]) == "CLOSED"} for row in history_rows],
+        )
+        history_review = build_history_review({"id": case_id, "raw_text": body.raw_text}, history_candidates)
+        cls["repeat_review"] = history_review["repeat_candidate"]
+        cls["history_review_required"] = history_review["history_action"] != "NONE"
+        cls["history_action"] = history_review["history_action"]
+        cls["history_reason"] = history_review["reason"]
+        cls["follow_up_candidate"] = history_review["follow_up_candidate"]
+        actions = decide_actions(cls, routing, evidence)
+        initial_draft = draft_information_reply(analysis_text, evidence) if cls.get("is_informational") else ""
+        initial_validation = validate_response(draft=initial_draft, evidence=evidence, classification=cls)
         workflow = {
             "phase": "FACT_CHECK" if cls["handling_route"] == "STAFF_OR_TEAM" else "HUMAN_REVIEW",
             "agent": {"classifier_mode": cls.get("classifier_mode"), "orchestrator": "AXeL"},
             "tools": {
                 "rag": evidence,
-                "history": [dict(row) for row in history_rows],
+                "history": history_candidates,
+                "history_review": history_review,
                 "duty": {
                     "duty_area": routing.get("duty_area"), "duty_label": routing.get("duty_label"),
                     "action_role": routing.get("action_role"), "collaborators": routing.get("collaborators", []),
@@ -172,6 +194,13 @@ def create_intake(body: IntakeCreate, request: Request):
                     "reason": routing.get("reason"),
                 },
             },
+            "proposed_actions": actions,
+            "initial_response_draft": initial_draft,
+            "initial_validation": initial_validation,
+            "teacher_card": teacher_card(cls.get("summary_for_teacher") or cls["core_demand"],
+                                         cls.get("action_for_teacher") or "학교 대응계획에 따른 필요한 확인만 수행",
+                                         bool(cls.get("infringement_flags") or cls.get("special_codes"))),
+            "multilingual": language,
             "action_plan": {
                 "case_owner": owner["user_id"],
                 "teacher_direct_contact": routing.get("callback_needed") == "REQUIRED",
