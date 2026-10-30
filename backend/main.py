@@ -18,6 +18,7 @@ from .files import router as files_router, upload_limit, file_access
 from .guardians import router as guardians_router
 from .agents import router as agents_router
 from .runtime import build_registry
+from .worker import Worker
 from .coordination import router as coordination_router, resolve_support
 from .scheduling import router as scheduling_router
 from .notifications import router as notifications_router, enqueue, dispatch_once
@@ -36,15 +37,29 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
                 except Exception as exc:
                     logging.getLogger(__name__).error('inbox_dispatch_failed type=%s',type(exc).__name__)
                 stop.wait(2)
+        def generate():
+            worker=Worker(app.state.db,app.state.agent_registry)
+            while not stop.is_set():
+                try:
+                    if not worker.process_once():
+                        stop.wait(1)
+                except Exception as exc:
+                    logging.getLogger(__name__).error('agent_worker_failed type=%s',type(exc).__name__)
+                    stop.wait(1)
         thread=Thread(target=deliver,name='school-inbox',daemon=True) if inbox_worker else None
+        agent_thread=Thread(target=generate,name='school-agent',daemon=True) if os.getenv('SCHOOL_AGENT_RUN_WORKER','0')=='1' else None
         if thread:
             thread.start()
+        if agent_thread:
+            agent_thread.start()
         try:
             yield
         finally:
             stop.set()
             if thread:
                 thread.join(timeout=12)
+            if agent_thread:
+                agent_thread.join(timeout=12)
     app = FastAPI(title="학교 민원 에이전트 — 개발자 B", version="0.1.0",lifespan=lifespan)
     app.state.db = Database(db_path or os.getenv("SCHOOL_AGENT_DB", "data/private/dev.sqlite3"))
 
@@ -93,6 +108,7 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
                                          request.state.request_id, type(exc).__name__)
         return error_response(request, 500, "INTERNAL_ERROR", "처리에 실패했습니다.")
 
+    @app.get("/api/health")
     @app.get("/health")
     def health():
         return {"status": "ok"}
