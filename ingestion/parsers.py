@@ -210,7 +210,6 @@ def parse_pdf(
             # 이미지 면적이 있고 원문 텍스트가 적은 페이지에만 선택적으로 OCR합니다.
             should_ocr = (
                 enable_ocr
-                and len(native_text) < min_text_chars
                 and image_count > 0
                 and image_ratio >= ocr_image_coverage
             )
@@ -223,9 +222,9 @@ def parse_pdf(
                 else:
                     ocr_status = "failed"
                     warnings.append(ocr_warning or "OCR 결과가 비어 있습니다.")
-            elif len(native_text) < min_text_chars and image_count > 0 and not enable_ocr:
+            elif image_count > 0 and image_ratio >= ocr_image_coverage and not enable_ocr:
                 ocr_status = "disabled"
-                warnings.append("이미지가 포함된 저텍스트 페이지이나 OCR이 비활성화되어 있습니다.")
+                warnings.append("본문과 별개로 이미지 영역에 텍스트가 있을 수 있으나 OCR이 비활성화되어 있습니다.")
 
             # 제목만 있는 구분 페이지와 실제 빈 페이지를 다르게 기록합니다.
             if not text and not tables and image_count == 0:
