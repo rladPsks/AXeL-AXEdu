@@ -2,7 +2,7 @@ from agent.retrieval import load_corpus, retrieve
 
 def test_legacy_manual_chunks_are_canonicalized_to_manual_source():
     corpus = load_corpus()
-    manual = [x for x in corpus if x.get("id") == "M-10-ROUTING"]
+    manual = [x for x in corpus if x.get("chunk_id") == "M-10-ROUTING"]
     assert manual
     assert manual[0]["source_id"] == "MOE-MANUAL-2026"
     assert "routing" in manual[0]["retrieval_tags"]

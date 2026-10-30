@@ -111,6 +111,8 @@ def _legacy_chunks() -> list[dict[str, Any]]:
 
 def _normalize_chunk(raw: dict[str, Any], registry: dict[str, dict[str, Any]]) -> dict[str, Any]:
     item = dict(raw)
+    if not item.get("chunk_id") and item.get("id"):
+        item["chunk_id"] = item["id"]
     source_id = item.get("source_id") or item.get("document_id")
     source = registry.get(source_id, {})
     canonical_source_id = source.get("source_id") or source_id
