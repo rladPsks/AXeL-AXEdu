@@ -11,9 +11,9 @@ def build_support_report(snapshot: dict[str, Any]) -> dict[str, Any]:
 
     completed = [
         {
-            "task_type": t["task_type"],
-            "assignee_role": t["assignee_role"],
-            "result": t.get("result_text"),
+            "task_type": t.get("task_type") or t.get("type"),
+            "assignee_role": t.get("assignee_role") or t.get("assignee_id"),
+            "result": t.get("result_text") or t.get("reply"),
         }
         for t in tasks
         if t.get("status") == "COMPLETED"
@@ -32,28 +32,28 @@ def build_support_report(snapshot: dict[str, Any]) -> dict[str, Any]:
         "report_status": "DRAFT",
         "case_id": case["id"],
         "school_case_summary": {
-            "received_at": case["received_at"],
-            "channel": case["channel"],
-            "student_ref": case.get("student_ref") or "미상",
-            "complaint_summary": case["raw_text"],
-            "current_status": case["status"],
-            "owner_role": case["owner_role"],
+            "received_at": case.get("received_at"),
+            "channel": case.get("channel"),
+            "student_ref": case.get("student_ref") or case.get("student_name") or "미상",
+            "complaint_summary": case.get("raw_text") or case.get("title") or "",
+            "current_status": case.get("status"),
+            "owner_role": case.get("owner_role") or case.get("owner_id"),
         },
         "school_actions_completed": completed,
         "pending_work": pending,
         "support_requests": [
             {
-                "support_type": x["support_type"],
+                "support_type": x.get("support_type") or x.get("type"),
                 "status": x["status"],
-                "note": x.get("note"),
+                "note": x.get("note") or x.get("reason") or x.get("result"),
             }
             for x in support_requests
         ],
         "timeline": [
             {
                 "at": e["created_at"],
-                "event": e["event_type"],
-                "actor": e["actor"],
+                "event": e.get("event_type") or e.get("action"),
+                "actor": e.get("actor") or e.get("actor_id"),
             }
             for e in events
         ],

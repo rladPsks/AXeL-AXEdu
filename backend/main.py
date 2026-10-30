@@ -32,6 +32,8 @@ from .coordination import router as coordination_router, resolve_support
 from .scheduling import router as scheduling_router
 from .notifications import router as notifications_router, enqueue, dispatch_once
 from .features.intake import router as intake_router
+from agent.report_agent import build_support_report
+
 from .models import (CaseTransition, Command, HandoverCreate, SupportCreate,
                      SupportUpdate, TaskCreate, TaskUpdate)
 
@@ -244,6 +246,28 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
             return {"task_id": task_id, "status": body.status, "reply": body.reply,
                     "agent_run_id": auto_run_id}
         return mutate(request, case_id, body, "TASK_UPDATED", operation)
+
+    @app.get("/api/cases/{case_id}/support-report-draft")
+    def support_report_draft(case_id: str, request: Request):
+        with app.state.db.transaction() as db:
+            actor = authenticate(db, request)
+            admin(actor)
+            case = dict(accessible_case(db, actor, case_id))
+            intake = db.execute("SELECT * FROM case_intakes WHERE case_id=?", (case_id,)).fetchone()
+            case_data = {**case, **(dict(intake) if intake else {})}
+            tasks = [dict(x) for x in db.execute(
+                "SELECT * FROM tasks WHERE case_id=? ORDER BY created_at,id", (case_id,)
+            )]
+            supports = [dict(x) for x in db.execute(
+                "SELECT * FROM support_requests WHERE case_id=? ORDER BY created_at,id", (case_id,)
+            )]
+            events = [dict(x) for x in db.execute(
+                "SELECT * FROM audit_events WHERE case_id=? ORDER BY new_version,id", (case_id,)
+            )]
+            return build_support_report({
+                "case": case_data, "tasks": tasks,
+                "support_requests": supports, "events": events,
+            })
 
     @app.post("/api/cases/{case_id}/support-requests", status_code=201)
     def create_support(case_id: str, body: SupportCreate, request: Request):
