@@ -4,6 +4,7 @@ from .draft import draft_information_reply, teacher_card
 from .knowledge import retrieve
 from .rules import apply_rules
 from .routing import route_case
+from .validator import validate_response
 
 
 def _routing_domain(cls: dict[str, Any]) -> str:
@@ -73,6 +74,11 @@ def process(complaint: dict[str, Any], history: list[dict[str, Any]] | None = No
         "추가 사실 확인과 담당자 검토가 필요한 사안입니다. 자동 발송하지 말고 관리자 승인 후 처리하세요."
     )
     risk = bool(cls.get("infringement_flags") or cls.get("special_codes"))
+    validation = validate_response(
+        draft=reply,
+        evidence=evidence,
+        classification=cls,
+    )
 
     return {
         "classification": cls,
@@ -80,6 +86,7 @@ def process(complaint: dict[str, Any], history: list[dict[str, Any]] | None = No
         "evidence": evidence,
         "response_draft": reply,
         "teacher_card": teacher_card(cls["summary_for_teacher"], cls["action_for_teacher"], risk),
+        "validation": validation,
         "escalation_status": cls.get("escalation_status", "NOT_PROPOSED"),
         "requires_human_review": True,
     }

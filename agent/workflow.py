@@ -24,6 +24,7 @@ from .history_agent import build_history_review, find_related_cases
 from .pipeline import process
 from .response_agent import generate_response_draft
 from .report_agent import build_support_report
+from .validator import validate_response
 
 
 def _id(prefix: str) -> str:
@@ -186,6 +187,12 @@ def complete_task(task_id: str, result_text: str, actor: str = "staff") -> dict[
     )
     rerun["response_draft"] = response["draft"]
     rerun["response_generation"] = response
+    rerun["validation"] = validate_response(
+        draft=response["draft"],
+        evidence=rerun.get("evidence", []),
+        classification=rerun["classification"],
+        response_generation=response,
+    )
     rerun["internal_task_context"] = {
         "history_reviews": [
             t.get("result_text") for t in list_case_tasks(case_id)
@@ -453,6 +460,7 @@ def get_case_evidence(case_id: str) -> dict[str, Any]:
             "requires_human_review": routing.get("requires_human_review"),
         },
         "evidence": evidence,
+        "validation": output.get("validation", {}),
         "response_basis": {
             "basis_summary": response_generation.get("basis_summary", []),
             "missing_information": response_generation.get("missing_information", []),
@@ -569,6 +577,7 @@ def get_case_explanation(case_id: str) -> dict[str, Any]:
             else []
         ),
         "history": history_card,
+        "validator": raw.get("validation") or {},
         "safety": {
             "human_review_required": True,
             "auto_send": False,
