@@ -20,15 +20,15 @@ def decide_actions(classification: dict[str, Any], routing: dict[str, Any], evid
         if evidence:
             actions.append({
                 "task_type": "RESPONSE_REVIEW",
-                "assignee_role": routing.get("suggested_owner") or "complaint_response_team",
+                "assignee_role": routing.get("action_role") or routing.get("suggested_owner") or "complaint_response_team",
                 "reason": "학교 자료 근거가 검색되어 권한 범위 내 답변 검토가 필요합니다.",
                 "instructions": ["검색 근거가 질문을 실제로 뒷받침하는지 확인", "확인 후 보호자 회신"],
             })
         else:
             actions.append({
                 "task_type": "FACT_CHECK",
-                "assignee_role": "school_information_owner",
-                "reason": "현재 연결된 학교 자료에서 답을 찾지 못했습니다.",
+                "assignee_role": routing.get("action_role") or "school_information_owner",
+                "reason": "현재 연결된 자료만으로 확정하기 어려워 업무분장 담당자의 사실 확인이 필요합니다.",
                 "instructions": ["학교 공지·학사일정·담당 부서에서 사실 확인", "확인된 내용과 출처를 사건에 회신"],
             })
     elif nature == "COUNSEL":

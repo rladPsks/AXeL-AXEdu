@@ -100,6 +100,7 @@ def route_case(domain: str, *, text: str = "", classification: dict[str, Any] | 
         "duty_area": duty_area,
         "duty_label": duty_label,
         "duty_map_scope": duty_map.get("scope"),
+        "role_labels": duty_map.get("roles", {}),
         "reason": reason,
         "requires_human_review": True,
     }

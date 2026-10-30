@@ -351,9 +351,26 @@ def get_case_snapshot(case_id: str) -> dict[str, Any]:
         except Exception:
             item["intake"] = {}
     item.pop("intake_json", None)
+    routing = item.get("routing") or {}
+    labels = routing.get("role_labels") or {}
+    tasks = list_case_tasks(case_id)
+    for task in tasks:
+        task["assignee_label"] = labels.get(task.get("assignee_role"), task.get("assignee_role"))
+        task["backup_role"] = routing.get("backup_role")
+        task["backup_label"] = labels.get(routing.get("backup_role"), routing.get("backup_role"))
+        task["support_role"] = routing.get("approver") or item.get("owner_role")
+        task["support_label"] = labels.get(task["support_role"], task["support_role"])
+        task["recommended_timing"] = routing.get("notification_timing")
+        if task.get("assignee_role") == "HOMEROOM" or task.get("task_type") == "COOP_FACT_CHECK":
+            task["callback_needed"] = routing.get("callback_needed", "UNDECIDED")
+            task["callback_reason"] = routing.get("callback_reason")
+        else:
+            task["callback_needed"] = "NOT_REQUIRED"
+            task["callback_reason"] = "담당 부서 또는 대응팀이 우선 처리"
+
     return {
         "case": item,
-        "tasks": list_case_tasks(case_id),
+        "tasks": tasks,
         "events": list_case_events(case_id),
         "support_requests": list_support_requests(case_id),
     }
