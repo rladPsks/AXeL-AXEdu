@@ -76,9 +76,15 @@ def build_history_review(current_case: dict[str, Any], related: list[dict[str, A
         }
 
     unresolved = [x for x in related if x.get("status") not in {"CLOSED", "RESOLVED"}]
-    not_substantively_answered = [x for x in related if not x.get("has_substantive_response")]
+
+    def _has_substantive_response(item: dict[str, Any]) -> bool:
+        if "has_substantive_response" in item:
+            return bool(item.get("has_substantive_response"))
+        return bool(item.get("has_response"))
+
+    not_substantively_answered = [x for x in related if not _has_substantive_response(x)]
     high_similarity = [x for x in related if x["similarity"] >= 0.55]
-    high_similarity_answered = [x for x in high_similarity if x.get("has_substantive_response")]
+    high_similarity_answered = [x for x in high_similarity if _has_substantive_response(x)]
 
     repeat_candidate = bool(high_similarity_answered) and not not_substantively_answered
     if not_substantively_answered:
