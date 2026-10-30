@@ -38,6 +38,15 @@ def _derive_core_demand(text: str, cls: dict[str, Any]) -> str:
     return compact[:180]
 
 
+def _content_flags(text: str, cls: dict[str, Any]) -> list[str]:
+    flags = []
+    if cls.get("infringement_flags") or cls.get("special_codes"):
+        flags.append("ORIGINAL_CONTENT_WARNING")
+    if any(term in text for term in ("욕설", "폭언", "협박", "성희롱")) and "ORIGINAL_CONTENT_WARNING" not in flags:
+        flags.append("ORIGINAL_CONTENT_WARNING")
+    return flags
+
+
 def _allowed_source_types(cls: dict[str, Any], text: str) -> set[str] | None:
     if cls.get("nature") != "INFO_REQUEST":
         return None
@@ -60,6 +69,8 @@ def process(complaint: dict[str, Any], history: list[dict[str, Any]] | None = No
     cls = apply_rules(classify_complaint(text), history or [])
     cls["original_language"] = language_support.get("detected_language", "unknown")
     cls["translation_mode"] = language_support.get("translation_mode", "NOT_NEEDED")
+    cls["content_flags"] = _content_flags(text, cls)
+    cls["show_original_with_warning"] = "ORIGINAL_CONTENT_WARNING" in cls["content_flags"]
     cls["core_demand"] = _derive_core_demand(text, cls)
     cls["handling_route"] = _derive_handling_route(cls)
     cls["escalation_level"] = {

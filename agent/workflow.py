@@ -23,6 +23,7 @@ from db import (
 from .action_router import decide_actions, next_case_state
 from .history_agent import build_history_review, find_related_cases
 from .multilingual import translate_from_korean
+from .past_cases import find_approved_similar_cases
 from .pipeline import process
 from .response_agent import generate_response_draft
 from .report_agent import build_support_report
@@ -556,7 +557,13 @@ def get_case_explanation(case_id: str) -> dict[str, Any]:
 
     raw = get_case_evidence(case_id)
     cls = json.loads(case.get("classification_json") or "{}")
-    history = review_case_history(case_id)
+    related = find_related_cases(
+        current_case_id=case_id,
+        complainant_id=case.get("complainant_id"),
+        student_ref=case.get("student_ref"),
+        raw_text=case["raw_text"],
+    )
+    history = build_history_review(case, related)
 
     official_sources = []
     seen = set()
@@ -651,9 +658,29 @@ def get_case_explanation(case_id: str) -> dict[str, Any]:
         "history": history_card,
         "validator": raw.get("validation") or {},
         "multilingual": raw.get("multilingual") or {},
+        "similar_cases": find_approved_similar_cases(
+            current_case_id=case_id,
+            raw_text=case["raw_text"],
+            limit=1,
+        ),
         "safety": {
             "human_review_required": True,
             "auto_send": False,
             "note": "AI는 판단 근거와 초안을 제안하며, 최종 회신·법적 판단·제재·외부 이관은 담당자가 확인합니다.",
         },
+    }
+
+
+
+def get_similar_cases(case_id: str, limit: int = 1) -> dict[str, Any]:
+    init_db()
+    case = get_case(case_id)
+    if case is None:
+        raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
+    return {
+        "items": find_approved_similar_cases(
+            current_case_id=case_id,
+            raw_text=case["raw_text"],
+            limit=max(1, min(limit, 5)),
+        )
     }
