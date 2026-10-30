@@ -267,6 +267,33 @@
         "안전조치 관련 조항"
       ],
       "notes": "개인정보 보호법의 안전조치 등 하위 절차를 확인할 때 함께 검색합니다."
+    },
+    {
+      "source_id": "MOE-GYEONGGI-COMPLAINT-GUIDE-2024",
+      "title": "학교 민원 응대 안내자료",
+      "source_type": "legacy_operational_guidance",
+      "issuer": "교육부·경기도교육청",
+      "published_at": "2024-03",
+      "status": "legacy_guidance",
+      "jurisdiction": "경기도",
+      "scope": "local",
+      "uploaded_file": true,
+      "uploaded_filename": "학교 민원 응대 안내자료.pdf",
+      "page_count": 63,
+      "legal_authority": false,
+      "use_for": [
+        "response_script",
+        "special_complaint_playbook",
+        "staff_protection_examples",
+        "scenario_examples"
+      ],
+      "do_not_use_for": [
+        "current_law_determination",
+        "current_agency_name",
+        "current_statutory_deadline",
+        "criminal_liability_determination"
+      ],
+      "notes": "2024 운영 안내자료. 2026 현행 법령·교육부 매뉴얼보다 우선하지 않으며, 응대 절차·스크립트·사례의 보조 근거로만 사용합니다."
     }
   ],
   "not_yet_uploaded_but_recommended": [

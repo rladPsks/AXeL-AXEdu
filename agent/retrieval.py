@@ -28,6 +28,7 @@ AUTHORITY = {
     "school_policy": 5,
     "policy_plan": 6,
     "press_release_statistics": 6,
+    "legacy_operational_guidance": 6,
     "fixture": 7,
 }
 
@@ -166,7 +167,7 @@ def retrieve(query: str, top_k: int = 6, *, production: bool = False,
 
     corpus = load_corpus(production=production, as_of_date=as_of_date, jurisdiction=jurisdiction)
     if not include_policy:
-        corpus = [c for c in corpus if c.get("source_type") not in {"policy_plan", "press_release_statistics"}]
+        corpus = [c for c in corpus if c.get("source_type") not in {"policy_plan", "press_release_statistics", "legacy_operational_guidance"}]
     if not corpus:
         return []
 

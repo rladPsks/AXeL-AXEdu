@@ -25,7 +25,11 @@
         "p41",
         "p59"
       ],
-      "reject_locators": ["p9#part1", "p29", "p61"],
+      "reject_locators": [
+        "p9#part1",
+        "p29",
+        "p61"
+      ],
       "notes": {
         "p15": "매뉴얼의 처리 기한(안): 단순 즉시, 복합 7일, 관리자 총괄 14일 및 연장 가능. 법정 처리기간과 분리.",
         "p16": "거부·종결 및 교육(지원)청 지원 요청/이첩 기준",
@@ -39,6 +43,44 @@
     "MOE-PRESS-2025-05": {
       "mode": "historical_statistics_only_until_quick_review",
       "notes": "통계·조사 시점과 대상연도를 함께 표시."
+    },
+    "MOE-GYEONGGI-COMPLAINT-GUIDE-2024": {
+      "mode": "operational_examples_only",
+      "canonical_locators": [
+        "p4",
+        "p6",
+        "p7",
+        "p13",
+        "p14",
+        "p20",
+        "p21",
+        "p22",
+        "p23",
+        "p24",
+        "p25",
+        "p26",
+        "p27",
+        "p28",
+        "p29",
+        "p30",
+        "p31",
+        "p32",
+        "p33",
+        "p34",
+        "p40",
+        "p41",
+        "p42",
+        "p43",
+        "p44",
+        "p53"
+      ],
+      "exclude_from": [
+        "current_law_determination",
+        "current_agency_name",
+        "current_statutory_deadline",
+        "criminal_liability_determination"
+      ],
+      "notes": "특이민원 응대 스크립트·단계·사례 중심. 2024 법령 인용·조직 명칭은 최신 2026 근거로 재검증."
     }
   }
 }
