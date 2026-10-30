@@ -1,6 +1,10 @@
 {
+  "framework": "vite",
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://RENDER_BACKEND_URL/api/:path*" },
+    { "source": "/api/:path*", "destination": "https://axel-axedu-demo.onrender.com/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
