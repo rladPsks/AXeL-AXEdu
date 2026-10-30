@@ -1,0 +1,407 @@
+{
+  "as_of_date": "2026-10-30",
+  "chunks": [
+    {
+      "id": "SCHOOL-ACT-35-1",
+      "source_id": "LAW-SCHOOL-ACT",
+      "source_type": "law",
+      "title": "학교민원의 정의",
+      "citation": "초·중등교육법 제35조 제1항",
+      "effective_from": "2026-10-29",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "학교민원은 학생 또는 보호자 등이 학교에 대하여 학생의 정서·행동 지원, 학생생활지도, 교육활동 또는 학교 운영에 관한 요구를 하는 것을 말한다.",
+      "tags": [
+        "학교민원",
+        "정의",
+        "분류"
+      ]
+    },
+    {
+      "id": "SCHOOL-ACT-35-2",
+      "source_id": "LAW-SCHOOL-ACT",
+      "source_type": "law",
+      "title": "학교민원 제기자의 준수사항 및 학교장 조치",
+      "citation": "초·중등교육법 제35조 제2항·제3항",
+      "effective_from": "2026-10-29",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "학교민원 제기자는 교육기본법상 학생·보호자 관련 원칙을 준수해야 하며 교원지위법상 교육활동 침해행위 또는 직원에 대한 형법상 업무방해행위를 해서는 안 된다. 학교장은 그러한 행위가 우려된다고 인정하면 시행령이 정한 절차에 따라 퇴거 요청 등 필요한 조치를 해야 한다.",
+      "tags": [
+        "학교장",
+        "퇴거",
+        "업무방해",
+        "보호자"
+      ]
+    },
+    {
+      "id": "SCHOOL-ACT-36",
+      "source_id": "LAW-SCHOOL-ACT",
+      "source_type": "law",
+      "title": "학교민원 처리 계획 및 정기 안내",
+      "citation": "초·중등교육법 제36조 제1항~제3항",
+      "effective_from": "2026-10-29",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "교육부장관은 학교 여건에 맞는 학교민원 처리 방법·절차, 전자적 처리를 위한 정보시스템, 행정·재정 지원을 포함한 계획을 수립·시행한다. 교육감은 지역 실정을 반영한 지원계획을 수립하고, 학교장은 학교민원 처리 방법과 절차를 학생 및 보호자에게 정기적으로 안내해야 한다.",
+      "tags": [
+        "처리계획",
+        "정보시스템",
+        "정기안내"
+      ]
+    },
+    {
+      "id": "SCHOOL-ACT-37",
+      "source_id": "LAW-SCHOOL-ACT",
+      "source_type": "law",
+      "title": "학교 민원대응팀 설치 및 관할청 지원기구",
+      "citation": "초·중등교육법 제37조 제1항~제4항",
+      "effective_from": "2026-10-29",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "학교민원의 접수·처리를 위해 학교에 민원대응팀을 두며, 관할청에는 접수·분류·처리를 지원하는 학교민원대응지원팀 등 대응기구를 둔다. 교육부장관과 교육감은 필요한 조직과 인력을 확보하도록 노력해야 한다. 학교장은 필요한 경우 관할청에 처리 지원 또는 직접 처리를 요청할 수 있고, 구체적인 절차와 방법은 교육감이 정한다.",
+      "tags": [
+        "민원대응팀",
+        "학교장",
+        "관할청",
+        "이관",
+        "직접처리"
+      ]
+    },
+    {
+      "id": "SCHOOL-DECREE-65",
+      "source_id": "DECREE-SCHOOL-ACT",
+      "source_type": "decree",
+      "title": "학교민원 과정의 중지 요청 및 퇴거 등 조치 절차",
+      "citation": "초·중등교육법 시행령 제65조 제1항~제3항",
+      "effective_from": "2026-10-29",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "학교장은 퇴거 등 조치를 하려는 경우 학교민원 제기자의 행위가 교육활동 침해 또는 업무방해에 해당할 우려가 있음을 알리고 행위 중지를 요청해야 한다. 요청에 따르지 않으면 전화·면담 종료, 퇴거, 일시적 출입 제한, 수사기관 신고 등 필요한 조치를 할 수 있다. 다만 교육활동 보호와 정상적인 업무 수행을 위해 긴급한 경우에는 사전 중지 요청 없이 조치할 수 있다.",
+      "tags": [
+        "중지요청",
+        "전화종료",
+        "면담종료",
+        "퇴거",
+        "출입제한",
+        "긴급조치",
+        "경찰신고"
+      ],
+      "human_decision_required": true
+    },
+    {
+      "id": "TEACHER-ACT-19-CURRENT",
+      "source_id": "LAW-TEACHER-STATUS-21350",
+      "source_type": "law",
+      "title": "교육활동 침해행위의 법률상 범위(현행 버전)",
+      "citation": "교원지위법 제19조",
+      "effective_from": "2026-02-19",
+      "effective_to": "2026-12-02",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "교육활동 중인 교원에 대해 형법상 공무방해·무고·상해·폭행·협박·명예 관련 범죄, 업무방해·손괴, 성폭력범죄, 불법정보 유통 등 법률상 범죄행위를 하거나, 목적이 정당하지 않은 민원을 반복 제기하거나 교원의 법적 의무가 아닌 일을 지속적으로 강요하는 행위 등이 교육활동 침해행위에 해당할 수 있다.",
+      "tags": [
+        "교육활동침해",
+        "반복민원",
+        "부당간섭",
+        "폭언",
+        "협박"
+      ],
+      "human_decision_required": true
+    },
+    {
+      "id": "TEACHER-ACT-20",
+      "source_id": "LAW-TEACHER-STATUS-21350",
+      "source_type": "law",
+      "title": "피해교원 보호조치 및 보고",
+      "citation": "교원지위법 제20조 제1항~제3항",
+      "effective_from": "2026-02-19",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "관할청과 학교장은 교육활동 침해 사실을 알게 된 경우 피해교원의 치유와 교권 회복을 위한 심리상담·조언, 치료·요양 등 보호조치를 해야 한다. 특별한 사유가 없으면 가해자와 피해교원을 즉시 분리해야 하며, 학교장은 조치 내용과 결과를 지체 없이 관할청에 보고해야 한다.",
+      "tags": [
+        "피해교원",
+        "보호조치",
+        "분리",
+        "보고"
+      ],
+      "human_decision_required": true
+    },
+    {
+      "id": "TEACHER-ACT-26",
+      "source_id": "LAW-TEACHER-STATUS-21350",
+      "source_type": "law",
+      "title": "교육활동 침해 보호자 등에 대한 조치 절차",
+      "citation": "교원지위법 제26조 제1항·제2항",
+      "effective_from": "2026-02-19",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "학교장은 소속 학생의 보호자 등이 교육활동 침해행위를 한 사실을 알게 된 경우 지역교권보호위원회에 알려야 한다. 지역교권보호위원회는 보호자 등에 대해 서면사과 및 재발방지 서약, 특별교육 이수 또는 심리치료 조치를 교육장에게 요청할 수 있다.",
+      "tags": [
+        "보호자",
+        "지역교권보호위원회",
+        "서면사과",
+        "특별교육",
+        "심리치료"
+      ],
+      "human_decision_required": true
+    },
+    {
+      "id": "CIVIL-ACT-4",
+      "source_id": "LAW-CIVIL-PETITION",
+      "source_type": "law",
+      "title": "민원 처리 담당자의 의무와 보호",
+      "citation": "민원 처리에 관한 법률 제4조",
+      "effective_from": "2022-07-12",
+      "status": "in_force_as_of_2026-10-30",
+      "jurisdiction": "national",
+      "text": "민원 처리 담당자는 민원을 신속·공정·친절·적법하게 처리해야 한다. 행정기관의 장은 폭언·폭행 및 목적이 정당하지 않은 반복 민원 등으로부터 담당자를 보호하기 위해 신체적·정신적 피해 예방과 치료 등 필요한 조치를 해야 하며, 담당자는 해당 조치를 요구할 수 있다.",
+      "tags": [
+        "담당자보호",
+        "폭언",
+        "폭행",
+        "반복민원"
+      ]
+    },
+    {
+      "id": "CIVIL-ACT-7",
+      "source_id": "LAW-CIVIL-PETITION",
+      "source_type": "law",
+      "title": "민원 처리 정보 보호",
+      "citation": "민원 처리에 관한 법률 제7조",
+      "effective_from": "2022-07-12",
+      "status": "in_force_as_of_2026-10-30",
+      "jurisdiction": "national",
+      "text": "행정기관의 장은 민원 처리 과정에서 알게 된 민원 내용, 민원인 및 민원 내용에 포함된 특정인의 개인정보가 누설되지 않도록 조치하고, 수집된 정보가 민원 처리 목적 외로 사용되지 않도록 해야 한다.",
+      "tags": [
+        "개인정보",
+        "정보보호",
+        "목적제한"
+      ]
+    },
+    {
+      "id": "CIVIL-ACT-23",
+      "source_id": "LAW-CIVIL-PETITION",
+      "source_type": "law",
+      "title": "반복·중복 민원의 처리",
+      "citation": "민원 처리에 관한 법률 제23조 제1항~제3항",
+      "effective_from": "2022-07-12",
+      "status": "in_force_as_of_2026-10-30",
+      "jurisdiction": "national",
+      "text": "법정민원을 제외하고 동일한 내용의 민원을 정당한 사유 없이 3회 이상 반복 제출한 경우, 2회 이상 처리결과를 통지한 뒤 이후 접수 민원을 종결 처리할 수 있다. 동일 내용인지는 민원의 성격, 종전 민원과의 내용상 유사성·관련성, 종전과 동일한 답변을 할 수밖에 없는 사정 등을 종합해 결정해야 한다.",
+      "tags": [
+        "반복민원",
+        "중복민원",
+        "종결",
+        "동일성"
+      ],
+      "human_decision_required": true
+    },
+    {
+      "id": "CIVIL-DECREE-4",
+      "source_id": "DECREE-CIVIL-PETITION",
+      "source_type": "decree",
+      "title": "민원 처리 담당자 보호를 위한 구체적 조치",
+      "citation": "민원 처리에 관한 법률 시행령 제4조",
+      "effective_from": "2024-10-29",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "민원 처리 담당자 보호를 위해 안전장비·안전요원 배치, 폭언·폭행 방지와 증거수집을 위한 영상·음성기록장비 및 녹음전화 운영 등을 규정합니다. 퇴거·일시적 출입 제한은 제4조 제1항 제3호, 전화·면담 종료는 제8호에 별도로 규정되어 있습니다.",
+      "tags": [
+        "담당자보호",
+        "녹음",
+        "증거수집"
+      ]
+    },
+    {
+      "id": "CIVIL-DECREE-14",
+      "source_id": "DECREE-CIVIL-PETITION",
+      "source_type": "decree",
+      "title": "질의민원 처리기간",
+      "citation": "민원 처리에 관한 법률 시행령 제14조",
+      "effective_from": "2024-10-29",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "법령에 관한 설명·해석을 요구하는 질의민원은 특별한 사유가 없으면 14일 이내, 제도·절차 등 법령 외 사항에 관한 질의민원은 7일 이내 처리하도록 규정한다.",
+      "tags": [
+        "질의민원",
+        "처리기간",
+        "기한"
+      ]
+    },
+    {
+      "id": "CIVIL-DECREE-21",
+      "source_id": "DECREE-CIVIL-PETITION",
+      "source_type": "decree",
+      "title": "민원 처리기간 연장 사유 및 제한",
+      "citation": "민원 처리에 관한 법률 시행령 제21조",
+      "effective_from": "2026-05-06",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "관계 기관·부서의 협조가 필요한 경우, 사실관계 또는 현장 확인이 필요한 경우, 천재지변 등 불가항력적 사유 등 정해진 사유가 있을 때 처리기간을 연장할 수 있다. 단순 업무과중이나 민원 처리 담당자 지정 지연·부재를 사유로 연장해서는 안 된다.",
+      "tags": [
+        "처리기한",
+        "기한연장",
+        "협조",
+        "사실확인"
+      ]
+    },
+    {
+      "id": "TEACHER-ACT-19-FUTURE-20261203",
+      "source_id": "LAW-TEACHER-STATUS-21717",
+      "source_type": "law_amendment_scheduled",
+      "title": "교육활동 침해행위 정의 개정 예정",
+      "citation": "교원지위법 제19조 개정 예정 조문",
+      "effective_from": "2026-12-03",
+      "status": "scheduled",
+      "jurisdiction": "national",
+      "text": "2026년 12월 3일 시행 예정 개정은 교육활동 중인 교원 표현을 대면 또는 비대면 교육활동 중인 교원으로 바꾸고, 목적이 정당하지 않은 민원의 반복 제기 외에 교육활동에 현저한 지장을 주는 방식의 제기도 포함하도록 개정한다.",
+      "tags": [
+        "시행예정",
+        "교육활동침해",
+        "비대면",
+        "반복민원"
+      ],
+      "human_decision_required": true
+    },
+    {
+      "id": "TEACHER-ACT-18-FUTURE-20261120",
+      "source_id": "LAW-TEACHER-STATUS-21655",
+      "source_type": "law_amendment_scheduled",
+      "title": "지역교권보호위원회 구성 개정 예정",
+      "citation": "교원지위법 제18조 개정 예정 조문",
+      "effective_from": "2026-11-20",
+      "status": "scheduled",
+      "jurisdiction": "national",
+      "text": "2026년 11월 20일 시행 예정 개정은 시·도교권보호위원회 또는 지역교권보호위원회를 구성할 때 관할 학교 교사인 위원이 전체 위원 정수의 10분의 2 이상이 되도록 규정한다.",
+      "tags": [
+        "시행예정",
+        "지역교권보호위원회",
+        "교원위원"
+      ]
+    },
+    {
+      "id": "TEACHER-ACT-18-CURRENT",
+      "source_id": "LAW-TEACHER-STATUS-21350",
+      "source_type": "law",
+      "title": "시·도 및 지역교권보호위원회의 설치·운영(현행 조문)",
+      "citation": "교원지위법 제18조 제1항·제2항",
+      "effective_from": "2026-02-19",
+      "effective_to": "2026-11-19",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "시·도교육청에 시·도교권보호위원회를 두고, 교육지원청에는 지역교권보호위원회를 둔다. 지역교권보호위원회는 교육활동 침해학생·보호자 등에 대한 조치와 교육활동 관련 분쟁 조정 등을 심의한다.",
+      "tags": [
+        "지역교권보호위원회",
+        "교육지원청",
+        "심의"
+      ]
+    },
+    {
+      "id": "CIVIL-DECREE-4-SAFETY",
+      "source_id": "DECREE-CIVIL-PETITION",
+      "source_type": "decree",
+      "title": "민원 처리 담당자의 안전장비 및 증거수집",
+      "citation": "민원 처리에 관한 법률 시행령 제4조 제1항 제1호·제2호",
+      "effective_from": "2026-05-06",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "담당자의 안전을 위한 영상정보처리기기·호출장치·보호조치 음성안내 등 안전장비 설치와 안전요원 배치, 민원인의 폭언·폭행 방지 및 증거수집을 위한 휴대용 영상음성기록장비와 녹음전화 운영 등을 규정한다.",
+      "tags": [
+        "담당자보호",
+        "안전장비",
+        "녹음전화",
+        "증거수집"
+      ]
+    },
+    {
+      "id": "CIVIL-DECREE-4-EXIT",
+      "source_id": "DECREE-CIVIL-PETITION",
+      "source_type": "decree",
+      "title": "민원 처리 방해 행위에 대한 퇴거·출입 제한과 종료 조치",
+      "citation": "민원 처리에 관한 법률 시행령 제4조 제1항 제3호·제8호",
+      "effective_from": "2026-05-06",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "폭언·폭행, 위험한 물건 소지, 목적이 정당하지 않은 반복·중복 민원을 통한 공무 방해, 그 밖에 다른 민원인이나 담당자에게 신체적·정신적 피해를 입히는 행위로 민원 처리를 지연·방해하는 경우 퇴거 또는 일시적 출입 제한을 할 수 있다. 반복적·지속적인 욕설·협박 등 폭언, 모욕·성희롱 또는 권장 시간을 상당히 초과해 공무를 방해한 경우에는 사유를 고지한 뒤 전화·면담 종료 조치를 할 수 있다.",
+      "tags": [
+        "퇴거",
+        "일시적 출입제한",
+        "전화종료",
+        "면담종료",
+        "폭언",
+        "위험물"
+      ],
+      "human_decision_required": true
+    },
+    {
+      "id": "PRIVACY-ACT-15",
+      "source_id": "PRIVACY-ACT-21445",
+      "source_type": "law",
+      "title": "개인정보 수집·이용의 근거와 목적 제한",
+      "citation": "개인정보 보호법 제15조",
+      "effective_from": "2026-09-11",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "개인정보처리자는 정보주체의 동의, 법률상 특별한 규정 또는 법령상 의무 준수에 불가피한 경우, 공공기관 소관 업무 수행에 불가피한 경우 등 법정 근거가 있을 때 개인정보를 수집·이용할 수 있으며, 수집 목적의 범위에서 이용해야 한다.",
+      "tags": [
+        "개인정보 수집",
+        "개인정보 이용",
+        "처리 근거",
+        "목적 제한"
+      ]
+    },
+    {
+      "id": "PRIVACY-ACT-16",
+      "source_id": "PRIVACY-ACT-21445",
+      "source_type": "law",
+      "title": "개인정보 최소 수집",
+      "citation": "개인정보 보호법 제16조",
+      "effective_from": "2026-09-11",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "개인정보처리자는 제15조 제1항의 근거로 정보를 수집하는 경우 처리 목적에 필요한 최소한의 개인정보만 수집해야 한다. 최소한의 개인정보 수집이라는 점의 입증책임은 개인정보처리자에게 있다.",
+      "tags": [
+        "최소수집",
+        "학생정보",
+        "보호자정보",
+        "개인정보 최소화"
+      ]
+    },
+    {
+      "id": "PRIVACY-ACT-17-18",
+      "source_id": "PRIVACY-ACT-21445",
+      "source_type": "law",
+      "title": "개인정보 제3자 제공 및 목적 외 이용 제한",
+      "citation": "개인정보 보호법 제17조·제18조",
+      "effective_from": "2026-09-11",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "개인정보를 제3자에게 제공하거나 최초 수집 목적을 넘어 이용·제공하는 것은 법률이 정한 요건과 절차에 따라야 한다. 학교 민원자료를 외부 LLM API, 외부 저장소 또는 제3자 서비스로 전송하는 설계는 정보 제공·목적 외 이용 해당 여부와 별도 처리 근거를 검토해야 하며, 법적 요건이 확인되지 않은 상태에서 원문 개인정보를 외부 서비스로 보내지 않는다.",
+      "tags": [
+        "제3자 제공",
+        "목적 외 이용",
+        "외부 LLM",
+        "외부 전송"
+      ],
+      "human_decision_required": true
+    },
+    {
+      "id": "PRIVACY-ACT-29",
+      "source_id": "PRIVACY-ACT-21445",
+      "source_type": "law",
+      "title": "개인정보 안전성 확보조치",
+      "citation": "개인정보 보호법 제29조",
+      "effective_from": "2026-09-11",
+      "status": "in_force",
+      "jurisdiction": "national",
+      "text": "개인정보처리자는 개인정보가 분실·도난·유출·위조·변조 또는 훼손되지 않도록 내부 관리계획 수립, 접속기록 보관 등 대통령령으로 정하는 바에 따라 안전성 확보에 필요한 기술적·관리적·물리적 조치를 해야 한다.",
+      "tags": [
+        "안전조치",
+        "접근통제",
+        "접속기록",
+        "개인정보 보호"
+      ]
+    }
+  ]
+}
