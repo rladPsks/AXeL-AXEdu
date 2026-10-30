@@ -84,3 +84,25 @@ def test_integrated_intake_creates_shared_case_and_routed_tasks(monkeypatch, tmp
         )
         assert repeated.status_code == 201
         assert repeated.json()["case_id"] == case_id
+
+        # Teachers see only their own connected complaints; administrators see the school list.
+        def listed(user):
+            return {item["id"] for item in client.get("/api/cases", headers=auth(tokens, user)).json()["items"]}
+        assert listed("teacher") == {case_id}
+        assert listed("outsider") == set()
+        assert listed("admin") == {"demo-case", case_id}
+        assert listed("deputy") == {"demo-case", case_id}
+        assert listed("other-admin") == set()
+
+        # The submission reaches the assigned staff and both school administrators once,
+        # and never reaches an unrelated teacher or another school.
+        from backend.notifications import dispatch_once
+        dispatch_once(client.app.state.db)
+        for user in ("admin", "deputy", "teacher"):
+            inbox = client.get("/api/notifications", headers=auth(tokens, user)).json()
+            arrivals = [n for n in inbox if n["kind"] == "CASE_INTAKE_CREATED"]
+            assert len(arrivals) == 1
+            assert arrivals[0]["case_id"] == case_id
+            assert arrivals[0]["case_title"] == case["title"]
+        for user in ("outsider", "other-admin"):
+            assert client.get("/api/notifications", headers=auth(tokens, user)).json() == []

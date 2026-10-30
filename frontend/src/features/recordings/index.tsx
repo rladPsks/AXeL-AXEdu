@@ -118,7 +118,7 @@ export function Recordings({ record }: { record: CaseDetail }) {
         <p>음성 자료를 불러오는 중…</p>
       ) : audio.length === 0 ? (
         <Empty>
-          “사건 자료” 탭에서 자료 종류를 “음성”으로 등록하면 여기에 표시됩니다.
+          “민원 자료” 탭에서 자료 종류를 “음성”으로 등록하면 여기에 표시됩니다.
         </Empty>
       ) : (
         audio.map((file) => (
@@ -126,7 +126,9 @@ export function Recordings({ record }: { record: CaseDetail }) {
             key={file.id}
             file={file}
             record={record}
-            consents={(consents.data ?? []).filter((c) => c.file_id === file.id)}
+            consents={(consents.data ?? []).filter(
+              (c) => c.file_id === file.id,
+            )}
             runs={(runs.data ?? []).filter((r) =>
               r.input_refs.some(
                 (ref) =>
@@ -238,8 +240,8 @@ function AudioCard({
         <>
           {consents.some((c) => c.revoked_at) ? (
             <div className="notice">
-              동의가 철회되어 전사·요약에 사용할 수 없습니다. 다시 동의를 받은 뒤
-              기록하세요.
+              동의가 철회되어 전사·요약에 사용할 수 없습니다. 다시 동의를 받은
+              뒤 기록하세요.
             </div>
           ) : null}
           <h3>녹취 동의 확인</h3>
@@ -262,7 +264,7 @@ function AudioCard({
               </label>
             </CommandForm>
           ) : (
-            <Empty>종결된 사건에서는 새 동의를 기록할 수 없습니다.</Empty>
+            <Empty>종결된 민원에서는 새 동의를 기록할 수 없습니다.</Empty>
           )}
         </>
       ) : (
@@ -301,7 +303,11 @@ function AudioCard({
                   start.mutate({
                     purpose: "TRANSCRIBE_AUDIO",
                     input_refs: [
-                      { resource_type: "FILE", resource_id: file.id, version: 1 },
+                      {
+                        resource_type: "FILE",
+                        resource_id: file.id,
+                        version: 1,
+                      },
                     ],
                   })
                 }
@@ -363,7 +369,9 @@ function AudioCard({
             <>
               <h3>
                 전사본 버전 {latest.revision}
-                {versions.length > 1 ? ` (이전 ${versions.length - 1}개 보존)` : ""}
+                {versions.length > 1
+                  ? ` (이전 ${versions.length - 1}개 보존)`
+                  : ""}
               </h3>
               <p className="meta">
                 {latest.created_by} · {date(latest.created_at)}
@@ -455,7 +463,9 @@ function AudioCard({
                 요약 생성
               </button>
               {!canSummarize ? (
-                <p className="hint">OpenAI 연결이 없어 요약을 만들 수 없습니다.</p>
+                <p className="hint">
+                  OpenAI 연결이 없어 요약을 만들 수 없습니다.
+                </p>
               ) : null}
               {start.error ? <ErrorNotice error={start.error} /> : null}
               {summaryRuns.map((run) => (
@@ -550,7 +560,8 @@ function Summary({
             근거 구간을 눌러 음성과 대조하세요.
           </p>
           {groups.map(([title, key]) => {
-            const items = (run.result?.[key] as SummaryItem[] | undefined) ?? [];
+            const items =
+              (run.result?.[key] as SummaryItem[] | undefined) ?? [];
             return items.length ? (
               <div key={key}>
                 <h4>{title}</h4>

@@ -1,9 +1,10 @@
+import { personName } from "../../shared/names";
 import { useQuery } from "@tanstack/react-query";
 import { useScope, useSession } from "../../app/providers";
 import { date, Empty, ErrorNotice } from "../../shared/ui";
 const names: Record<string, string> = {
   SCHOOL_SETTINGS_UPDATED: "지원·알림 기준 변경",
-  ABSENCE_CREATED: "부재·대체자 등록",
+  ABSENCE_CREATED: "부재·업무 대리자 등록",
   ABSENCE_CANCELLED: "부재 설정 해제",
   RESPONSIBILITY_CREATED: "업무분장 등록",
   RESPONSIBILITY_REMOVED: "업무분장 해제",
@@ -41,7 +42,7 @@ export function SettingsHistory({ version }: { version: number }) {
             <article className="work-item" key={item.id}>
               <strong>{names[item.action] ?? "학교 설정 변경"}</strong>
               <p className="meta">
-                {item.actor_id} · {date(item.created_at)}
+                {personName(item.actor_id)} · {date(item.created_at)}
               </p>
               {typeof item.payload.reason === "string" ? (
                 <p>{item.payload.reason}</p>

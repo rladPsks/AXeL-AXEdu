@@ -31,7 +31,7 @@ def decide_actions(classification: dict[str, Any], routing: dict[str, Any], evid
                 "task_type": "FACT_CHECK",
                 "assignee_role": routing.get("action_role") or "school_information_owner",
                 "reason": "현재 연결된 자료만으로 확정하기 어려워 업무분장 담당자의 사실 확인이 필요합니다.",
-                "instructions": ["학교 공지·학사일정·담당 부서에서 사실 확인", "확인된 내용과 출처를 사건에 회신"],
+                "instructions": ["학교 공지·학사일정·담당 부서에서 사실 확인", "확인된 내용과 출처를 민원에 회신"],
             })
     elif nature == "INFO_REQUEST" and handling_route == "STAFF_OR_TEAM":
         actions.append({
@@ -98,7 +98,7 @@ def decide_actions(classification: dict[str, Any], routing: dict[str, Any], evid
     if classification.get("history_review_required") or classification.get("repeat_review"):
         history_action = classification.get("history_action")
         if history_action == "LINK_UNRESOLVED":
-            history_reason = "유사한 미해결 사건이 있어 새 민원을 반복으로 종결하지 않고 기존 처리와 연결해야 합니다."
+            history_reason = "유사한 미해결 민원이 있어 새 민원을 반복으로 종결하지 않고 기존 처리와 연결해야 합니다."
         elif history_action == "REVIEW_FOLLOW_UP":
             history_reason = "기존 답변 이후 새 사실·날짜·요구가 추가된 후속 민원 후보입니다."
         else:
@@ -108,7 +108,7 @@ def decide_actions(classification: dict[str, Any], routing: dict[str, Any], evid
             "assignee_role": "complaint_response_team",
             "reason": history_reason,
             "instructions": [
-                "기존 사건의 실질 답변 완료 여부 확인",
+                "기존 민원의 실질 답변 완료 여부 확인",
                 "학교의 미이행 사항 여부 확인",
                 "새로운 사실·증거·날짜 추가 여부 확인",
                 "요구 내용이 이전과 동일한지 비교",

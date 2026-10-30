@@ -1,3 +1,4 @@
+import { personName } from "../../shared/names";
 import { useSession } from "../../app/providers";
 import type { CaseDetail, Member } from "../../lib/api/types";
 import { CommandForm } from "../../shared/CommandForm";
@@ -18,7 +19,7 @@ export function TeacherTasks({
         <h2>교사에게 요청한 업무</h2>
         <span>{record.tasks.length}건</span>
       </div>
-      <p className="hint">확인·상담을 요청해도 사건 총괄자는 유지됩니다.</p>
+      <p className="hint">확인·상담을 요청해도 민원 총괄자는 유지됩니다.</p>
       {record.tasks.length === 0 ? (
         <Empty>
           아직 요청한 업무가 없습니다. 필요한 사실 확인이나 상담을 요청하세요.
@@ -32,8 +33,8 @@ export function TeacherTasks({
             </div>
             <p className="preserve">{task.question}</p>
             <p className="meta">
-              수행자 {task.assignee_id} · {label(task.callback_needed)} ·{" "}
-              {date(task.created_at)}
+              수행자 {personName(task.assignee_id)} ·{" "}
+              {label(task.callback_needed)} · {date(task.created_at)}
             </p>
             {task.reply ? (
               <blockquote className="preserve">{task.reply}</blockquote>
@@ -63,7 +64,9 @@ export function TeacherTasks({
                       {members
                         .filter((person) => person.user_id !== task.assignee_id)
                         .map((person) => (
-                          <option key={person.user_id}>{person.user_id}</option>
+                          <option key={person.user_id} value={person.user_id}>
+                            {personName(person.user_id)}
+                          </option>
                         ))}
                     </select>
                   </label>
@@ -140,7 +143,7 @@ export function TeacherTasks({
                   </option>
                   {members.map((m) => (
                     <option key={m.user_id} value={m.user_id}>
-                      {m.user_id} ({label(m.role)})
+                      {personName(m.user_id)} ({label(m.role)})
                     </option>
                   ))}
                 </select>

@@ -210,7 +210,7 @@ def create_intake(body: IntakeCreate, request: Request):
                 "case_owner": owner["user_id"],
                 "teacher_direct_contact": routing.get("callback_needed") == "REQUIRED",
                 "callback_needed": routing.get("callback_needed", "UNDECIDED"),
-                "teacher_scope": "필요한 사실 확인·상담만 수행하고 사건 총괄과 보호자 답변 책임은 학교 대응체계에 유지",
+                "teacher_scope": "필요한 사실 확인·상담만 수행하고 민원 총괄과 보호자 답변 책임은 학교 대응체계에 유지",
                 "why": cls.get("core_demand"),
                 "next": "필요한 확인 업무 완료 후 Agent가 회신·이력·공식 근거를 다시 종합",
             },
@@ -252,13 +252,22 @@ def create_intake(body: IntakeCreate, request: Request):
                     "INSERT INTO tasks(id,case_id,type,assignee_id,requester_id,question,callback_needed,status,reply,created_at) "
                     "VALUES (?,?,?,?,?,?,'NOT_REQUIRED','REQUESTED',NULL,?)",
                     (history_task_id, case_id, "FOLLOW_UP", owner["user_id"], actor["user_id"],
-                     "과거 사건 연결 검토: " + history_review["reason"], now()),
+                     "과거 민원 연결 검토: " + history_review["reason"], now()),
                 )
                 db.execute("INSERT OR IGNORE INTO case_participants(case_id,user_id) VALUES (?,?)",
                            (case_id, owner["user_id"]))
                 enqueue(db, case_id, owner["user_id"], "TASK_CREATED", history_task_id,
                         f"history-review:{history_task_id}:created")
                 task_ids.append(history_task_id)
+
+        recipients = {actor["user_id"], *[r["user_id"] for r in db.execute(
+            "SELECT user_id FROM memberships WHERE school_id=? AND role='ADMIN' AND active=1",
+            (actor["school_id"],))]}
+        recipients.update(r["assignee_id"] for r in db.execute(
+            "SELECT assignee_id FROM tasks WHERE case_id=?", (case_id,)))
+        for recipient in recipients:
+            enqueue(db, case_id, recipient, "CASE_INTAKE_CREATED", case_id,
+                    f"intake:{case_id}:{recipient}")
 
         audit(db, actor, case_id, "CASE_INTAKE_CREATED", 1, {
             "channel": body.channel,

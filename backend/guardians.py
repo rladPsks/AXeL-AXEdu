@@ -57,7 +57,7 @@ def guardian_case(db, actor, case_id):
                      (case_id, actor['school_id'], actor['guardian_id'])).fetchone()
     if row is None:
         # No distinction between nonexistent, foreign-school and unrelated cases.
-        fail(404, 'GUARDIAN_CASE_NOT_FOUND', '열람 가능한 사건을 찾을 수 없습니다.')
+        fail(404, 'GUARDIAN_CASE_NOT_FOUND', '열람 가능한 민원을 찾을 수 없습니다.')
     return row  # Internal only: A must serialize an explicitly allowlisted public DTO.
 
 

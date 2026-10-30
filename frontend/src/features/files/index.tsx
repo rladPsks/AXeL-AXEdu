@@ -84,7 +84,7 @@ export function Files({
   });
   return (
     <>
-      <h2>사건 자료</h2>
+      <h2>민원 자료</h2>
       <p className="hint">
         권한이 확인된 자료만 열람할 수 있습니다. 음성 업로드와 녹취 분석 동의는
         별도로 관리합니다.
@@ -111,7 +111,7 @@ export function Files({
               {Math.ceil(file.size_bytes / 1024)} KB · 등록 {file.uploader_id} ·{" "}
               {file.visibility === "RESTRICTED"
                 ? "등록자·관리자만 열람"
-                : "사건 참여자 열람"}{" "}
+                : "민원 참여자 열람"}{" "}
               · {date(file.created_at)}
             </p>
           </article>
@@ -170,7 +170,7 @@ export function Files({
               <label>
                 자료 종류
                 <select name="category">
-                  <option value="EVIDENCE">사건 증거·메모</option>
+                  <option value="EVIDENCE">민원 증거·메모</option>
                   <option value="SOURCE">근거 자료</option>
                   <option value="AUDIO">음성</option>
                   <option value="EXPORT">내보내기 자료</option>
@@ -179,7 +179,7 @@ export function Files({
               <label>
                 열람 범위
                 <select name="visibility">
-                  <option value="CASE">사건 참여자</option>
+                  <option value="CASE">민원 참여자</option>
                   <option value="RESTRICTED">등록자·관리자만</option>
                 </select>
               </label>

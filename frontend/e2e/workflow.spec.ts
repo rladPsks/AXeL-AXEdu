@@ -44,9 +44,9 @@ test("real server: task, conflict, support, timeline, handover and account isola
     .fill("[가상] 상담 가능 일정을 확인해 주세요.");
   await page.getByRole("button", { name: "업무 요청 보내기" }).click();
   await expect(
-    page.getByText("수행자 teacher", { exact: false }),
+    page.getByText("수행자 최○○ 교사", { exact: false }),
   ).toBeVisible();
-  await expect(page.locator(".case-context")).toContainText("admin");
+  await expect(page.locator(".case-context")).toContainText("김○○ 교장");
   await page.screenshot({
     path: "test-results/admin-case.png",
     fullPage: true,
@@ -78,7 +78,7 @@ test("real server: task, conflict, support, timeline, handover and account isola
   );
   expect(concurrent.status()).toBe(201);
   await page.getByRole("button", { name: "회신 저장" }).click();
-  await expect(page.getByRole("alert")).toContainText("최신 사건");
+  await expect(page.getByRole("alert")).toContainText("최신 민원");
   await expect(page.getByLabel("회신 내용")).toHaveValue(
     "[가상] 화요일 상담 가능",
   );
@@ -117,12 +117,12 @@ test("real server: task, conflict, support, timeline, handover and account isola
   await page.getByLabel("인수할 관리자").selectOption("deputy");
   await page.getByLabel("인계 사유").fill("[가상] 부재 대체");
   await page.getByRole("button", { name: "총괄 인계 요청" }).click();
-  await expect(page.locator(".case-context")).toContainText("admin");
+  await expect(page.locator(".case-context")).toContainText("김○○ 교장");
   await expect(page.getByText("인수 대기", { exact: true })).toBeVisible();
   await switchTo(page, "deputy");
   await page.getByRole("button", { name: "총괄·인계", exact: true }).click();
   await page.getByRole("button", { name: "총괄 인수 수락" }).click();
-  await expect(page.locator(".case-context")).toContainText("deputy");
+  await expect(page.locator(".case-context")).toContainText("이○○ 교감");
   await page.getByRole("button", { name: "처리 이력", exact: true }).click();
   await expect(page.getByText("인계 수락", { exact: true })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
@@ -137,9 +137,9 @@ test("real server: task, conflict, support, timeline, handover and account isola
   ).toBe(true);
   await switchTo(page, "outsider");
   await expect(page.getByRole("alert")).toContainText("권한");
-  await page.getByRole("link", { name: "사건 목록으로" }).click();
+  await page.getByRole("link", { name: "민원 목록으로" }).click();
   await expect(
-    page.getByText("접근 가능한 사건이 없습니다.", { exact: false }),
+    page.getByText("아직 나에게 연결된 민원이 없어요.", { exact: false }),
   ).toBeVisible();
   expect(failures).toEqual([]);
 });
@@ -216,7 +216,7 @@ test("private file upload/download and verified guardian revocation use the real
 }, testInfo) => {
   await page.goto("/cases/demo-case");
   await connect(page, "admin");
-  await page.getByRole("button", { name: "사건 자료", exact: true }).click();
+  await page.getByRole("button", { name: "민원 자료", exact: true }).click();
   await page.getByLabel("파일", { exact: true }).setInputFiles({
     name: "private-note.txt",
     mimeType: "text/plain",
@@ -280,7 +280,7 @@ test("private file upload/download and verified guardian revocation use the real
     ).status(),
   ).toBe(404);
   await switchTo(page, "teacher");
-  await page.getByRole("button", { name: "사건 자료", exact: true }).click();
+  await page.getByRole("button", { name: "민원 자료", exact: true }).click();
   await expect(
     page.getByText("등록한 자료가 없습니다.", { exact: true }),
   ).toBeVisible();
@@ -345,10 +345,10 @@ test("school absence routing, task schedule, inbox receipt and handover refusal 
   await connect(page, "admin");
   await page.getByRole("link", { name: "학교 지원 설정", exact: true }).click();
   await page
-    .getByRole("combobox", { name: "당번 관리자", exact: true })
+    .getByRole("combobox", { name: "민원대응팀", exact: true })
     .selectOption("deputy");
   await page
-    .getByLabel("지원 미확인 알림 기준 (분)", { exact: true })
+    .getByLabel("지원 확인 요청 알림 기준 (분)", { exact: true })
     .fill("10080");
   await page
     .getByRole("button", { name: "학교 기준 저장", exact: true })
@@ -365,12 +365,12 @@ test("school absence routing, task schedule, inbox receipt and handover refusal 
         ).version,
     )
     .toBe(2);
-  await page.getByText("부재·대체자 등록", { exact: true }).click();
+  await page.getByText("업무 대리자 등록", { exact: true }).click();
   await page
     .getByRole("combobox", { name: "부재 구성원", exact: true })
     .selectOption("admin");
   await page
-    .getByRole("combobox", { name: "대체 구성원", exact: true })
+    .getByRole("combobox", { name: "업무 대리 담당", exact: true })
     .selectOption("deputy");
   await page
     .getByLabel("부재 시작 (한국시간)", { exact: true })
@@ -381,12 +381,14 @@ test("school absence routing, task schedule, inbox receipt and handover refusal 
   await page
     .getByRole("button", { name: "부재 일정 저장", exact: true })
     .click();
-  await expect(page.getByText("admin → deputy", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("김○○ 교장 → 이○○ 교감", { exact: true }),
+  ).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("school-settings.png"),
     fullPage: true,
   });
-  await page.getByRole("link", { name: "사건 목록", exact: true }).click();
+  await page.getByRole("link", { name: "전체 민원 목록", exact: true }).click();
   await page
     .getByRole("link")
     .filter({ hasText: "[가상] 상담 지원 사례" })
@@ -411,7 +413,7 @@ test("school absence routing, task schedule, inbox receipt and handover refusal 
   const supportRow = page
     .locator("article")
     .filter({ hasText: "[가상] 부재 대체 지원" });
-  await expect(supportRow).toContainText("admin 대신 deputy");
+  await expect(supportRow).toContainText("김○○ 교장 대신 이○○ 교감");
   await switchTo(page, "deputy");
   await page
     .getByRole("link", { name: "학교 알림 수신함", exact: true })
@@ -448,7 +450,7 @@ test("school absence routing, task schedule, inbox receipt and handover refusal 
   });
   expect(parallelTask.status()).toBe(201);
   await inboxRow
-    .getByRole("link", { name: "관련 사건 열기", exact: true })
+    .getByRole("link", { name: "이 민원 열기", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "학교와 함께 대응하기" }),
@@ -515,7 +517,7 @@ test("school absence routing, task schedule, inbox receipt and handover refusal 
     .getByRole("button", { name: "인수 거절 저장", exact: true })
     .click();
   await expect(page.getByText("인수 거절", { exact: true })).toBeVisible();
-  await expect(page.locator(".case-context")).toContainText("deputy");
+  await expect(page.locator(".case-context")).toContainText("이○○ 교감");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({
     path: testInfo.outputPath("handover-decline-mobile.png"),
@@ -535,7 +537,7 @@ test("approved member permission screen revokes the fictional account previous s
   await page.goto("/school-settings");
   await connect(page, "admin");
   const person = page.locator("article").filter({
-    has: page.locator(".item-top > strong").filter({ hasText: /^outsider$/ }),
+    has: page.locator(".item-top > strong").filter({ hasText: /^정○○ 교사$/ }),
   });
   await person.getByText("구성원 권한 변경", { exact: true }).click();
   await person
@@ -589,8 +591,8 @@ test("administrator reassigns an outstanding task without changing case owner", 
   await task
     .getByRole("button", { name: "수행자 변경 저장", exact: true })
     .click();
-  await expect(task).toContainText("수행자 admin");
-  await expect(page.locator(".case-context")).toContainText("deputy");
+  await expect(task).toContainText("수행자 김○○ 교장");
+  await expect(page.locator(".case-context")).toContainText("이○○ 교감");
   const record = await (
     await request.get("/api/cases/demo-case", {
       headers: { Authorization: `Bearer ${tokens.teacher}` },

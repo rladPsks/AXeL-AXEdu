@@ -1,3 +1,6 @@
+import { caseName, schoolName } from "../shared/names";
+import { personName } from "../shared/names";
+import { Brand } from "../shared/Brand";
 import { useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
@@ -89,7 +92,7 @@ export function App() {
             element={
               <>
                 <h1>페이지를 찾을 수 없습니다.</h1>
-                <Link to="/cases">사건 목록으로</Link>
+                <Link to="/cases">민원 목록으로</Link>
               </>
             }
           />
@@ -123,11 +126,14 @@ function Layout() {
       </a>
       <aside className="sidebar">
         <Link className="brand" to="/cases">
-          함께<span>학교 민원 지원</span>
+          <Brand />
+          <span>학교 민원 지원</span>
         </Link>
         <p className="nav-label">학교 업무</p>
         <nav aria-label="주요 메뉴">
-          <NavLink to="/cases">사건 목록</NavLink>
+          <NavLink to="/cases">
+            {session.role === "ADMIN" ? "전체 민원 목록" : "민원 목록"}
+          </NavLink>
           <NavLink to="/intake">새 민원 접수</NavLink>
           <NavLink to="/my-tasks">내 확인·상담 요청</NavLink>
           <NavLink to="/inbox">학교 알림 수신함</NavLink>
@@ -140,16 +146,12 @@ function Layout() {
           ) : null}
         </nav>
         <div className="sidebar-note">
-          <strong>함께 처리하는 원칙</strong>
-          <p>
-            업무 수행자와 사건 총괄을 구분하고, 지원 요청의 확인 과정을
-            남깁니다.
-          </p>
+          <strong>학교 민원, 함께 처리해요</strong>
         </div>
         <div className="account">
-          <strong>{session.user_id}</strong>
+          <strong>{personName(session.user_id)}</strong>
           <span>
-            {label(session.role)} · {session.school_id}
+            {label(session.role)} · {schoolName(session.school_id)}
           </span>
           <button onClick={disconnect}>계정 연결 해제</button>
         </div>
@@ -174,7 +176,7 @@ function Layout() {
 }
 
 function CaseList() {
-  const { api } = useSession();
+  const { api, session } = useSession();
   const scope = useScope();
   const query = useInfiniteQuery({
     queryKey: ["cases", ...scope],
@@ -191,8 +193,12 @@ function CaseList() {
     <>
       <div className="page-heading">
         <div>
-          <h1>학교의 사건을 함께 살펴봅니다.</h1>
-          <p>내가 접근할 수 있는 사건과 현재 총괄을 확인하세요.</p>
+          <h1>학교 민원을 함께 살펴봅시다</h1>
+          <p>
+            {session.role === "ADMIN"
+              ? "학교 전체 민원과 필요한 지원을 함께 확인해요."
+              : "나에게 온 민원과 함께할 지원 담당을 확인해요."}
+          </p>
         </div>
         <button
           disabled={query.isFetching}
@@ -201,19 +207,30 @@ function CaseList() {
           새로고침
         </button>
       </div>
+      <aside className="complaint-guide" aria-label="학교 민원 안내">
+        <p>
+          <strong>학교 민원의 유형</strong> 생활지도·상담, 학적·전입학, 학교
+          시설, 행정 안내 등 학교생활에 관한 문의와 요청이 있어요.
+        </p>
+        <p className="conduct-guide">
+          <strong>함께 지켜요</strong> 욕설·협박, 반복적인 모욕, 정당한 답변
+          뒤에도 같은 요구를 과도하게 반복하는 행위는 악성 민원으로 검토될 수
+          있어요. 혼자 감당하지 말고 민원대응팀과 함께 확인해요.
+        </p>
+      </aside>
       <section className="panel">
         <div className="section-heading">
-          <h2>사건 목록</h2>
-          <span>불러온 사건 {records.length}건</span>
+          <h2>{session.role === "ADMIN" ? "전체 민원 목록" : "민원 목록"}</h2>
+          <span>불러온 민원 {records.length}건</span>
         </div>
         {query.isPending ? (
-          <p role="status">사건을 불러오는 중…</p>
+          <p role="status">민원을 불러오는 중…</p>
         ) : query.error ? (
           <ErrorNotice error={query.error} />
         ) : records.length === 0 ? (
           <Empty>
-            접근 가능한 사건이 없습니다. 학교 관리자에게 참여 여부를 확인해
-            주세요.
+            아직 나에게 연결된 민원이 없어요. 도움이 필요하면 교장·교감 선생님께
+            알려 주세요.
           </Empty>
         ) : (
           <div className="case-list">
@@ -224,12 +241,12 @@ function CaseList() {
                 to={`/cases/${encodeURIComponent(c.id)}`}
               >
                 <div>
-                  <span className="meta">{c.id}</span>
+                  <span className="meta">{caseName(c.id)}</span>
                   <h3>{c.title}</h3>
-                  <span className="meta">총괄 {c.owner_id}</span>
+                  <span className="meta">총괄 {personName(c.owner_id)}</span>
                 </div>
                 <Badge value={c.status} />
-                <span className="open-label">사건 열기</span>
+                <span className="open-label">민원 열기</span>
               </Link>
             ))}
           </div>
@@ -244,7 +261,7 @@ function CaseList() {
         ) : null}
       </section>
       <div className="notice">
-        새 민원 접수에서 등록한 사건은 같은 사건 원장에서 분류·업무·지원·AI 검토까지 이어집니다.
+        접수한 민원의 기록부터 필요한 지원까지, 민원대응팀과 함께 이어가요.
       </div>
     </>
   );
@@ -269,7 +286,7 @@ function MyTasks() {
       <div className="page-heading">
         <div>
           <h1>내 확인·상담 요청</h1>
-          <p>요청 내용을 확인하고 사건에서 회신하세요.</p>
+          <p>요청 내용을 확인하고 민원에서 회신하세요.</p>
         </div>
         <button
           onClick={() => void query.refetch()}
@@ -352,7 +369,7 @@ function CaseShell() {
         signal,
       ),
   });
-  if (query.isPending) return <p role="status">사건을 불러오는 중…</p>;
+  if (query.isPending) return <p role="status">민원을 불러오는 중…</p>;
   if (
     !query.data ||
     (query.error instanceof ApiError &&
@@ -360,7 +377,7 @@ function CaseShell() {
   )
     return (
       <ErrorNotice error={query.error}>
-        <Link to="/cases">사건 목록으로</Link>
+        <Link to="/cases">민원 목록으로</Link>
       </ErrorNotice>
     );
   const record = query.data;
@@ -370,7 +387,7 @@ function CaseShell() {
     { id: "support", title: "학교 지원" },
     { id: "handover", title: "총괄·인계" },
     { id: "timeline", title: "처리 이력" },
-    { id: "files", title: "사건 자료" },
+    { id: "files", title: "민원 자료" },
     { id: "agent-review", title: "AI 지원 검토" },
     { id: "activities", title: "활동 기록" },
     { id: "recordings", title: "동의 녹취" },
@@ -387,11 +404,11 @@ function CaseShell() {
   return (
     <>
       <Link className="back" to="/cases">
-        사건 목록
+        민원 목록
       </Link>
       <div className="page-heading">
         <div>
-          <p className="meta">{record.id}</p>
+          <p className="meta">{caseName(record.id)}</p>
           <h1>{record.title}</h1>
         </div>
         <button
@@ -407,15 +424,15 @@ function CaseShell() {
       <div className="case-context">
         <Badge value={record.status} />
         <span>
-          사건 총괄 <strong>{record.owner_id}</strong>
+          민원 총괄 <strong>{personName(record.owner_id)}</strong>
         </span>
         <span>
-          학교 <strong>{record.school_id}</strong>
+          학교 <strong>{schoolName(record.school_id)}</strong>
         </span>
       </div>
       {query.isRefetchError ? <ErrorNotice error={query.error} /> : null}
       {members.error ? <ErrorNotice error={members.error} /> : null}
-      <nav className="tabs" aria-label="사건 메뉴">
+      <nav className="tabs" aria-label="민원 메뉴">
         {tabs.map((t) => (
           <button
             aria-current={tab === t.id ? "page" : undefined}
@@ -500,8 +517,10 @@ function Timeline({ caseId }: { caseId: string }) {
                 <span>{date(e.created_at)}</span>
               </div>
               <p>
-                {e.actor_id === "system:inbox" ? "학교 알림" : e.actor_id} ·
-                기록 {e.new_version}
+                {e.actor_id === "system:inbox"
+                  ? "학교 알림"
+                  : personName(e.actor_id)}{" "}
+                · 기록 {e.new_version}
               </p>
               {typeof e.payload.reason === "string" ? (
                 <p className="preserve">{e.payload.reason}</p>

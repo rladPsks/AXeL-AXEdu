@@ -1,3 +1,4 @@
+import { caseName, personName } from "../../shared/names";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useScope, useSession } from "../../app/providers";
@@ -44,6 +45,60 @@ type Delivery = {
   error_code: string | null;
 };
 
+function ResponseTeam({
+  members,
+  responsibilities,
+}: {
+  members: Member[];
+  responsibilities: Responsibility[];
+}) {
+  const groups = [
+    {
+      title: "교장",
+      people: members.filter((m) => personName(m.user_id).endsWith("교장")),
+    },
+    {
+      title: "교감",
+      people: members.filter((m) => personName(m.user_id).endsWith("교감")),
+    },
+    {
+      title: "행정실장",
+      people: members.filter((m) => personName(m.user_id).endsWith("행정실장")),
+    },
+    {
+      title: "담당자",
+      people: members.filter(
+        (m) => !/교장$|교감$|행정실장$/.test(personName(m.user_id)),
+      ),
+    },
+  ];
+  return (
+    <div className="response-team" aria-label="민원대응팀 업무분장 조직도">
+      {groups.map((group) => (
+        <section className="team-node" key={group.title}>
+          <h3>{group.title}</h3>
+          {group.people.length === 0 ? (
+            <p className="hint">등록된 구성원이 없어요</p>
+          ) : (
+            group.people.map((member) => (
+              <div key={member.user_id}>
+                <strong>{personName(member.user_id)}</strong>
+                <ul>
+                  {responsibilities
+                    .filter((r) => r.user_id === member.user_id)
+                    .map((r) => (
+                      <li key={r.id}>{r.label}</li>
+                    ))}
+                </ul>
+              </div>
+            ))
+          )}
+        </section>
+      ))}
+    </div>
+  );
+}
+
 export function SchoolSettings() {
   const { api, session } = useSession();
   const scope = useScope();
@@ -89,7 +144,7 @@ export function SchoolSettings() {
       <div className="page-heading">
         <div>
           <h1>학교 지원 설정</h1>
-          <p>업무분장과 부재 대체자, 알림 기준을 관리합니다.</p>
+          <p>업무분장과 업무 대리 담당, 알림 기준을 함께 정해요.</p>
         </div>
         <button
           disabled={settings.isFetching}
@@ -102,6 +157,10 @@ export function SchoolSettings() {
       <section className="panel">
         <h2>지원·알림 기준</h2>
         <p className="hint">
+          민원대응팀은 교장·교감·행정실장·담당자가 함께해요. 아래에서 지원
+          연결을 먼저 확인할 팀 구성원을 정해 주세요.
+        </p>
+        <p className="hint">
           시간 기준은 학교의 운영 설정이며 법정 처리 기한이 아닙니다. 일반
           알림을 꺼도 긴급 도움 알림은 유지됩니다.
         </p>
@@ -112,20 +171,23 @@ export function SchoolSettings() {
           button="학교 기준 저장"
         >
           <label>
-            당번 관리자
+            민원대응팀
             <select
+              key={config.version}
               name="duty_admin_id"
               defaultValue={config.duty_admin_id ?? ""}
             >
               <option value="">미지정</option>
               {admins.map((m) => (
-                <option key={m.user_id}>{m.user_id}</option>
+                <option key={m.user_id} value={m.user_id}>
+                  {personName(m.user_id)}
+                </option>
               ))}
             </select>
           </label>
           <div className="form-row">
             <label>
-              지원 미확인 알림 기준 (분)
+              지원 확인 요청 알림 기준 (분)
               <input
                 type="number"
                 min="1"
@@ -136,7 +198,7 @@ export function SchoolSettings() {
               />
             </label>
             <label>
-              업무 기한 후 알림 유예 (분)
+              기한이 지난 뒤 다시 알려드릴 시간 (분)
               <input
                 type="number"
                 min="0"
@@ -165,14 +227,14 @@ export function SchoolSettings() {
       <section className="panel">
         <h2>구성원 권한과 활성 상태</h2>
         <p className="hint">
-          같은 학교의 기존 구성원만 관리합니다. 남은 책임을 정리한 뒤 변경할 수
-          있으며, 변경 대상의 기존 세션은 폐기됩니다. 자신의 권한은 다른
-          관리자에게 요청하세요.
+          우리 학교 구성원의 권한과 계정 사용 여부를 정해요. 변경 전에는 맡은
+          업무를 먼저 인계해 주세요. 권한이 바뀐 구성원은 다시 로그인하면 돼요.
+          내 권한 변경은 다른 교장·교감 선생님께 요청해 주세요.
         </p>
         {members.data?.map((person) => (
           <article className="work-item" key={person.user_id}>
             <div className="item-top">
-              <strong>{person.user_id}</strong>
+              <strong>{personName(person.user_id)}</strong>
               <span className="badge">
                 {label(person.role)} · {person.active ? "활성" : "비활성"}
               </span>
@@ -217,10 +279,10 @@ export function SchoolSettings() {
         ))}
       </section>
       <section className="panel">
-        <h2>부재와 대체 담당</h2>
+        <h2>부재와 업무 대리 담당</h2>
         <p className="hint">
-          부재 기간의 지원 요청은 같은 역할의 활성 대체자를 먼저 확인합니다.
-          대체자가 맡아도 사건 총괄은 유지됩니다.
+          부재 기간의 지원 요청은 같은 역할의 활성 업무 대리자를 먼저
+          확인합니다. 업무 대리자가 맡아도 민원 총괄은 유지됩니다.
         </p>
         {config.absences.length === 0 ? (
           <Empty>등록한 부재 설정이 없습니다.</Empty>
@@ -229,7 +291,7 @@ export function SchoolSettings() {
             <article className="work-item" key={item.id}>
               <div className="item-top">
                 <strong>
-                  {item.user_id} → {item.substitute_id}
+                  {personName(item.user_id)} → {personName(item.substitute_id)}
                 </strong>
                 <span className="badge">
                   {item.active ? "설정 활성" : "해제됨"}
@@ -258,7 +320,7 @@ export function SchoolSettings() {
           ))
         )}
         <details className="new-request">
-          <summary>부재·대체자 등록</summary>
+          <summary>업무 대리자 등록</summary>
           <CommandForm
             {...schoolForm}
             path="/api/school/absences"
@@ -283,13 +345,13 @@ export function SchoolSettings() {
                   </option>
                   {active.map((m) => (
                     <option key={m.user_id} value={m.user_id}>
-                      {m.user_id} ({label(m.role)})
+                      {personName(m.user_id)} ({label(m.role)})
                     </option>
                   ))}
                 </select>
               </label>
               <label>
-                대체 구성원
+                업무 대리 담당
                 <select name="substitute_id" required defaultValue="">
                   <option value="" disabled>
                     같은 역할의 구성원 선택
@@ -299,7 +361,9 @@ export function SchoolSettings() {
                       (m) => m.role === targetRole && m.user_id !== target,
                     )
                     .map((m) => (
-                      <option key={m.user_id}>{m.user_id}</option>
+                      <option key={m.user_id} value={m.user_id}>
+                        {personName(m.user_id)}
+                      </option>
                     ))}
                 </select>
               </label>
@@ -323,6 +387,13 @@ export function SchoolSettings() {
       </section>
       <section className="panel">
         <h2>학교 업무분장</h2>
+        <p className="hint">
+          접수한 민원을 알맞은 담당자에게 연결할 때 참고해요.
+        </p>
+        <ResponseTeam
+          members={active}
+          responsibilities={config.responsibilities.filter((r) => r.active)}
+        />
         {config.responsibilities.length === 0 ? (
           <Empty>등록한 업무분장이 없습니다.</Empty>
         ) : (
@@ -335,7 +406,8 @@ export function SchoolSettings() {
                 </span>
               </div>
               <p>
-                담당 {item.user_id} · 대체 {item.substitute_id ?? "미지정"}
+                담당 {personName(item.user_id)} · 업무 대리{" "}
+                {personName(item.substitute_id ?? "미지정")}
               </p>
               {item.active ? (
                 <details>
@@ -374,16 +446,20 @@ export function SchoolSettings() {
                     구성원 선택
                   </option>
                   {active.map((m) => (
-                    <option key={m.user_id}>{m.user_id}</option>
+                    <option key={m.user_id} value={m.user_id}>
+                      {personName(m.user_id)}
+                    </option>
                   ))}
                 </select>
               </label>
               <label>
-                업무 대체자
+                업무 대리자
                 <select name="substitute_id" defaultValue="">
                   <option value="">미지정</option>
                   {active.map((m) => (
-                    <option key={m.user_id}>{m.user_id}</option>
+                    <option key={m.user_id} value={m.user_id}>
+                      {personName(m.user_id)}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -409,7 +485,7 @@ export function SchoolSettings() {
             deliveries.data?.map((item) => (
               <article className="work-item" key={item.id}>
                 <div className="item-top">
-                  <strong>받는 구성원 {item.recipient_id}</strong>
+                  <strong>받는 구성원 {personName(item.recipient_id)}</strong>
                   <span className="badge">
                     {item.status === "QUEUED"
                       ? "전달 대기"
@@ -421,13 +497,13 @@ export function SchoolSettings() {
                   </span>
                 </div>
                 <p className="meta">
-                  사건 {item.case_id} · 전달 시도 {item.attempts}회
+                  {caseName(item.case_id)} · 전달 시도 {item.attempts}회
                 </p>
                 {item.error_code ? (
                   <p className="hint">
                     {item.error_code === "RECIPIENT_UNAVAILABLE"
                       ? "활성 구성원 상태를 확인해 주세요."
-                      : "사건 접근 권한을 확인해 주세요."}
+                      : "민원 접근 권한을 확인해 주세요."}
                   </p>
                 ) : null}
                 {item.status === "FAILED" ? (
@@ -462,7 +538,7 @@ export function SchoolContacts() {
     <>
       <h1>학교 지원 담당</h1>
       <p>업무분장과 학교의 지원 담당을 확인하세요.</p>
-      <section className="panel">
+      <section className="contact-grid" aria-label="업무별 지원 담당">
         {contacts.isPending ? (
           <p>불러오는 중…</p>
         ) : contacts.error ? (
@@ -471,13 +547,15 @@ export function SchoolContacts() {
           <Empty>학교에서 등록한 업무분장이 없습니다.</Empty>
         ) : (
           contacts.data.map((item) => (
-            <article className="work-item" key={item.id}>
+            <article className="panel contact-card" key={item.id}>
               <h2>{item.label}</h2>
               <p>
-                담당 {item.user_id} · 대체 {item.substitute_id ?? "미지정"}
+                담당 {personName(item.user_id)} · 업무 대리{" "}
+                {personName(item.substitute_id ?? "미지정")}
               </p>
               <p className="meta">
-                지원 연결 관리자 {item.support_contact_id ?? "확인 필요"}
+                지원 연결 관리자{" "}
+                {personName(item.support_contact_id ?? "확인 필요")}
               </p>
             </article>
           ))

@@ -94,7 +94,7 @@ def input_stale(db,actor,saved,ignore_anchor=False):
 def fresh_input(db,actor,input_id):
     saved=input_access(db,actor,input_id)
     if input_stale(db,actor,saved):
-        fail(409,'STALE_COMPARISON_INPUT','비교 사건이나 학교 기준이 변경되었습니다. 현재 자료로 비교를 다시 준비하세요.')
+        fail(409,'STALE_COMPARISON_INPUT','비교 민원이나 학교 기준이 변경되었습니다. 현재 자료로 비교를 다시 준비하세요.')
     return saved
 
 
@@ -131,7 +131,7 @@ def review_stale(db,actor,saved):
 def fresh_review(db,actor,review_id):
     saved=review_access(db,actor,review_id)
     if review_stale(db,actor,saved):
-        fail(409,'STALE_COMPARISON_REVIEW','사건이나 비교 검토가 변경되었습니다. 최신 자료를 검토해 새 기록을 남기세요.')
+        fail(409,'STALE_COMPARISON_REVIEW','민원이나 비교 검토가 변경되었습니다. 최신 자료를 검토해 새 기록을 남기세요.')
     return saved
 
 
@@ -141,12 +141,12 @@ def prepare_input(case_id:str,body:InputCreate,request:Request):
         from .agents import InputRef,snapshot
         admin(actor)
         if case_id==body.related_case_id:
-            fail(422,'SELF_CASE_RELATION','서로 다른 사건을 선택하세요.')
+            fail(422,'SELF_CASE_RELATION','서로 다른 민원을 선택하세요.')
         related=accessible_case(db,actor,body.related_case_id)
         if related['version']!=body.expected_related_version:
-            fail(409,'RELATED_VERSION_CONFLICT','비교 사건의 최신 버전을 확인하세요.')
+            fail(409,'RELATED_VERSION_CONFLICT','비교 민원의 최신 버전을 확인하세요.')
         if {item.case_id for item in body.source_refs}!={case_id,body.related_case_id}:
-            fail(422,'COMPARISON_SOURCE_SCOPE','비교할 두 사건에서 출처를 각각 선택하세요.')
+            fail(422,'COMPARISON_SOURCE_SCOPE','비교할 두 민원에서 출처를 각각 선택하세요.')
         keys=[(item.resource_type,item.resource_id) for item in body.source_refs]
         if len(keys)!=len(set(keys)):
             fail(422,'DUPLICATE_COMPARISON_SOURCE','같은 출처를 중복 선택할 수 없습니다.')
@@ -181,7 +181,7 @@ def record_review(case_id:str,body:ReviewCreate,request:Request):
         admin(actor)
         saved_input=fresh_input(db,actor,body.input_id)
         if saved_input['case_id']!=case_id:
-            fail(422,'COMPARISON_SOURCE_SCOPE','현재 사건의 비교 자료를 선택하세요.')
+            fail(422,'COMPARISON_SOURCE_SCOPE','현재 민원의 비교 자료를 선택하세요.')
         previous=latest_review(db,case_id,saved_input['related_case_id'])
         if body.supersedes_id!=(previous['id'] if previous else None):
             fail(409,'COMPARISON_REVIEW_CHAIN','최신 비교 검토 기록을 확인하세요.')

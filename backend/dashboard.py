@@ -11,9 +11,7 @@ router = APIRouter()
 KST = timezone(timedelta(hours=9), 'Asia/Seoul')
 CASE_LIMIT = 20
 NOTES = ['기록된 활동만 집계합니다. 기록하지 않은 시간은 0분이 아니라 미기록입니다.',
-         '사건 경과와 교사의 실제 업무시간은 다릅니다. 이 화면의 시간은 기록된 활동 시간입니다.',
-         '교사 순위·점수·소진 진단을 제공하지 않습니다. 교직원은 이름순으로만 표시합니다.',
-         '요청·배정·원문 열람은 직접 응대로 세지 않습니다.']
+         '민원 경과와 교사의 실제 업무시간은 다릅니다. 이 화면의 시간은 기록된 활동 시간입니다.']
 
 
 def period_bounds(start, end):
@@ -87,7 +85,7 @@ def dashboard(request: Request, start: str = Query('', alias='from'), end: str =
                     for staff_id, v in sorted(staff.items())]
 
         return {'period': {'from': first.isoformat(), 'to': last.isoformat(), 'timezone': 'Asia/Seoul'},
-                'cases': {'basis': '기간 안에 변경 기록이 있는 사건의 현재 상태', 'by_status': statuses},
+                'cases': {'basis': '기간 안에 변경 기록이 있는 민원의 현재 상태', 'by_status': statuses},
                 'tasks': {'by_type_status': task_rows},
                 'support': {'requested_in_period': support_period,
                             'unacknowledged_now': len(waiting), 'unacknowledged_case_ids': limited(waiting)},

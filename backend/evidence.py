@@ -49,7 +49,7 @@ def append(db, actor, case, document_id, revision, body, kind):
     if body.file_id:
         file = file_access(db,actor,body.file_id)
         if file['case_id'] != case['id']:
-            fail(422,'DOCUMENT_FILE_CASE_MISMATCH','같은 사건의 파일을 선택하세요.')
+            fail(422,'DOCUMENT_FILE_CASE_MISMATCH','같은 민원의 파일을 선택하세요.')
         if file['category'] == 'AUDIO':
             fail(422,'AUDIO_CONSENT_REQUIRED','음성은 동의·전사 경로에서 확인해야 합니다.')
     version_id = uid()

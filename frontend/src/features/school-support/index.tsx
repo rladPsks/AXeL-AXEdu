@@ -1,3 +1,4 @@
+import { personName } from "../../shared/names";
 import { useSession } from "../../app/providers";
 import type { CaseDetail, Member } from "../../lib/api/types";
 import { CommandForm } from "../../shared/CommandForm";
@@ -32,20 +33,21 @@ export function SchoolSupport({
             </div>
             <p className="preserve">{support.reason}</p>
             <p className="meta">
-              요청자 {support.requester_id} · 지원 담당 {support.coordinator_id}
+              요청자 {personName(support.requester_id)} · 지원 담당{" "}
+              {personName(support.coordinator_id)}
             </p>
             {support.requested_coordinator_id &&
             support.requested_coordinator_id !== support.coordinator_id ? (
               <p className="notice">
-                요청한 담당 {support.requested_coordinator_id} 대신{" "}
-                {support.coordinator_id}에게 지원을 연결했습니다. 사건 총괄은
-                유지됩니다.
+                요청한 담당 {personName(support.requested_coordinator_id)} 대신{" "}
+                {personName(support.coordinator_id)}에게 지원을 연결했습니다.
+                민원 총괄은 유지됩니다.
               </p>
             ) : null}
             {support.routing_reason === "NO_AVAILABLE_SUBSTITUTE" ? (
               <p className="notice">
-                현재 가능한 대체 담당을 확인하지 못했습니다. 요청은 저장되었으며
-                학교 관리자에게 직접 연락해 주세요.
+                현재 가능한 업무 대리 담당을 확인하지 못했습니다. 요청은
+                저장되었으며 학교 관리자에게 직접 연락해 주세요.
               </p>
             ) : null}
             {support.result ? (
@@ -119,7 +121,9 @@ export function SchoolSupport({
                     관리자 선택
                   </option>
                   {admins.map((m) => (
-                    <option key={m.user_id}>{m.user_id}</option>
+                    <option key={m.user_id} value={m.user_id}>
+                      {personName(m.user_id)}
+                    </option>
                   ))}
                 </select>
               </label>

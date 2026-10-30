@@ -6,7 +6,7 @@ test("versioned originals, configurable repeat review and reversible same-school
 }, info) => {
   await page.goto("/cases/demo-case?tab=documents");
   await page
-    .getByRole("button", { name: "학교 관리자 관리자 · admin", exact: true })
+    .getByRole("button", { name: "김○○ 교장 관리자", exact: true })
     .click();
   await page.getByText("새 원문·증거 기록", { exact: true }).click();
   const createForm = page.locator("form").filter({
@@ -59,7 +59,7 @@ test("versioned originals, configurable repeat review and reversible same-school
   await page.getByText("학교의 반복·지연 검토 기준", { exact: true }).click();
   await page.getByLabel("비교 기간 (일)", { exact: true }).fill("40");
   await page
-    .getByLabel("재확인 건수 (현재 사건 포함)", { exact: true })
+    .getByLabel("재확인 건수 (현재 민원 포함)", { exact: true })
     .fill("2");
   await page
     .getByLabel("답변 기록 재확인 기준 (시간, 선택)", { exact: true })
@@ -108,7 +108,7 @@ test("versioned originals, configurable repeat review and reversible same-school
     .getByRole("button", { name: "연결·분리 판단 저장", exact: true })
     .click();
   await expect(
-    page.getByText("comparison-example · 별도 사건으로 분리", { exact: false }),
+    page.getByText("이전 상담 민원 · 별도 민원으로 분리", { exact: false }),
   ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
@@ -151,7 +151,7 @@ test("human support decision records cited observations, revisions and stale rep
   const auth = { Authorization: `Bearer ${(await login.json()).token}` };
   await page.goto("/cases/demo-case?tab=support-decisions");
   await page
-    .getByRole("button", { name: "학교 관리자 관리자 · admin", exact: true })
+    .getByRole("button", { name: "김○○ 교장 관리자", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "학교의 지원 판단", exact: true }),
@@ -182,7 +182,7 @@ test("human support decision records cited observations, revisions and stale rep
     page.getByRole("heading", { name: "추가 검토 · 판단 1", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByText("현재 사건과 일치하는 최신 판단입니다.", { exact: true }),
+    page.getByText("현재 민원과 일치하는 최신 판단입니다.", { exact: true }),
   ).toBeVisible();
   const first = (
     await (
@@ -236,7 +236,7 @@ test("human support decision records cited observations, revisions and stale rep
     .getByRole("button", { name: "최신 내용 조회", exact: true })
     .click();
   await expect(
-    page.getByText("이 판단 이후 사건이 변경되었습니다.", { exact: false }),
+    page.getByText("이 판단 이후 민원이 변경되었습니다.", { exact: false }),
   ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({
@@ -250,7 +250,7 @@ test("human support decision records cited observations, revisions and stale rep
   ).toBe(true);
   await page.getByRole("button", { name: "계정 연결 해제" }).click();
   await page
-    .getByRole("button", { name: "담당 교사 교사 · teacher", exact: true })
+    .getByRole("button", { name: "최○○ 교사 교사", exact: true })
     .click();
   await expect(
     page.getByRole("button", { name: "지원 판단", exact: true }),
@@ -281,7 +281,7 @@ test("Render waking page retries HTML and errors before offering fictional accou
   );
   await expect(
     page.getByRole("button", {
-      name: "학교 관리자 관리자 · admin",
+      name: "김○○ 교장 관리자",
       exact: true,
     }),
   ).toBeVisible({ timeout: 15000 });
@@ -302,15 +302,15 @@ test("real demo account login and switching clears staff data before another sch
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
   await page
-    .getByRole("button", { name: "학교 관리자 관리자 · admin", exact: true })
+    .getByRole("button", { name: "김○○ 교장 관리자", exact: true })
     .click();
-  await page.getByRole("link", { name: /demo-case/ }).click();
+  await page.getByRole("link", { name: /상담 지원 민원/ }).click();
   await expect(
     page.getByRole("heading", { name: "[가상] 상담 지원 사례", exact: true }),
   ).toBeVisible();
   await page.reload();
   await page
-    .getByRole("button", { name: "학교 관리자 관리자 · admin", exact: true })
+    .getByRole("button", { name: "김○○ 교장 관리자", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "[가상] 상담 지원 사례", exact: true }),
@@ -318,7 +318,7 @@ test("real demo account login and switching clears staff data before another sch
   await page.getByRole("button", { name: "계정 연결 해제" }).click();
   await page
     .getByRole("button", {
-      name: "다른 학교 관리자 관리자 · other-admin",
+      name: "다른 학교 교장 선생님 관리자",
       exact: true,
     })
     .click();
@@ -329,21 +329,21 @@ test("real demo account login and switching clears staff data before another sch
     page.getByRole("button", { name: "계정 연결 해제" }),
   ).toBeVisible();
   await page
-    .getByRole("link", { name: "사건 목록", exact: true })
+    .getByRole("link", { name: "전체 민원 목록", exact: true })
     .first()
     .click();
   await expect(
-    page.getByText("접근 가능한 사건이 없습니다.", { exact: false }),
+    page.getByText("아직 나에게 연결된 민원이 없어요.", { exact: false }),
   ).toBeVisible();
   await page.getByRole("button", { name: "계정 연결 해제" }).click();
   await page
-    .getByRole("button", { name: "보호자 보호자 · guardian", exact: true })
+    .getByRole("button", { name: "김○○ 보호자 보호자", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "보호자 시연 공간" }),
   ).toBeVisible();
   await expect(page.getByRole("status")).toContainText(
-    "현재 연결된 가상 사건이 없습니다",
+    "현재 연결된 가상 민원이 없습니다",
   );
   await expect(
     page.getByText("학교 지원 설정", { exact: true }),
@@ -361,7 +361,7 @@ test("real demo account login and switching clears staff data before another sch
   await page.getByRole("button", { name: "계정 연결 해제" }).click();
   await expect(
     page.getByRole("button", {
-      name: "학교 관리자 관리자 · admin",
+      name: "김○○ 교장 관리자",
       exact: true,
     }),
   ).toBeVisible();
@@ -407,7 +407,7 @@ test("wake-up gives up after two minutes and retry can succeed", async ({
   await page.getByRole("button", { name: "다시 시도", exact: true }).click();
   await expect(
     page.getByRole("button", {
-      name: "학교 관리자 관리자 · admin",
+      name: "김○○ 교장 관리자",
       exact: true,
     }),
   ).toBeVisible();
@@ -419,15 +419,15 @@ test("cross-case proposal, human review and report dependency use the same recor
 }, info) => {
   await page.goto("/cases/demo-case?tab=comparison");
   await page
-    .getByRole("button", { name: "학교 관리자 관리자 · admin", exact: true })
+    .getByRole("button", { name: "김○○ 교장 관리자", exact: true })
     .click();
   await page
-    .getByLabel("직접 비교할 사건 ID", { exact: true })
+    .getByLabel("직접 비교할 민원 ID", { exact: true })
     .fill("comparison-example");
-  await page.getByRole("button", { name: "사건 대조", exact: true }).click();
+  await page.getByRole("button", { name: "민원 대조", exact: true }).click();
   await page.getByText("비교할 원문·업무 선택", { exact: true }).click();
   await page
-    .getByLabel("demo-case · [가상] 재문의 원문 · 버전 2", { exact: true })
+    .getByLabel("상담 지원 민원 · [가상] 재문의 원문 · 버전 2", { exact: true })
     .check();
   await page
     .getByLabel("comparison-example · [가상] 이전 접수 · 버전 1", {
@@ -438,7 +438,7 @@ test("cross-case proposal, human review and report dependency use the same recor
     .getByRole("button", { name: "선택한 자료로 비교 준비", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "AI 사건 비교 시작", exact: true })
+    .getByRole("button", { name: "AI 민원 비교 시작", exact: true })
     .click();
   await expect(
     page.getByRole("heading", {
@@ -463,7 +463,7 @@ test("cross-case proposal, human review and report dependency use the same recor
     .click();
   await page
     .getByLabel("비교 검토 사유", { exact: true })
-    .fill("[가상] 두 사건의 자료와 답변 기록을 함께 대조함");
+    .fill("[가상] 두 민원의 자료와 답변 기록을 함께 대조함");
   await page
     .getByRole("listbox", { name: "비교 관찰 1 출처", exact: true })
     .selectOption(["demo-case", "comparison-example"]);
@@ -477,7 +477,7 @@ test("cross-case proposal, human review and report dependency use the same recor
     .getByRole("button", { name: "사람의 비교 검토 저장", exact: true })
     .click();
   await expect(
-    page.getByText("현재 사건과 일치하는 비교 검토입니다.", { exact: true }),
+    page.getByText("현재 민원과 일치하는 비교 검토입니다.", { exact: true }),
   ).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
@@ -522,7 +522,7 @@ test("cross-case proposal, human review and report dependency use the same recor
     .getByRole("button", { name: "지원 판단 저장", exact: true })
     .click();
   await expect(
-    page.getByText("현재 사건과 일치하는 최신 판단입니다.", { exact: true }),
+    page.getByText("현재 민원과 일치하는 최신 판단입니다.", { exact: true }),
   ).toBeVisible();
   const decision = (
     await (
@@ -542,7 +542,7 @@ test("cross-case proposal, human review and report dependency use the same recor
           expected_version: related.version,
           type: "FOLLOW_UP",
           assignee_id: "teacher",
-          question: "[가상] 비교 사건의 후속 확인",
+          question: "[가상] 비교 민원의 후속 확인",
         },
       })
     ).status(),
@@ -551,7 +551,7 @@ test("cross-case proposal, human review and report dependency use the same recor
     .getByRole("button", { name: "판단 이력 새로고침", exact: true })
     .click();
   await expect(
-    page.getByText("현재 사건과 일치하는 최신 판단입니다.", { exact: true }),
+    page.getByText("현재 민원과 일치하는 최신 판단입니다.", { exact: true }),
   ).not.toBeVisible();
   expect(
     (
@@ -569,12 +569,12 @@ test("a concurrent change preserves the unsaved comparison text while blocking o
 }) => {
   await page.goto("/cases/demo-case?tab=comparison");
   await page
-    .getByRole("button", { name: "학교 관리자 관리자 · admin", exact: true })
+    .getByRole("button", { name: "김○○ 교장 관리자", exact: true })
     .click();
   await page
-    .getByLabel("직접 비교할 사건 ID", { exact: true })
+    .getByLabel("직접 비교할 민원 ID", { exact: true })
     .fill("comparison-example");
-  await page.getByRole("button", { name: "사건 대조", exact: true }).click();
+  await page.getByRole("button", { name: "민원 대조", exact: true }).click();
   await page
     .getByRole("button", { name: "선택한 자료로 비교 준비", exact: true })
     .click();

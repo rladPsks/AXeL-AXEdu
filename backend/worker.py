@@ -43,7 +43,7 @@ class Worker:
         try:
             run_access(db,actor,job['id'])
         except DomainError:
-            raise ProviderFailure('ACCESS_REVOKED','사건 또는 입력 자료의 접근 권한이 변경되었습니다.') from None
+            raise ProviderFailure('ACCESS_REVOKED','민원 또는 입력 자료의 접근 권한이 변경되었습니다.') from None
         from .recordings import consent_guard
         consent_guard(db,job)
 

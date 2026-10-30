@@ -53,7 +53,7 @@ def record_activity(case_id: str, body: ActivityCreate, request: Request):
         if staff['role'] != 'ADMIN' and not db.execute(
                 'SELECT 1 FROM case_participants WHERE case_id=? AND user_id=?',
                 (case_id, body.staff_id)).fetchone():
-            fail(422, 'STAFF_NOT_IN_CASE', '이 사건에 참여한 구성원의 활동만 기록할 수 있습니다.')
+            fail(422, 'STAFF_NOT_IN_CASE', '이 민원에 참여한 구성원의 활동만 기록할 수 있습니다.')
         activity_id = uid()
         db.execute('INSERT INTO activity_logs(id,case_id,school_id,staff_id,recorded_by,kind,occurred_at,'
                    'duration_seconds,note,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)',

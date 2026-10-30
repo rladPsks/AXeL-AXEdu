@@ -26,7 +26,7 @@ RESPONSE_SCHEMA: dict[str, Any] = {
 }
 
 SYSTEM_PROMPT = """당신은 학교 공식 민원 답변 초안을 작성하는 에이전트입니다.
-확인된 사건 사실과 제공된 근거만 사실로 단정하세요.
+확인된 민원 사실과 제공된 근거만 사실로 단정하세요.
 민원인의 주장, AI 추론, 교직원 확인 결과를 구분하세요.
 법률·정책·학교 일정처럼 외부 근거가 필요한 사실은 evidence에 없으면 만들지 마세요.
 일반적인 존중 표현과 문장 다듬기는 가능합니다.
@@ -94,7 +94,7 @@ def generate_response_draft(
         return {
             "draft": "문의 내용을 확인 중입니다. 필요한 사실 확인 후 담당자가 안내드리겠습니다.",
             "basis_summary": [],
-            "missing_information": ["사건 관련 확인 결과"],
+            "missing_information": ["민원 관련 확인 결과"],
             "claims_requiring_review": [],
             "ready_for_human_review": False,
         }

@@ -147,7 +147,7 @@ def build_history_review(current_case: dict[str, Any], related: list[dict[str, A
             "repeat_candidate": False,
             "follow_up_candidate": False,
             "history_action": "NONE",
-            "reason": "연결할 수 있는 기존 동일인·동일 학생 사건 후보가 없습니다.",
+            "reason": "연결할 수 있는 기존 동일인·동일 학생 민원 후보가 없습니다.",
             "comparison_summary": None,
             "items": [],
         }
@@ -174,8 +174,8 @@ def build_history_review(current_case: dict[str, Any], related: list[dict[str, A
     elif not_substantively_answered:
         history_action = "LINK_UNRESOLVED"
         reason = (
-            "유사한 기존 사건에 미응답 또는 검토·전달까지 끝난 실질 답변이 확인되지 않아 "
-            "반복 민원으로 보지 않고 미해결 사건과 먼저 연결합니다."
+            "유사한 기존 민원에 미응답 또는 검토·전달까지 끝난 실질 답변이 확인되지 않아 "
+            "반복 민원으로 보지 않고 미해결 민원과 먼저 연결합니다."
         )
     elif closest_answered:
         comparison = closest_answered.get("comparison") or compare_case_text(
@@ -186,18 +186,18 @@ def build_history_review(current_case: dict[str, Any], related: list[dict[str, A
             follow_up_candidate = True
             history_action = "REVIEW_FOLLOW_UP"
             reason = (
-                "실질 답변이 완료된 유사 사건이 있으나 새 날짜·사실·요구 단서가 추가되어 "
+                "실질 답변이 완료된 유사 민원이 있으나 새 날짜·사실·요구 단서가 추가되어 "
                 "동일 반복으로 종결하지 않고 후속 민원으로 검토합니다."
             )
         else:
             repeat_candidate = True
             history_action = "REVIEW_REPEAT"
             reason = (
-                "실질 답변이 완료된 높은 유사도의 사건이 있고 뚜렷한 새 사실·요구 단서가 "
+                "실질 답변이 완료된 높은 유사도의 민원이 있고 뚜렷한 새 사실·요구 단서가 "
                 "확인되지 않아 동일 요구 반복 후보로 검토합니다."
             )
     else:
-        reason = "유사 사건은 있으나 실질 답변 완료 이력이 확인되지 않습니다."
+        reason = "유사 민원은 있으나 실질 답변 완료 이력이 확인되지 않습니다."
 
     return {
         "related_count": len(related),

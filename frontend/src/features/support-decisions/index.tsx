@@ -119,7 +119,7 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
       key: `CASE:${record.id}`,
       type: "CASE",
       id: record.id,
-      label: "사건 기본 정보",
+      label: "민원 기본 정보",
       version: record.version,
     },
     ...record.tasks.map((task) => ({
@@ -177,7 +177,7 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
         정하지 않습니다.
       </p>
       <div className="notice">
-        판단 저장은 기관 제출·지원 배정·사건 종결이 아닙니다. 남은 학교 업무는
+        판단 저장은 기관 제출·지원 배정·민원 종결이 아닙니다. 남은 학교 업무는
         교사 업무와 학교 지원에서 계속 처리하세요.
       </div>
       {list.error ? <ErrorNotice error={list.error} /> : null}
@@ -358,7 +358,7 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
           </CommandForm>
         </details>
       ) : record.status === "CLOSED" ? (
-        <p>새 판단은 사건을 재개한 뒤 기록하세요.</p>
+        <p>새 판단은 민원을 재개한 뒤 기록하세요.</p>
       ) : (
         <p>판단 이력을 불러오는 중…</p>
       )}
@@ -378,11 +378,11 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
             <p className="notice">
               {decision.superseded
                 ? "이후 새 판단이 기록되었습니다."
-                : "이 판단 이후 사건이 변경되었습니다."}{" "}
+                : "이 판단 이후 민원이 변경되었습니다."}{" "}
               보고서에는 현재 기록을 검토한 새 판단을 사용하세요.
             </p>
           ) : (
-            <p>현재 사건과 일치하는 최신 판단입니다.</p>
+            <p>현재 민원과 일치하는 최신 판단입니다.</p>
           )}
           <p style={{ whiteSpace: "pre-wrap" }}>{decision.snapshot.reason}</p>
           <dl>
@@ -454,7 +454,7 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
             <p>사람이 직접 검토한 판단입니다.</p>
           )}
           <p className="meta">
-            보고서 참조 ID {decision.decision_id} · 사건 버전{" "}
+            보고서 참조 ID {decision.decision_id} · 민원 버전{" "}
             {decision.recorded_case_version}
           </p>
         </article>

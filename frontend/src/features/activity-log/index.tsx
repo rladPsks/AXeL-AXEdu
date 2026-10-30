@@ -1,3 +1,4 @@
+import { personName } from "../../shared/names";
 import { useQuery } from "@tanstack/react-query";
 import { useScope, useSession } from "../../app/providers";
 import type { CaseDetail, Member } from "../../lib/api/types";
@@ -48,8 +49,8 @@ export function ActivityLog({
       <h2>활동 기록</h2>
       <p className="hint">
         학부모 직접 응대, 콜백, 상담 등에 쓴 시간을 직접 남깁니다. 시간을
-        입력하지 않은 기록은 0분이 아니라 “시간 미기록”으로 표시하며, 교사
-        간 순위나 평가에 쓰지 않습니다. 교사는 본인 기록만 보고 관리자는 전체를
+        입력하지 않은 기록은 0분이 아니라 “시간 미기록”으로 표시하며, 교사 간
+        순위나 평가에 쓰지 않습니다. 교사는 본인 기록만 보고 관리자는 전체를
         봅니다.
       </p>
       {list.isPending ? (
@@ -66,7 +67,7 @@ export function ActivityLog({
               <span>{minutes(a.duration_seconds)}</span>
             </div>
             <p className="meta">
-              {a.staff_id} · {date(a.occurred_at)}
+              {personName(a.staff_id)} · {date(a.occurred_at)}
               {a.recorded_by !== a.staff_id ? ` · 기록 ${a.recorded_by}` : ""}
             </p>
             {a.note ? <p className="preserve">{a.note}</p> : null}
@@ -101,7 +102,7 @@ export function ActivityLog({
               <select name="staff_id" defaultValue={session.user_id}>
                 {staff.map((m) => (
                   <option key={m.user_id} value={m.user_id}>
-                    {m.user_id}
+                    {personName(m.user_id)}
                   </option>
                 ))}
               </select>

@@ -1,3 +1,5 @@
+import { personName, schoolName } from "../shared/names";
+import { Brand } from "../shared/Brand";
 import { useEffect, useState } from "react";
 import { ApiClient } from "../lib/api/client";
 import type { Session } from "../lib/api/types";
@@ -152,7 +154,8 @@ export function Entry({
     <main className="login">
       <section className="login-story">
         <div className="brand">
-          함께<span>학교 민원 지원</span>
+          <Brand />
+          <span>학교 민원 지원</span>
         </div>
         <h1>
           교사를 혼자
@@ -198,14 +201,13 @@ export function Entry({
                       disabled={pending}
                       onClick={() => void login(account)}
                     >
-                      <strong>{account.name}</strong>
+                      <strong>{personName(account.id, account.name)}</strong>
                       <span>
                         {account.kind === "GUARDIAN"
                           ? "보호자"
                           : account.role === "ADMIN"
                             ? "관리자"
                             : "교사"}{" "}
-                        · {account.id}
                       </span>
                     </button>
                   ))}
@@ -279,21 +281,21 @@ export function GuardianDemo({
         <button onClick={disconnect}>계정 연결 해제</button>
       </div>
       <section className="panel">
-        <h2>{session.guardian_id}</h2>
-        <p>학교 {session.school_id}</p>
+        <h2>{personName(session.guardian_id)}</h2>
+        <p>학교 {schoolName(session.school_id)}</p>
         {error ? (
           <ErrorNotice error={error} />
         ) : (
           <p role="status">
             {access === "loading"
-              ? "사건 연결을 확인하고 있습니다…"
+              ? "민원 연결을 확인하고 있습니다…"
               : access === "allowed"
-                ? "가상 사건의 보호자 연결이 확인되었습니다."
-                : "현재 연결된 가상 사건이 없습니다. 학교 관리자의 보호자 연결 후 확인할 수 있습니다."}
+                ? "가상 민원의 보호자 연결이 확인되었습니다."
+                : "현재 연결된 가상 민원이 없습니다. 학교 관리자의 보호자 연결 후 확인할 수 있습니다."}
           </p>
         )}
         <p>
-          현재 보호자 시연은 계정 연결과 사건 접근 확인까지 제공합니다. 대외
+          현재 보호자 시연은 계정 연결과 민원 접근 확인까지 제공합니다. 대외
           답변·접수 화면은 A 모듈 연결 후 사용할 수 있습니다.
         </p>
       </section>

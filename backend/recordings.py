@@ -23,7 +23,7 @@ def active_consent(db, file_id):
 def audio_file(db, actor, case_id, file_id):
     meta = file_access(db, actor, file_id)
     if meta['case_id'] != case_id or meta['category'] != 'AUDIO':
-        fail(422, 'AUDIO_FILE_REQUIRED', '이 사건에 등록한 음성 자료를 선택하세요.')
+        fail(422, 'AUDIO_FILE_REQUIRED', '이 민원에 등록한 음성 자료를 선택하세요.')
     return meta
 
 

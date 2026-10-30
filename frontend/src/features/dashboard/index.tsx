@@ -1,3 +1,5 @@
+import { personName } from "../../shared/names";
+import { caseName } from "../../shared/names";
 import { useState } from "react";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -40,7 +42,7 @@ function CaseLinks({ ids }: { ids: string[] }) {
     <>
       {ids.map((id) => (
         <Link key={id} to={`/cases/${encodeURIComponent(id)}`}>
-          {id}{" "}
+          {caseName(id)}{" "}
         </Link>
       ))}
     </>
@@ -70,8 +72,7 @@ export function DashboardPage() {
         <div>
           <h1>활동·지원 현황</h1>
           <p>
-            교사를 평가하거나 순위를 매기지 않고, 어디에 지원이 필요한지
-            확인하기 위한 화면입니다.
+            발생한 민원에 대하여 필요한 지원 방안을 확인하기 위한 화면입니다.
           </p>
         </div>
         <button
@@ -106,7 +107,7 @@ export function DashboardPage() {
           <ErrorNotice error={query.error} />
         ) : d ? (
           <>
-            <h2>사건 현황</h2>
+            <h2>민원 현황</h2>
             <p className="hint">{d.cases.basis}</p>
             <p>
               진행 중 <strong>{d.cases.by_status.OPEN ?? 0}</strong>건 · 종결{" "}
@@ -122,7 +123,7 @@ export function DashboardPage() {
                     <th>종류</th>
                     <th>상태</th>
                     <th>건수</th>
-                    <th>사건</th>
+                    <th>민원</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -147,7 +148,9 @@ export function DashboardPage() {
                 .join(" · ") || "없음"}
             </p>
             <p>
-              <strong>아직 확인하지 않은 지원 요청 {d.support.unacknowledged_now}건</strong>{" "}
+              <strong>
+                아직 확인하지 않은 지원 요청 {d.support.unacknowledged_now}건
+              </strong>{" "}
               <CaseLinks ids={d.support.unacknowledged_case_ids} />
             </p>
             <h2>담당자별 기록된 활동</h2>
@@ -162,13 +165,13 @@ export function DashboardPage() {
                     <th>기록된 시간</th>
                     <th>시간 미기록</th>
                     <th>활동 종류</th>
-                    <th>사건</th>
+                    <th>민원</th>
                   </tr>
                 </thead>
                 <tbody>
                   {d.staff_activity.map((s) => (
                     <tr key={s.staff_id}>
-                      <td>{s.staff_id}</td>
+                      <td>{personName(s.staff_id)}</td>
                       <td>{s.entries}</td>
                       <td>{minutes(s.recorded_seconds)}</td>
                       <td>{s.entries_without_duration}건</td>

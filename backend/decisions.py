@@ -85,12 +85,12 @@ def require_current_decision(db, actor, case, decision_id):
     """A calls inside its own transaction before using a decision in a report."""
     row, actual, saved = read_decision(db, actor, decision_id)
     if actual['id'] != case['id']:
-        fail(409, 'DECISION_CASE_MISMATCH', '같은 사건의 지원 판단을 선택하세요.')
+        fail(409, 'DECISION_CASE_MISMATCH', '같은 민원의 지원 판단을 선택하세요.')
     if actual['version'] != case['version']:
-        fail(409, 'VERSION_CONFLICT', '최신 사건을 조회한 뒤 다시 확인하세요.')
+        fail(409, 'VERSION_CONFLICT', '최신 민원을 조회한 뒤 다시 확인하세요.')
     result = serialize(db, row, actual, saved, actor)
     if result['stale']:
-        fail(409, 'STALE_SUPPORT_DECISION', '사건이나 지원 판단이 변경되었습니다. 현재 기록을 검토해 새 판단을 남기세요.')
+        fail(409, 'STALE_SUPPORT_DECISION', '민원이나 지원 판단이 변경되었습니다. 현재 기록을 검토해 새 판단을 남기세요.')
     return result
 
 
@@ -158,5 +158,5 @@ def report_snapshot(decision_id: str, request: Request, expected_case_version: i
         actor = authenticate(db, request)
         _, case, _ = read_decision(db, actor, decision_id)
         if expected_case_version != case['version']:
-            fail(409, 'VERSION_CONFLICT', '최신 사건을 조회한 뒤 다시 확인하세요.')
+            fail(409, 'VERSION_CONFLICT', '최신 민원을 조회한 뒤 다시 확인하세요.')
         return require_current_decision(db, actor, case, decision_id)

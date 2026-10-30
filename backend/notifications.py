@@ -109,7 +109,7 @@ def dispatch_once(database,at=None):
 def inbox(request:Request):
     with request.app.state.db.transaction() as db:
         actor=authenticate(db,request)
-        return [dict(r) for r in db.execute("SELECT n.id,n.case_id,n.kind,n.resource_id,n.severity,n.status,n.created_at,n.delivered_at,n.acknowledged_at "
+        return [dict(r) for r in db.execute("SELECT n.id,n.case_id,c.title AS case_title,n.kind,n.resource_id,n.severity,n.status,n.created_at,n.delivered_at,n.acknowledged_at "
                 "FROM inbox_notifications n JOIN cases c ON c.id=n.case_id AND c.school_id=n.school_id "
                 "WHERE n.school_id=? AND n.recipient_id=? AND n.status IN('DELIVERED','ACKNOWLEDGED') "
                 "AND (?='ADMIN' OR EXISTS(SELECT 1 FROM case_participants p WHERE p.case_id=c.id AND p.user_id=?)) ORDER BY (n.status='ACKNOWLEDGED'),n.created_at DESC,n.id DESC LIMIT 100",

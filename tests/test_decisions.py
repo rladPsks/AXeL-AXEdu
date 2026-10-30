@@ -150,7 +150,7 @@ def test_report_helper_validates_same_case_and_actual_version(env):
         case = dict(db.execute("SELECT * FROM cases WHERE id='demo-case'").fetchone())
         assert require_current_decision(db, actor, case, decision_id)['decision_id'] == decision_id
         from backend.access import DomainError
-        with pytest.raises(DomainError, match='같은 사건'):
+        with pytest.raises(DomainError, match='같은 민원'):
             require_current_decision(db, actor, {**case, 'id': 'different'}, decision_id)
-        with pytest.raises(DomainError, match='최신 사건'):
+        with pytest.raises(DomainError, match='최신 민원'):
             require_current_decision(db, actor, {**case, 'version': 1}, decision_id)

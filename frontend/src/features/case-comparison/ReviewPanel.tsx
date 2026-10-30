@@ -1,3 +1,4 @@
+import { caseName, personName } from "../../shared/names";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useScope, useSession } from "../../app/providers";
@@ -189,7 +190,7 @@ export function ComparisonReviewPanel({
       resource_type: "DOCUMENT_VERSION",
       resource_id: item.id,
       version: item.revision,
-      label: `${side.case.id} · ${item.label} · 버전 ${item.revision}`,
+      label: `${caseName(side.case.id)} · ${item.label} · 버전 ${item.revision}`,
     })),
     ...side.tasks.map((item) => ({
       key: `TASK:${item.id}`,
@@ -197,7 +198,7 @@ export function ComparisonReviewPanel({
       resource_type: "TASK",
       resource_id: item.id,
       version: side.case.version,
-      label: `${side.case.id} · 업무: ${item.question.slice(0, 70)}`,
+      label: `${caseName(side.case.id)} · 업무: ${item.question.slice(0, 70)}`,
     })),
     ...side.support_requests.map((item) => ({
       key: `SUPPORT_REQUEST:${item.id}`,
@@ -205,7 +206,7 @@ export function ComparisonReviewPanel({
       resource_type: "SUPPORT_REQUEST",
       resource_id: item.id,
       version: side.case.version,
-      label: `${side.case.id} · 지원: ${item.reason.slice(0, 70)}`,
+      label: `${caseName(side.case.id)} · 지원: ${item.reason.slice(0, 70)}`,
     })),
   ]);
   const relatedRuns = (runs.data ?? []).filter(
@@ -224,7 +225,7 @@ export function ComparisonReviewPanel({
       ),
     );
   const sourceLabel = (source: Source) =>
-    `${String(source.data.label ?? source.data.question ?? source.data.reason ?? source.data.title ?? source.ref.resource_id).slice(0, 90)} · ${String(source.data.case_id ?? source.data.id ?? "")} · 버전 ${source.ref.version}`;
+    `${String(source.data.label ?? source.data.question ?? source.data.reason ?? source.data.title ?? source.ref.resource_id).slice(0, 90)} · ${caseName(String(source.data.case_id ?? source.data.id ?? ""))} · 버전 ${source.ref.version}`;
   const start = (retry?: string) =>
     input &&
     action.mutate(
@@ -243,7 +244,7 @@ export function ComparisonReviewPanel({
     );
   return (
     <section className="panel comparison-review">
-      <h3>두 사건의 비교 검토 기록</h3>
+      <h3>두 민원의 비교 검토 기록</h3>
       <p>
         선택한 자료를 고정해 대조합니다. AI 없이도 사람이 검토 결과를 기록할 수
         있습니다.
@@ -251,7 +252,7 @@ export function ComparisonReviewPanel({
       <details>
         <summary>비교할 원문·업무 선택</summary>
         <p>
-          두 사건의 기본 정보와 아래에서 선택한 자료만 비교에 포함합니다. 최대
+          두 민원의 기본 정보와 아래에서 선택한 자료만 비교에 포함합니다. 최대
           18개를 선택할 수 있습니다.
         </p>
         {sourceOptions.map((source) => (
@@ -351,7 +352,7 @@ export function ComparisonReviewPanel({
       </label>
       {input?.stale ? (
         <p className="notice">
-          이 비교 입력은 이전 사건 버전을 담고 있습니다. 새 검토에는 현재 자료로
+          이 비교 입력은 이전 민원 버전을 담고 있습니다. 새 검토에는 현재 자료로
           비교를 다시 준비하세요.
         </p>
       ) : null}
@@ -366,7 +367,7 @@ export function ComparisonReviewPanel({
             }
             onClick={() => start()}
           >
-            AI 사건 비교 시작
+            AI 민원 비교 시작
           </button>
           {!available ? (
             <p>
@@ -386,7 +387,7 @@ export function ComparisonReviewPanel({
           </p>
           {run.stale ? (
             <p className="notice">
-              사건 또는 기준이 바뀐 과거 결과입니다. 새 비교 자료로 다시
+              민원 또는 기준이 바뀐 과거 결과입니다. 새 비교 자료로 다시
               검토하세요.
             </p>
           ) : null}
@@ -625,12 +626,12 @@ export function ComparisonReviewPanel({
           <article className="panel" key={review.id}>
             <h4>비교 검토 {review.revision}</h4>
             <p>
-              {review.recorded_by} · {date(review.created_at)}
+              {personName(review.recorded_by)} · {date(review.created_at)}
             </p>
             <p>
               {review.stale
-                ? "사건·학교 기준·검토 기록이 바뀐 과거 검토입니다."
-                : "현재 사건과 일치하는 비교 검토입니다."}
+                ? "민원·학교 기준·검토 기록이 바뀐 과거 검토입니다."
+                : "현재 민원과 일치하는 비교 검토입니다."}
             </p>
             <p>{review.reason}</p>
             <ul>

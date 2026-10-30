@@ -16,7 +16,11 @@ type Review = {
   response_draft: string;
   validation_checks: string[];
   evidence_used: string[];
-  translated_response?: { target_language: string; translated_text: string; translation_mode: string } | null;
+  translated_response?: {
+    target_language: string;
+    translated_text: string;
+    translation_mode: string;
+  } | null;
 };
 type Run = {
   run_id: string;
@@ -132,7 +136,7 @@ export function AgentReview({ record }: { record: CaseDetail }) {
     <>
       <h2>함께 검토할 지원 방향</h2>
       <p className="hint">
-        현재 사건과 업무·지원 기록을 바탕으로 다음 행동을 제안합니다. AI 제안은
+        현재 민원과 업무·지원 기록을 바탕으로 다음 행동을 제안합니다. AI 제안은
         총괄·지원 결정이나 답변 승인으로 자동 반영되지 않습니다. 첨부 원문은
         자동 포함하지 않습니다.
       </p>
@@ -146,7 +150,7 @@ export function AgentReview({ record }: { record: CaseDetail }) {
       ) : null}
       {record.tasks.length > 10 || record.support_requests.length > 9 ? (
         <p className="notice">
-          한 번에 업무 10건·지원 9건까지 포함합니다. 전체 기록은 사건 탭에서
+          한 번에 업무 10건·지원 9건까지 포함합니다. 전체 기록은 민원 탭에서
           함께 대조해 주세요.
         </p>
       ) : null}
@@ -154,7 +158,7 @@ export function AgentReview({ record }: { record: CaseDetail }) {
         <details>
           <summary>함께 검토할 원문 버전 선택</summary>
           <p>
-            선택한 버전만 AI에 포함합니다. 사건 포함 최대 20개 출처이며 원문
+            선택한 버전만 AI에 포함합니다. 민원 포함 최대 20개 출처이며 원문
             선택 시 업무·지원 기록 일부가 제외될 수 있습니다.
           </p>
           {documents.data.map((item) => (
@@ -239,7 +243,7 @@ export function AgentReview({ record }: { record: CaseDetail }) {
             </p>
             {run.stale ? (
               <div className="notice">
-                생성에 사용한 기록 이후 사건이 변경되었습니다. 최신 사건과
+                생성에 사용한 기록 이후 민원이 변경되었습니다. 최신 민원과
                 대조해 주세요.
               </div>
             ) : null}
@@ -294,10 +298,25 @@ export function AgentReview({ record }: { record: CaseDetail }) {
                 </ul>
                 <h3>AI가 준비한 보호자 답변</h3>
                 <p className="preserve">{run.result.response_draft}</p>
-                {run.result.translated_response ? <><h3>원문 언어 답변</h3><p className="preserve">{run.result.translated_response.translated_text}</p></> : null}
+                {run.result.translated_response ? (
+                  <>
+                    <h3>원문 언어 답변</h3>
+                    <p className="preserve">
+                      {run.result.translated_response.translated_text}
+                    </p>
+                  </>
+                ) : null}
                 <h3>Validator 점검</h3>
-                <ul>{run.result.validation_checks.map((s, i) => <li key={i}>{s}</li>)}</ul>
-                <p className="hint">사용한 공식 근거: {run.result.evidence_used.join(", ") || "직접 인용 근거 없음"} · 관리자 검토 전에는 발송되지 않습니다.</p>
+                <ul>
+                  {run.result.validation_checks.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ul>
+                <p className="hint">
+                  사용한 공식 근거:{" "}
+                  {run.result.evidence_used.join(", ") || "직접 인용 근거 없음"}{" "}
+                  · 관리자 검토 전에는 발송되지 않습니다.
+                </p>
               </>
             ) : null}
             {record.status === "OPEN" &&
@@ -325,7 +344,7 @@ export function AgentReview({ record }: { record: CaseDetail }) {
                         value="true"
                         required
                       />{" "}
-                      변경된 사건과 이 결과를 다시 대조했습니다.
+                      변경된 민원과 이 결과를 다시 대조했습니다.
                     </span>
                   </label>
                 ) : null}

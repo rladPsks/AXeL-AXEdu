@@ -51,7 +51,7 @@ def validate_response(
     if risk_signal and any(term in text for term in RISKY_CONTACT_TERMS):
         issues.append({
             "code": "RISKY_DIRECT_CONTACT",
-            "message": "위험·침해 검토 사건에서 교직원의 직접 전화·방문 응대를 자동 권유하지 마세요.",
+            "message": "위험·침해 검토 민원에서 교직원의 직접 전화·방문 응대를 자동 권유하지 마세요.",
         })
 
     for claim in response_generation.get("claims_requiring_review") or []:

@@ -55,7 +55,7 @@ def create_case(complaint: dict[str, Any], case_id: str | None = None) -> dict[s
 
     case_id = case_id or _id("CASE")
 
-    # 새 민원 접수 시 같은 보호자/학생의 기존 사건을 먼저 비교한다.
+    # 새 민원 접수 시 같은 보호자/학생의 기존 민원을 먼저 비교한다.
     # '3회 이상' 같은 단순 횟수가 아니라 실질 답변 여부와 새 사실/요구를 함께 본다.
     related = find_related_cases(
         current_case_id=case_id,
@@ -68,7 +68,7 @@ def create_case(complaint: dict[str, Any], case_id: str | None = None) -> dict[s
         related,
     )
 
-    # 분류 모델에는 사건 이벤트가 아닌 실제 과거 사건만 history로 전달한다.
+    # 분류 모델에는 민원 이벤트가 아닌 실제 과거 민원만 history로 전달한다.
     rule_history = [
         {"received_at": x.get("received_at"), "status": x.get("status")}
         for x in related
@@ -171,7 +171,7 @@ def complete_task(task_id: str, result_text: str, actor: str = "staff") -> dict[
 
     case = get_case(case_id)
     if case is None:
-        raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
+        raise ValueError(f"민원을 찾을 수 없습니다: {case_id}")
 
     task_type = previous["task_type"]
     if task_type == "RESPONSE_REVIEW":
@@ -300,9 +300,9 @@ def deliver_response(
     init_db()
     case = get_case(case_id)
     if case is None:
-        raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
+        raise ValueError(f"민원을 찾을 수 없습니다: {case_id}")
     if case.get("status") != "RESPONSE_APPROVED":
-        raise ValueError("사람 검토·승인이 완료된 사건만 전달 완료 처리할 수 있습니다.")
+        raise ValueError("사람 검토·승인이 완료된 민원만 전달 완료 처리할 수 있습니다.")
     if not str(case.get("response_draft") or "").strip():
         raise ValueError("전달할 답변 초안이 없습니다.")
 
@@ -325,7 +325,7 @@ def delegate_case_to_team(
     init_db()
     case = get_case(case_id)
     if case is None:
-        raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
+        raise ValueError(f"민원을 찾을 수 없습니다: {case_id}")
 
     update_case_owner(case_id, "complaint_response_team", next_action="TEAM_REVIEW")
     append_event(case_id, "TEACHER_DELEGATED_TO_TEAM", actor, {
@@ -372,7 +372,7 @@ def request_support(
     if support_type not in allowed:
         raise ValueError(f"지원 유형이 올바르지 않습니다: {support_type}")
     if get_case(case_id) is None:
-        raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
+        raise ValueError(f"민원을 찾을 수 없습니다: {case_id}")
 
     request = {
         "id": _id("SUPPORT"),
@@ -409,7 +409,7 @@ def request_support(
             "assignee_role": support_task["assignee_role"],
         })
 
-    # 지원 요청은 기존 사건 단계(RESPONSE_REVIEW 등)를 덮어쓰지 않는 병렬 업무다.
+    # 지원 요청은 기존 민원 단계(RESPONSE_REVIEW 등)를 덮어쓰지 않는 병렬 업무다.
     return get_case_snapshot(case_id)
 
 
@@ -417,7 +417,7 @@ def get_case_snapshot(case_id: str) -> dict[str, Any]:
     init_db()
     case = get_case(case_id)
     if case is None:
-        raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
+        raise ValueError(f"민원을 찾을 수 없습니다: {case_id}")
 
     item = dict(case)
     for key in ("classification_json", "routing_json"):
@@ -459,7 +459,7 @@ def review_case_history(case_id: str) -> dict[str, Any]:
     init_db()
     case = get_case(case_id)
     if case is None:
-        raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
+        raise ValueError(f"민원을 찾을 수 없습니다: {case_id}")
     related = find_related_cases(
         current_case_id=case_id,
         complainant_id=case.get("complainant_id"),
@@ -487,7 +487,7 @@ def generate_support_report(case_id: str) -> dict[str, Any]:
 def get_case_evidence(case_id: str) -> dict[str, Any]:
     init_db()
     if get_case(case_id) is None:
-        raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
+        raise ValueError(f"민원을 찾을 수 없습니다: {case_id}")
     run = get_latest_ai_run(case_id)
     if run is None:
         return {
@@ -553,7 +553,7 @@ def get_case_explanation(case_id: str) -> dict[str, Any]:
     init_db()
     case = get_case(case_id)
     if case is None:
-        raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
+        raise ValueError(f"민원을 찾을 수 없습니다: {case_id}")
 
     raw = get_case_evidence(case_id)
     cls = json.loads(case.get("classification_json") or "{}")
@@ -618,7 +618,7 @@ def get_case_explanation(case_id: str) -> dict[str, Any]:
     history_card = {
         "status": history.get("history_action", "NONE"),
         "label": {
-            "LINK_UNRESOLVED": "이전 미해결 사건 연결 필요",
+            "LINK_UNRESOLVED": "이전 미해결 민원 연결 필요",
             "REVIEW_FOLLOW_UP": "새 사실·요구가 있는 후속 민원",
             "REVIEW_REPEAT": "동일 요구 반복 후보",
             "NONE": "반복 이력 특이사항 없음",
@@ -676,7 +676,7 @@ def get_similar_cases(case_id: str, limit: int = 1) -> dict[str, Any]:
     init_db()
     case = get_case(case_id)
     if case is None:
-        raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
+        raise ValueError(f"민원을 찾을 수 없습니다: {case_id}")
     return {
         "items": find_approved_similar_cases(
             current_case_id=case_id,

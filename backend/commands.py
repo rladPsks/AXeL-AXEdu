@@ -48,10 +48,10 @@ def mutate(request, case_id, body, action, operation, status=200, allow_closed=F
                 fail(409, "IDEMPOTENCY_CONFLICT", "같은 키에 다른 요청을 사용할 수 없습니다.")
             return JSONResponse(json.loads(old["response"]), status_code=old["status_code"])
         if body.expected_version != case["version"]:
-            fail(409, "VERSION_CONFLICT", "최신 사건을 조회한 뒤 다시 시도하세요.",
+            fail(409, "VERSION_CONFLICT", "최신 민원을 조회한 뒤 다시 시도하세요.",
                  case_id=case_id, current_version=case["version"])
         if case["status"] == "CLOSED" and not allow_closed:
-            fail(409, "CASE_CLOSED", "사건을 재개한 뒤 변경하세요.")
+            fail(409, "CASE_CLOSED", "민원을 재개한 뒤 변경하세요.")
         result = operation(db, actor, case)
         if {'case_id', 'version'} & result.keys():
             raise ValueError('Command results may not override the shared case identity/version')

@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { personName } from "../../shared/names";
 import { useScope, useSession } from "../../app/providers";
 import { CommandForm } from "../../shared/CommandForm";
 import { Empty, ErrorNotice, date } from "../../shared/ui";
@@ -33,9 +34,9 @@ export function GuardianLinks({
   });
   return (
     <>
-      <h2>보호자 사건 관계 확인</h2>
+      <h2>보호자 민원 관계 확인</h2>
       <p className="hint">
-        본인 확인을 마친 보호자 계정과 사건의 관계를 학교 관리자가 확인합니다.
+        본인 확인을 마친 보호자 계정과 민원의 관계를 학교 관리자가 확인합니다.
         연결만으로 교직원 내부 자료가 공개되지는 않습니다.
       </p>
       {links.isPending ? (
@@ -48,14 +49,14 @@ export function GuardianLinks({
         links.data.map((link) => (
           <article key={link.id} className="work-item">
             <div className="item-top">
-              <strong>{link.guardian_id}</strong>
+              <strong>{personName(link.guardian_id)}</strong>
               <span className="badge">
                 {link.active ? "관계 확인됨" : "연결 해제됨"}
               </span>
             </div>
             <p>{link.verification_note}</p>
             <p className="meta">
-              확인자 {link.verified_by} · {date(link.verified_at)}
+              확인자 {personName(link.verified_by)} · {date(link.verified_at)}
             </p>
             {link.active ? (
               <CommandForm

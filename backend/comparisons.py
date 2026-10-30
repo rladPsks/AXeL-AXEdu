@@ -95,12 +95,12 @@ def record_relation(case_id:str,body:RelationCreate,request:Request):
     def operation(db,actor,case):
         admin(actor)
         if case_id==body.related_case_id:
-            fail(422,'SELF_CASE_RELATION','서로 다른 사건을 선택하세요.')
+            fail(422,'SELF_CASE_RELATION','서로 다른 민원을 선택하세요.')
         other=accessible_case(db,actor,body.related_case_id)
         if other['version']!=body.expected_related_version:
-            fail(409,'RELATED_VERSION_CONFLICT','비교 사건의 최신 버전을 조회하세요.')
+            fail(409,'RELATED_VERSION_CONFLICT','비교 민원의 최신 버전을 조회하세요.')
         if other['status']=='CLOSED':
-            fail(409,'RELATED_CASE_CLOSED','비교 사건을 재개한 뒤 연결을 변경하세요.')
+            fail(409,'RELATED_CASE_CLOSED','비교 민원을 재개한 뒤 연결을 변경하세요.')
         left,right=sorted((case_id,body.related_case_id))
         previous=db.execute('SELECT * FROM case_relation_events WHERE left_case_id=? AND right_case_id=? ORDER BY revision DESC LIMIT 1',(left,right)).fetchone()
         if body.previous_relation_id!=(previous['id'] if previous else None):
@@ -153,7 +153,7 @@ def compare_pair(case_id:str,related_case_id:str,request:Request):
         current=accessible_case(db,actor,case_id)
         other=accessible_case(db,actor,related_case_id)
         if case_id==related_case_id:
-            fail(422,'SELF_CASE_RELATION','서로 다른 사건을 선택하세요.')
+            fail(422,'SELF_CASE_RELATION','서로 다른 민원을 선택하세요.')
         def evidence(case):
             versions=documents(db,actor,case['id'])
             latest={}

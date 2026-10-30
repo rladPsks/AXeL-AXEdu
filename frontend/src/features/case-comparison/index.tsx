@@ -1,3 +1,4 @@
+import { caseName, personName } from "../../shared/names";
 import { useState } from "react";
 import {
   useInfiniteQuery,
@@ -107,7 +108,7 @@ function VersionFields({ files }: { files: Attachment[] }) {
         </select>
       </label>
       <label>
-        함께 보존할 사건 자료 (선택)
+        함께 보존할 민원 자료 (선택)
         <select name="file_id">
           <option value="">자료 파일 없음</option>
           {files
@@ -192,7 +193,7 @@ export function CaseDocuments({ record }: { record: CaseDetail }) {
           </CommandForm>
         </details>
       ) : (
-        <p>새 자료는 사건 재개 후 기록하세요.</p>
+        <p>새 자료는 민원 재개 후 기록하세요.</p>
       )}
       {query.data?.length === 0 ? (
         <p>아직 저장된 원문 버전이 없습니다.</p>
@@ -204,7 +205,7 @@ export function CaseDocuments({ record }: { record: CaseDetail }) {
           </h3>
           <p className="meta">
             최신 버전 {document.revision} · {date(document.occurred_at)} ·{" "}
-            {document.recorded_by}
+            {personName(document.recorded_by)}
           </p>
           <p style={{ whiteSpace: "pre-wrap" }}>{document.content}</p>
           <p>출처·경위: {document.provenance}</p>
@@ -282,7 +283,7 @@ function Evidence({ item }: { item: PairEvidence }) {
     <section className="panel">
       <h3>{item.case.title}</h3>
       <p>
-        {item.case.id} · 사건 버전 {item.case.version}
+        {caseName(item.case.id)} · 민원 버전 {item.case.version}
       </p>
       <p className="notice">
         {item.response_review.review_due_from_records === true
@@ -340,7 +341,7 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
       next !== related &&
       document.querySelector('.comparison-review form[data-dirty="true"]') &&
       !window.confirm(
-        "저장하지 않은 비교 검토가 있습니다. 다른 사건을 대조하면 입력이 사라집니다. 이동할까요?",
+        "저장하지 않은 비교 검토가 있습니다. 다른 민원을 대조하면 입력이 사라집니다. 이동할까요?",
       )
     )
       return;
@@ -412,7 +413,7 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
         비교 자료 새로고침
       </button>
       <p>
-        같은 코드가 있는 사건을 후보로 보여줍니다. 동일인·동일 사안 여부와
+        같은 코드가 있는 민원을 후보로 보여줍니다. 동일인·동일 사안 여부와
         미응답·새 증거는 원문을 대조한 사람이 판단합니다.
       </p>
       {list.error ? <ErrorNotice error={list.error} /> : null}
@@ -420,7 +421,7 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
       {first ? (
         <p className="notice">
           {first.policy.configured
-            ? `학교 검토 기준: ${first.policy.window_days}일 · ${first.policy.minimum_count}건. 현재 사건 포함 후보 ${first.count_including_current}건${first.review_threshold_met ? " — 검토 기준에 도달했습니다" : ""}.`
+            ? `학교 검토 기준: ${first.policy.window_days}일 · ${first.policy.minimum_count}건. 현재 민원 포함 후보 ${first.count_including_current}건${first.review_threshold_met ? " — 검토 기준에 도달했습니다" : ""}.`
             : "학교 반복 검토 기준이 아직 없습니다. 횟수 기준이나 법정 기한을 자동 적용하지 않습니다."}{" "}
           후보 수는 반복 민원 확정 횟수가 아닙니다.
         </p>
@@ -503,7 +504,7 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
               />
             </label>
             <label>
-              재확인 건수 (현재 사건 포함)
+              재확인 건수 (현재 민원 포함)
               <input
                 type="number"
                 name="minimum_count"
@@ -530,7 +531,7 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
       {first && !first.profile ? (
         <p>비교 코드를 먼저 기록하세요.</p>
       ) : first?.candidate_count === 0 ? (
-        <p>현재 코드와 기간에서 일치하는 다른 사건이 없습니다.</p>
+        <p>현재 코드와 기간에서 일치하는 다른 민원이 없습니다.</p>
       ) : null}
       {list.data?.pages
         .flatMap((page) => page.candidates)
@@ -538,12 +539,12 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
           <div className="panel" key={candidate.id}>
             <h4>{candidate.title}</h4>
             <p>
-              {candidate.id} ·{" "}
+              {candidate.title} ·{" "}
               {candidate.matches.map((match) => bases[match]).join(", ")} ·{" "}
               {date(candidate.received_at)}
             </p>
             <button onClick={() => chooseRelated(candidate.id)}>
-              원문 대조: {candidate.id}
+              원문 대조: {candidate.title}
             </button>
           </div>
         ))}
@@ -564,15 +565,15 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
         return (
           <div key={relation.id}>
             <p>
-              {other} ·{" "}
+              {caseName(other)} ·{" "}
               {relation.state === "LINKED"
                 ? "연결 검토됨"
-                : "별도 사건으로 분리"}{" "}
+                : "별도 민원으로 분리"}{" "}
               · {bases[relation.basis]}
             </p>
             <p>{relation.reason}</p>
             <button onClick={() => chooseRelated(other)}>
-              연결 사건 대조: {other}
+              연결 민원 대조: {caseName(other)}
             </button>
           </div>
         );
@@ -588,10 +589,10 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
         }}
       >
         <label>
-          직접 비교할 사건 ID
+          직접 비교할 민원 ID
           <input name="related" required maxLength={128} />
         </label>
-        <button>사건 대조</button>
+        <button>민원 대조</button>
       </form>
       {pair.error ? <ErrorNotice error={pair.error} /> : null}
       {pair.data ? (
@@ -644,8 +645,8 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
               <label>
                 검토 결과
                 <select name="state">
-                  <option value="LINKED">관련 사건으로 연결</option>
-                  <option value="SEPARATED">별도 사건으로 분리</option>
+                  <option value="LINKED">관련 민원으로 연결</option>
+                  <option value="SEPARATED">별도 민원으로 분리</option>
                 </select>
               </label>
               <label>
@@ -662,7 +663,7 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
               </label>
             </CommandForm>
           ) : (
-            <p>연결·분리는 양쪽 사건을 재개한 후 변경할 수 있습니다.</p>
+            <p>연결·분리는 양쪽 민원을 재개한 후 변경할 수 있습니다.</p>
           )}
           <details>
             <summary>이전 연결·분리 판단</summary>
@@ -670,7 +671,7 @@ export function CaseComparison({ record }: { record: CaseDetail }) {
               <p key={relation.id}>
                 판단 {relation.revision} ·{" "}
                 {relation.state === "LINKED" ? "연결" : "분리"} ·{" "}
-                {relation.reason} · {relation.recorded_by}
+                {relation.reason} · {personName(relation.recorded_by)}
               </p>
             ))}
           </details>

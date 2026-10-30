@@ -100,7 +100,7 @@ def snapshot(db, actor, case, refs, purpose=None):
     for ref in refs:
         if ref.resource_type == 'CASE':
             if ref.resource_id != case['id']:
-                fail(422, 'INPUT_CASE_MISMATCH', '같은 사건의 입력을 선택하세요.')
+                fail(422, 'INPUT_CASE_MISMATCH', '같은 민원의 입력을 선택하세요.')
             item = dict(case)
             intake = db.execute("SELECT * FROM case_intakes WHERE case_id=?", (case["id"],)).fetchone()
             if intake is not None:
@@ -145,7 +145,7 @@ def snapshot(db, actor, case, refs, purpose=None):
                 fail(422, 'INPUT_NOT_FOUND', '저장된 입력을 찾을 수 없습니다.')
             item = dict(row)
         if item.get('case_id', item.get('id')) != case['id']:
-            fail(422, 'INPUT_CASE_MISMATCH', '같은 사건의 입력을 선택하세요.')
+            fail(422, 'INPUT_CASE_MISMATCH', '같은 민원의 입력을 선택하세요.')
         expected = item['revision'] if ref.resource_type in {'DOCUMENT_VERSION','COMPARISON_REVIEW','TRANSCRIPT'} else (1 if ref.resource_type in {'FILE','COMPARISON_INPUT'} else case['version'])
         if ref.version != expected:
             fail(409, 'INPUT_VERSION_CONFLICT', '입력 자료의 최신 버전을 확인하세요.')
@@ -190,7 +190,7 @@ def start_run(case_id: str, body: RunStart, request: Request):
             fail(503, 'AGENT_UNAVAILABLE', '이 생성 기능의 공급자 설정 또는 핸들러가 준비되지 않았습니다.')
         comparison_refs=[ref for ref in body.input_refs if ref.resource_type=='COMPARISON_INPUT']
         if (body.purpose=='COMPARE_CASES' and (len(comparison_refs)!=1 or len(body.input_refs)!=1)) or (comparison_refs and body.purpose!='COMPARE_CASES'):
-            fail(422,'COMPARISON_INPUT_REQUIRED','교차 사건 비교에는 저장한 비교 자료 묶음 하나를 선택하세요.')
+            fail(422,'COMPARISON_INPUT_REQUIRED','교차 민원 비교에는 저장한 비교 자료 묶음 하나를 선택하세요.')
         kinds = [ref.resource_type for ref in body.input_refs]
         if body.purpose == 'TRANSCRIBE_AUDIO' and kinds != ['FILE']:
             fail(422, 'AUDIO_INPUT_REQUIRED', '전사에는 동의가 확인된 음성 자료 하나를 선택하세요.')
@@ -256,9 +256,9 @@ def review_run(run_id: str, body: RunReview, request: Request):
         if run['status'] != 'WAITING_REVIEW' and not can_recheck:
             fail(409,'INVALID_TRANSITION','검토 대기 결과만 확인할 수 있습니다.')
         if body.decision=='ACCEPT' and dependency_stale:
-            fail(409,'STALE_COMPARISON_INPUT','두 사건이나 학교 기준이 변경되었습니다. 현재 자료로 비교를 다시 준비하세요.')
+            fail(409,'STALE_COMPARISON_INPUT','두 민원이나 학교 기준이 변경되었습니다. 현재 자료로 비교를 다시 준비하세요.')
         if body.decision == 'ACCEPT' and run['input_case_version'] != case['version'] and not body.accept_stale:
-            fail(409,'STALE_AGENT_RESULT','생성 후 사건이 변경되었습니다. 변경 내용을 대조한 뒤 다시 검토하세요.')
+            fail(409,'STALE_AGENT_RESULT','생성 후 민원이 변경되었습니다. 변경 내용을 대조한 뒤 다시 검토하세요.')
         status = 'SUCCEEDED' if body.decision == 'ACCEPT' else 'CANCELLED'
         db.execute('UPDATE agent_runs SET status=?,step=?,reviewed_by=?,reviewed_case_version=?,updated_at=? WHERE id=?',
                    (status, 'reviewed', actor['user_id'],case['version'],now(),run_id))
@@ -284,10 +284,10 @@ def require_usable_result(db, actor, case, run_id, purpose):
     """Call inside A/B's own domain mutation before applying a reviewed proposal."""
     run, _ = run_access(db,actor,run_id)
     if run['case_id'] != case['id'] or run['purpose'] != purpose or run['status'] != 'SUCCEEDED':
-        fail(409,'AGENT_RESULT_NOT_READY','같은 사건의 검토 완료 결과를 선택하세요.')
+        fail(409,'AGENT_RESULT_NOT_READY','같은 민원의 검토 완료 결과를 선택하세요.')
     version = run['reviewed_case_version'] if run['reviewed_case_version'] is not None else run['input_case_version']
     if version != case['version']:
-        fail(409,'STALE_AGENT_RESULT','사건이 변경되어 결과를 다시 검토해야 합니다.')
+        fail(409,'STALE_AGENT_RESULT','민원이 변경되어 결과를 다시 검토해야 합니다.')
     if comparison_dependencies_stale(db,actor,run):
-        fail(409,'STALE_COMPARISON_INPUT','비교 사건이나 기준이 변경되어 다시 검토해야 합니다.')
+        fail(409,'STALE_COMPARISON_INPUT','비교 민원이나 기준이 변경되어 다시 검토해야 합니다.')
     return json.loads(run['result'])

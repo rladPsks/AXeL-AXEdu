@@ -461,7 +461,7 @@ def _legacy_create_case_endpoint(body: dict):
 def _legacy_complete_task_endpoint(case_id: str, task_id: str, body: dict):
     snapshot = get_case_snapshot(case_id)
     if not any(t.get("id") == task_id for t in snapshot.get("tasks", [])):
-        raise _LegacyHTTPException(status_code=404, detail="해당 사건의 업무를 찾을 수 없습니다.")
+        raise _LegacyHTTPException(status_code=404, detail="해당 민원의 업무를 찾을 수 없습니다.")
     return complete_task(task_id, body.get("result_text", ""), actor=body.get("actor", "unknown"))
 
 @app.get("/cases/{case_id}/explanation")

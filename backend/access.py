@@ -29,12 +29,12 @@ def accessible_case(db, actor, case_id):
                       (case_id, actor["school_id"])).fetchone()
     # Do not reveal whether an ID belongs to a different school.
     if case is None:
-        fail(404, "CASE_NOT_FOUND", "사건을 찾을 수 없습니다.")
+        fail(404, "CASE_NOT_FOUND", "민원을 찾을 수 없습니다.")
     if actor["role"] != "ADMIN" and not db.execute(
         "SELECT 1 FROM case_participants WHERE case_id=? AND user_id=?",
         (case_id, actor["user_id"]),
     ).fetchone():
-        fail(403, "CASE_FORBIDDEN", "이 사건에 접근할 권한이 없습니다.")
+        fail(403, "CASE_FORBIDDEN", "이 민원에 접근할 권한이 없습니다.")
     return case
 
 

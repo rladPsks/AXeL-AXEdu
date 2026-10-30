@@ -1,3 +1,4 @@
+import { personName } from "../../shared/names";
 import { useSession } from "../../app/providers";
 import type { CaseDetail, Member } from "../../lib/api/types";
 import { CommandForm } from "../../shared/CommandForm";
@@ -15,14 +16,14 @@ export function Handover({
     <>
       <h2>총괄 책임과 인계</h2>
       <p>
-        현재 총괄은 <strong>{record.owner_id}</strong>입니다. 지정 인수자가
-        수락하기 전까지 기존 총괄의 책임이 유지됩니다.
+        현재 총괄은 <strong>{personName(record.owner_id)}</strong>입니다. 지정
+        인수자가 수락하기 전까지 기존 총괄의 책임이 유지됩니다.
       </p>
       {record.handovers.map((h) => (
         <article key={h.id} className="work-item">
           <div className="item-top">
             <strong>
-              {h.from_owner_id} → {h.to_owner_id}
+              {personName(h.from_owner_id)} → {personName(h.to_owner_id)}
             </strong>
             <Badge value={h.status} />
           </div>
@@ -89,7 +90,9 @@ export function Handover({
                   (m) => m.role === "ADMIN" && m.user_id !== record.owner_id,
                 )
                 .map((m) => (
-                  <option key={m.user_id}>{m.user_id}</option>
+                  <option key={m.user_id} value={m.user_id}>
+                    {personName(m.user_id)}
+                  </option>
                 ))}
             </select>
           </label>
@@ -107,7 +110,7 @@ export function Handover({
           caseId={record.id}
           version={record.version}
           path={`/api/cases/${encodeURIComponent(record.id)}/reopen`}
-          button="사건 재개"
+          button="민원 재개"
         >
           <label>
             재개 사유
