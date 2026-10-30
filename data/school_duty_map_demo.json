@@ -30,5 +30,5 @@
     {"id":"kindergarten","label":"유치원","keywords":["유치원","유아학비"],"primary_role":"KINDER_TEACHER","collaborators":["KINDER_AFTERSCHOOL"],"approver":"VICE_PRINCIPAL","backup_role":"PRINCIPAL","callback_default":"UNDECIDED"}
   ],
   "roles": {
-    "PRINCIPAL":"교장","VICE_PRINCIPAL":"교감","HEAD_ACADEMIC_PLAN":"교무기획부장","HEAD_RESEARCH":"연구기획부장","HEAD_LIFE_PE":"생활체육부장","DUTY_READING_AUTONOMY":"독서자치 담당","DUTY_CAREER_FIELDTRIP":"진로체험 담당","DUTY_SAFETY_BASIC_MEAL":"안전기초급식 담당","DUTY_INFO_SCIENCE":"정보과학 담당","HEALTH_TEACHER":"보건교사","KINDER_TEACHER":"유치원 교사","KINDER_AFTERSCHOOL":"유치원 방과후과정","ADMIN_CHIEF":"행정실장","ADMIN_CIVIL":"주무관(민원·재산·기타)","ADMIN_FACILITY":"주무관(시설)","ACADEMIC_CLERK":"교무실무사","CARE_1_3":"돌봄전담사(1~3)","CARE_4_6":"돌봄전담사(4~6)","NEULBOM_CLERK":"늘봄실무사","HOMEROOM":"담임교사","complaint_response_team":"민원대응팀"}
+    "PRINCIPAL":"교장","VICE_PRINCIPAL":"교감","HEAD_ACADEMIC_PLAN":"교무부장","HEAD_RESEARCH":"연구기획부장","HEAD_LIFE_PE":"생활부장","DUTY_READING_AUTONOMY":"독서자치 담당","DUTY_CAREER_FIELDTRIP":"진로체험 담당","DUTY_SAFETY_BASIC_MEAL":"안전기초급식 담당","DUTY_INFO_SCIENCE":"정보과학 담당","HEALTH_TEACHER":"보건교사","KINDER_TEACHER":"유치원 교사","KINDER_AFTERSCHOOL":"유치원 방과후과정","ADMIN_CHIEF":"행정실장","ADMIN_CIVIL":"주무관(민원·재산·기타)","ADMIN_FACILITY":"주무관(시설)","ACADEMIC_CLERK":"교무실무사","CARE_1_3":"돌봄전담사(1~3)","CARE_4_6":"돌봄전담사(4~6)","NEULBOM_CLERK":"늘봄실무사","HOMEROOM":"담임교사","complaint_response_team":"민원대응팀"}
 }

@@ -12,6 +12,10 @@ export const channelName = (value: string) =>
 const people: Record<string, string> = {
   admin: "김○○ 교장",
   deputy: "이○○ 교감",
+  "academic-head": "박○○ 교무부장",
+  "office-head": "한○○ 행정실장",
+  "life-head": "윤○○ 생활부장",
+  "work-support": "오○○ 업무지원",
   teacher: "최○○ 교사",
   outsider: "정○○ 교사",
   "other-admin": "다른 학교 교장 선생님",
@@ -22,6 +26,7 @@ const people: Record<string, string> = {
 };
 export const personName = (id: string, fallback?: string) =>
   people[id] ?? fallback ?? id;
+export const dutyName = (name: string) => name.replaceAll("생활체육부장", "생활부장").replaceAll("생활인성부장", "생활부장").replaceAll("교무기획부장", "교무부장");
 export const caseName = (id: string) =>
   ({
     "demo-case": "상담 지원 민원",

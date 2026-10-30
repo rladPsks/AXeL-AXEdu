@@ -18,9 +18,9 @@ def seed(path, *, if_empty=False):
                     ("other-admin", "other-school", "ADMIN")]
         db.executemany("INSERT INTO memberships(user_id, school_id, role) VALUES (?, ?, ?)", accounts)
         responsibilities = [
-            ("resp-life", "demo-school", "생활체육부장", "deputy", "admin"),
+            ("resp-life", "demo-school", "생활부장", "deputy", "admin"),
             ("resp-home", "demo-school", "담임교사", "teacher", None),
-            ("resp-academic", "demo-school", "교무기획부장", "admin", "deputy"),
+            ("resp-academic", "demo-school", "교무부장", "admin", "deputy"),
             ("resp-admin", "demo-school", "주무관(민원·재산·기타)", "admin", "deputy"),
         ]
         db.executemany(

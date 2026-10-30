@@ -1,0 +1,9 @@
+/* Support team: decision → coordination → four cooperating roles. */
+.response-team.support-team-chart { grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 1120px; }
+.support-team-chart .team-node { position: relative; min-width: 0; }
+.support-team-chart .team-node:nth-child(n + 3)::before { content: ""; position: absolute; height: 28px; width: 1px; background: var(--line); top: -29px; left: 50%; }
+.support-team-chart .team-node:nth-child(n + 3) { border-top: 3px solid var(--green); }
+.support-team-chart .team-node strong { font-size: 18px; overflow-wrap: anywhere; }
+.support-recommendations { padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--green-soft); margin-bottom: 24px; }
+@media (max-width: 900px) { .response-team.support-team-chart { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .response-team.support-team-chart { grid-template-columns: 1fr; } .support-team-chart .team-node:nth-child(-n + 2) { width: 100%; } }

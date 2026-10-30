@@ -47,7 +47,13 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
     @asynccontextmanager
     async def lifespan(app):
         if os.getenv('SCHOOL_AGENT_AUTO_SEED','0')=='1':
-            seed(app.state.db.path,if_empty=True)
+            initial_seed = seed(app.state.db.path,if_empty=True)
+            if os.getenv('SCHOOL_AGENT_DEMO','0')=='1':
+                from .seed_support import seed_support
+                seed_support(app.state.db.path)
+                if initial_seed is not None:
+                    from .seed_complaints import seed_complaints
+                    seed_complaints(app.state.db.path)
         stop=Event()
         def deliver():
             while not stop.is_set():

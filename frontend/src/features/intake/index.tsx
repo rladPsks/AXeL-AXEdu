@@ -6,7 +6,7 @@ import { useScope, useSession } from "../../app/providers";
 import type { CaseDetail } from "../../lib/api/types";
 import { CommandForm } from "../../shared/CommandForm";
 import { koreanTime } from "../../shared/dates";
-import { channelName } from "../../shared/names";
+import { channelName, dutyName } from "../../shared/names";
 import { useUnsavedChanges } from "../../shared/useUnsavedChanges";
 import { ErrorNotice, date } from "../../shared/ui";
 
@@ -268,7 +268,7 @@ export function IntakeDetail({ caseId }: { caseId: string }) {
               <b>{index + 1}순위</b>
               <strong>
                 {roles[index]
-                  ? (labels[roles[index]] ?? roles[index])
+                  ? dutyName(labels[roles[index]] ?? roles[index])
                   : "학교 업무분장 확인 필요"}
               </strong>
               <span>{index === 0 ? "주 담당 추천" : "협조·대리 후보"}</span>

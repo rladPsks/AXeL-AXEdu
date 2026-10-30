@@ -1,4 +1,5 @@
-import { caseName, personName } from "../../shared/names";
+import "../school-support/support-team.css";
+import { caseName, personName, dutyName } from "../../shared/names";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useScope, useSession } from "../../app/providers";
@@ -49,32 +50,23 @@ function ResponseTeam({
   members,
   responsibilities,
 }: {
-  members: Member[];
+  members: Pick<Member, "user_id">[];
   responsibilities: Responsibility[];
 }) {
-  const named = (title: string) =>
-    members.filter((m) => personName(m.user_id).endsWith(title));
-  const duty = (title: string) =>
-    members.filter(
-      (m) =>
-        !/교장$|교감$/.test(personName(m.user_id)) &&
-        (personName(m.user_id).endsWith(title) ||
-          responsibilities.some(
-            (r) => r.user_id === m.user_id && r.label.includes(title),
-          )),
-    );
   const groups = [
-    { title: "팀장 · 교장", people: named("교장") },
-    { title: "총괄 · 교감", people: named("교감") },
-    { title: "행정실장", people: duty("행정실장") },
-    { title: "교무부장", people: duty("교무부장") },
-    { title: "생활인성부장", people: duty("생활인성부장") },
-  ];
+    { title: "팀장 · 교장", role: "교장", description: "최종 의사결정 · 교육활동 보호" },
+    { title: "총괄 · 교감", role: "교감", description: "민원 조정 · 지원 담당 연결" },
+    { title: "교무부장", role: "교무부장", description: "학사·수업 관련 확인과 지원" },
+    { title: "행정실장", role: "행정실장", description: "시설·행정·예산 관련 지원" },
+    { title: "생활부장", role: "생활부장", description: "생활지도·학생 갈등 공동 대응" },
+    { title: "업무지원", role: "업무지원", description: "자료 정리 · 일정·후속 업무 지원" },
+  ].map((group) => ({ ...group, people: members.filter((m) => responsibilities.some((r) => r.user_id === m.user_id && dutyName(r.label) === group.role)) }));
   return (
-    <div className="response-team" aria-label="민원대응팀 업무분장 조직도">
+    <div className="response-team support-team-chart" aria-label="민원대응팀 업무분장 조직도">
       {groups.map((group) => (
         <section className="team-node" key={group.title}>
           <h3>{group.title}</h3>
+          <p className="hint">{group.description}</p>
           {group.people.length === 0 ? (
             <p className="hint">등록된 구성원이 없어요</p>
           ) : (
@@ -86,7 +78,7 @@ function ResponseTeam({
                     .filter((r) => r.user_id === member.user_id)
                     .map((r) => (
                       <li key={r.id}>
-                        {r.label.replace("생활체육부장", "생활인성부장")}
+                        {dutyName(r.label)}
                       </li>
                     ))}
                 </ul>
@@ -408,7 +400,7 @@ export function SchoolSettings() {
           config.responsibilities.map((item) => (
             <article className="work-item" key={item.id}>
               <div className="item-top">
-                <strong>{item.label}</strong>
+                <strong>{dutyName(item.label)}</strong>
                 <span className="badge">
                   {item.active ? "사용 중" : "해제됨"}
                 </span>
@@ -546,6 +538,13 @@ export function SchoolContacts() {
     <>
       <h1>학교 지원 담당</h1>
       <p>업무분장과 학교의 지원 담당을 확인하세요.</p>
+      {contacts.data?.length ? <section className="panel">
+        <h2>학교 지원 담당 연결도</h2>
+        <p className="hint">교장이 최종 판단하고 교감이 지원을 조정합니다. 업무별 담당자는 함께 협조하며, 등록된 학교 업무분장을 표시합니다.</p>
+        <ResponseTeam members={[...new Set(contacts.data.map((c) => c.user_id))].map((user_id) => ({ user_id }))} responsibilities={contacts.data} />
+      </section> : null}
+      <details open={!!contacts.error || contacts.data?.length === 0}>
+      <summary>업무별 담당·대리자 상세 보기</summary>
       <section className="contact-grid" aria-label="업무별 지원 담당">
         {contacts.isPending ? (
           <p>불러오는 중…</p>
@@ -556,7 +555,7 @@ export function SchoolContacts() {
         ) : (
           contacts.data.map((item) => (
             <article className="panel contact-card" key={item.id}>
-              <h2>{item.label}</h2>
+              <h2>{dutyName(item.label)}</h2>
               <p>
                 담당 {personName(item.user_id)} · 업무 대리{" "}
                 {personName(item.substitute_id ?? "미지정")}
@@ -569,6 +568,7 @@ export function SchoolContacts() {
           ))
         )}
       </section>
+      </details>
     </>
   );
 }

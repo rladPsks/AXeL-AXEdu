@@ -1,8 +1,12 @@
+import "../school-support/support-team.css";
 import { personName } from "../../shared/names";
-import { useSession } from "../../app/providers";
+import { useScope, useSession } from "../../app/providers";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { recommendSupport, type SupportContact, type SupportIntake } from "./recommendations";
 import type { CaseDetail, Member } from "../../lib/api/types";
 import { CommandForm } from "../../shared/CommandForm";
-import { Badge, Empty, label } from "../../shared/ui";
+import { Badge, Empty, ErrorNotice, label } from "../../shared/ui";
 
 export function SchoolSupport({
   record,
@@ -11,8 +15,13 @@ export function SchoolSupport({
   record: CaseDetail;
   members: Member[];
 }) {
-  const { session } = useSession();
+  const { api, session } = useSession();
+  const scope = useScope();
+  const [selected, setSelected] = useState("");
   const admins = members.filter((m) => m.role === "ADMIN");
+  const contacts = useQuery({ queryKey: ["school-contacts", ...scope], queryFn: ({ signal }) => api.get<SupportContact[]>("/api/school/contacts", signal) });
+  const intake = useQuery({ queryKey: ["intake", ...scope, record.id], queryFn: ({ signal }) => api.get<SupportIntake>(`/api/cases/${encodeURIComponent(record.id)}/intake`, signal), retry: false });
+  const recommendations = recommendSupport(intake.data, contacts.data ?? [], admins.map((m) => m.user_id));
   return (
     <>
       <div className="section-heading">
@@ -22,6 +31,18 @@ export function SchoolSupport({
       <p className="hint">
         동석과 공동 대응이 필요할 때 학교의 지원을 요청하세요.
       </p>
+      <section className="support-recommendations" aria-label="지원 요청 대상 추천">
+        <h3>이 민원은 누구에게 지원을 요청하면 좋을까요?</h3>
+        <p className="meta">요청자: {personName(session.user_id)} · 추천은 민원 유형과 학교 업무분장 기준입니다.</p>
+        {contacts.error ? <ErrorNotice error={contacts.error} /> : null}
+        {intake.error ? <p className="hint">분류 기록을 불러오지 못해 추천을 표시하지 못했습니다. 아래에서 지원 담당자를 직접 선택할 수 있습니다.</p> : null}
+        {contacts.isPending || intake.isPending ? <p role="status">지원 담당자를 확인하는 중…</p> : recommendations.length ? (
+          <ol className="routing-ranks">{recommendations.map((candidate, index) => <li key={candidate.user_id}>
+            <b>{index + 1}순위 · {candidate.role}</b><strong>{personName(candidate.user_id)}</strong><span>{candidate.reason}</span>
+            {record.status === "OPEN" ? <button type="button" onClick={() => { setSelected(candidate.user_id); document.querySelector<HTMLSelectElement>('select[name="coordinator_id"]')?.focus(); }}>이 담당자 선택</button> : null}
+          </li>)}</ol>
+        ) : !intake.error ? <p className="hint">일치하는 활성 담당자가 없습니다. 학교 업무분장을 확인하고 직접 선택해 주세요.</p> : null}
+      </section>
       {record.support_requests.length === 0 ? (
         <Empty>등록된 지원 요청이 없습니다.</Empty>
       ) : (
@@ -115,10 +136,10 @@ export function SchoolSupport({
                 </select>
               </label>
               <label>
-                지원 담당
-                <select required name="coordinator_id" defaultValue="">
+                업무지원자
+                <select required name="coordinator_id" value={selected} onChange={(event) => setSelected(event.target.value)}>
                   <option value="" disabled>
-                    관리자 선택
+                    지원 담당자 선택
                   </option>
                   {admins.map((m) => (
                     <option key={m.user_id} value={m.user_id}>
