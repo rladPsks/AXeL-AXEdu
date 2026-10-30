@@ -249,3 +249,63 @@ def test_product_explanation_hides_raw_rag_fields(monkeypatch, tmp_path: Path):
     assert view["official_basis"][0]["location"] == "제25조"
     assert "score" not in view["official_basis"][0]
     assert "text" not in view["official_basis"][0]
+
+
+def test_product_explanation_separates_claims_and_suppresses_irrelevant_policy(monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "explanation-claims.sqlite3")
+    monkeypatch.setattr(workflow, "init_db", db.init_db)
+    db.init_db()
+
+    result = {
+        "classification": {
+            "nature": "COMPLAINT",
+            "category": "STAFF",
+            "domain_p55": "생활지도/상담",
+            "urgency": "LOW",
+            "classifier_mode": "LLM",
+            "special_codes": [],
+            "infringement_flags": [],
+        },
+        "routing": {"suggested_owner": "complaint_response_team"},
+        "response_draft": "초안",
+    }
+    db.create_case_record(
+        "CASE-C",
+        {"text": "우리 아이만 계속 혼난다고 합니다.", "channel": "web"},
+        result,
+        status="RESPONSE_REVIEW",
+        owner_role="complaint_response_team",
+        next_action="RESPONSE_REVIEW",
+    )
+    db.save_ai_run("CASE-C", "POST_TASK_REVIEW", {"text": "질문"}, {
+        "classification": {
+            "stage_reason": "사실 확인 진행",
+            "urgency_reason": "긴급 위험 없음",
+        },
+        "routing": {},
+        "response_generation": {
+            "basis_summary": [
+                "확인된 사실: 10월 29일 수업 중 자리 이탈 3회.",
+                "민원인은 자녀만 계속 혼난다고 주장함.",
+            ],
+            "missing_information": [],
+            "claims_requiring_review": [],
+        },
+        "evidence": [{
+            "title": "학교민원 처리 매뉴얼",
+            "source_id": "MOE-MANUAL-2026",
+            "source_type": "official_manual",
+            "pdf_page": 23,
+            "text": "원문",
+        }],
+    })
+    monkeypatch.setattr(workflow, "review_case_history", lambda case_id: {
+        "history_action": "NONE",
+        "reason": "이력 없음",
+        "related_count": 0,
+        "comparison_summary": None,
+    })
+    view = workflow.get_case_explanation("CASE-C")
+    assert view["facts"]["confirmed"] == ["확인된 사실: 10월 29일 수업 중 자리 이탈 3회."]
+    assert view["facts"]["complainant_claims"] == ["민원인은 자녀만 계속 혼난다고 주장함."]
+    assert view["official_basis"] == []

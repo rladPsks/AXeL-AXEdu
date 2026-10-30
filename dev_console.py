@@ -220,6 +220,12 @@ if snapshot:
             if not facts.get("confirmed"):
                 st.write("- 현재 사건에서 별도 확인 사실 없음")
 
+            st.write("**보호자 주장 / 요청**")
+            for item in facts.get("complainant_claims") or []:
+                st.write(f"- {item}")
+            if not facts.get("complainant_claims"):
+                st.write("- 별도 주장 항목 없음")
+
             st.write("**추가 확인 필요**")
             for item in facts.get("needs_confirmation") or []:
                 st.write(f"- {item}")

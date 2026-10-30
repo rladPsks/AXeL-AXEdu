@@ -432,7 +432,15 @@ def get_case_explanation(case_id: str) -> dict[str, Any]:
             break
 
     response_basis = raw.get("response_basis") or {}
-    confirmed = list(response_basis.get("basis_summary") or [])
+    basis_items = list(response_basis.get("basis_summary") or [])
+    confirmed = [
+        x for x in basis_items
+        if not any(marker in str(x) for marker in ("민원인은", "보호자는", "주장", "요청함"))
+    ]
+    complainant_claims = [
+        x for x in basis_items
+        if any(marker in str(x) for marker in ("민원인은", "보호자는", "주장", "요청함"))
+    ]
     missing = list(response_basis.get("missing_information") or [])
     review_claims = list(response_basis.get("claims_requiring_review") or [])
 
@@ -464,10 +472,18 @@ def get_case_explanation(case_id: str) -> dict[str, Any]:
         },
         "facts": {
             "confirmed": confirmed,
+            "complainant_claims": complainant_claims,
             "needs_confirmation": missing,
             "human_review": review_claims,
         },
-        "official_basis": official_sources,
+        "official_basis": (
+            official_sources
+            if cls.get("nature") == "INFO_REQUEST"
+            or cls.get("urgency") == "HIGH"
+            or cls.get("special_codes")
+            or cls.get("infringement_flags")
+            else []
+        ),
         "history": history_card,
         "safety": {
             "human_review_required": True,
