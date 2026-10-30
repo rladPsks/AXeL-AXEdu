@@ -185,13 +185,62 @@ if snapshot:
     )
 
     st.subheader("4-1. AI 판단·답변 근거")
-    if st.button("근거 불러오기"):
-        try:
-            st.session_state["evidence_view"] = api(
-                "GET", f"/cases/{case['id']}/evidence"
-            )
-        except Exception as exc:
-            st.error(str(exc))
+    c_product, c_raw = st.columns(2)
+    with c_product:
+        if st.button("제품용 근거 카드 불러오기"):
+            try:
+                st.session_state["explanation_view"] = api(
+                    "GET", f"/cases/{case['id']}/explanation"
+                )
+            except Exception as exc:
+                st.error(str(exc))
+    with c_raw:
+        if st.button("개발용 raw 근거 불러오기"):
+            try:
+                st.session_state["evidence_view"] = api(
+                    "GET", f"/cases/{case['id']}/evidence"
+                )
+            except Exception as exc:
+                st.error(str(exc))
+
+    explanation_view = st.session_state.get("explanation_view")
+    if explanation_view:
+        with st.expander("제품용 설명 카드", expanded=True):
+            judgment = explanation_view.get("judgment") or {}
+            st.write(f"**분류**: {judgment.get('category') or '-'}")
+            st.write(f"**긴급도**: {judgment.get('urgency') or '-'}")
+            st.write("**왜 이렇게 판단했나요?**")
+            for item in judgment.get("why") or []:
+                st.write(f"- {item}")
+
+            facts = explanation_view.get("facts") or {}
+            st.write("**확인된 사실**")
+            for item in facts.get("confirmed") or []:
+                st.write(f"- {item}")
+            if not facts.get("confirmed"):
+                st.write("- 현재 사건에서 별도 확인 사실 없음")
+
+            st.write("**추가 확인 필요**")
+            for item in facts.get("needs_confirmation") or []:
+                st.write(f"- {item}")
+            if not facts.get("needs_confirmation"):
+                st.write("- 없음")
+
+            st.write("**공식 근거**")
+            for item in explanation_view.get("official_basis") or []:
+                location = f" · {item.get('location')}" if item.get("location") else ""
+                st.write(f"- {item.get('title')} ({item.get('authority')}){location}")
+            if not explanation_view.get("official_basis"):
+                st.write("- 이번 판단에 사용된 외부 공식 근거 없음")
+
+            history_card = explanation_view.get("history") or {}
+            st.write("**반복·누적 맥락**")
+            st.write(f"- {history_card.get('label')}")
+            if history_card.get("reason"):
+                st.caption(history_card.get("reason"))
+
+            safety = explanation_view.get("safety") or {}
+            st.info(safety.get("note") or "")
 
     evidence_view = st.session_state.get("evidence_view")
     if evidence_view:

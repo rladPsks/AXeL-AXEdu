@@ -46,3 +46,20 @@ def test_complete_task_rejects_task_from_other_case(monkeypatch):
         json={"result_text": "확인했습니다.", "actor": "homeroom_teacher"},
     )
     assert response.status_code == 404
+
+
+
+def test_explanation_endpoint(monkeypatch):
+    fake = {
+        "case_id": "CASE-1",
+        "judgment": {"category": "생활지도/상담", "urgency": "LOW", "why": ["사실 확인 요청"]},
+        "facts": {"confirmed": [], "needs_confirmation": [], "human_review": []},
+        "official_basis": [],
+        "history": {"status": "NONE", "label": "반복 이력 특이사항 없음"},
+        "safety": {"human_review_required": True, "auto_send": False},
+    }
+    monkeypatch.setattr(backend_main, "get_case_explanation", lambda case_id: fake)
+    client = TestClient(backend_main.app)
+    response = client.get("/cases/CASE-1/explanation")
+    assert response.status_code == 200
+    assert response.json()["safety"]["auto_send"] is False

@@ -376,3 +376,102 @@ def get_case_evidence(case_id: str) -> dict[str, Any]:
             "ready_for_human_review": response_generation.get("ready_for_human_review"),
         },
     }
+
+
+
+def get_case_explanation(case_id: str) -> dict[str, Any]:
+    """제품 UI용 설명 가능한 근거 카드.
+
+    raw DB/검색 점수/전체 chunk를 노출하지 않고, 사람이 판단을 검토하는 데 필요한
+    최소 근거만 구조화한다. 개발용 상세 정보는 get_case_evidence()를 사용한다.
+    """
+    init_db()
+    case = get_case(case_id)
+    if case is None:
+        raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
+
+    raw = get_case_evidence(case_id)
+    cls = json.loads(case.get("classification_json") or "{}")
+    history = review_case_history(case_id)
+
+    official_sources = []
+    seen = set()
+    for item in raw.get("evidence", []):
+        key = (
+            item.get("source_id"),
+            item.get("article"),
+            item.get("pdf_page"),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        source_type = item.get("source_type")
+        if source_type == "legacy_operational_guidance":
+            authority_note = "보조 운영 참고"
+        elif source_type in {"law", "decree", "local_rule"}:
+            authority_note = "법령 근거"
+        elif source_type == "official_manual":
+            authority_note = "공식 매뉴얼"
+        elif source_type == "policy_plan":
+            authority_note = "정책 참고"
+        else:
+            authority_note = "공식 참고자료"
+
+        location = item.get("article")
+        if not location and item.get("printed_page"):
+            location = f"인쇄 p.{item.get('printed_page')}"
+        elif not location and item.get("pdf_page"):
+            location = f"PDF p.{item.get('pdf_page')}"
+
+        official_sources.append({
+            "title": item.get("title") or item.get("source_id"),
+            "location": location,
+            "authority": authority_note,
+        })
+        if len(official_sources) >= 4:
+            break
+
+    response_basis = raw.get("response_basis") or {}
+    confirmed = list(response_basis.get("basis_summary") or [])
+    missing = list(response_basis.get("missing_information") or [])
+    review_claims = list(response_basis.get("claims_requiring_review") or [])
+
+    history_card = {
+        "status": history.get("history_action", "NONE"),
+        "label": {
+            "LINK_UNRESOLVED": "이전 미해결 사건 연결 필요",
+            "REVIEW_FOLLOW_UP": "새 사실·요구가 있는 후속 민원",
+            "REVIEW_REPEAT": "동일 요구 반복 후보",
+            "NONE": "반복 이력 특이사항 없음",
+        }.get(history.get("history_action"), "반복 이력 검토 필요"),
+        "reason": history.get("reason"),
+        "related_count": history.get("related_count", 0),
+        "new_information": history.get("comparison_summary") or {},
+    }
+
+    return {
+        "case_id": case_id,
+        "judgment": {
+            "category": cls.get("domain_p55") or cls.get("category"),
+            "nature": cls.get("nature"),
+            "urgency": cls.get("urgency"),
+            "why": [
+                x for x in [
+                    raw.get("classification_basis", {}).get("stage_reason"),
+                    raw.get("classification_basis", {}).get("urgency_reason"),
+                ] if x
+            ],
+        },
+        "facts": {
+            "confirmed": confirmed,
+            "needs_confirmation": missing,
+            "human_review": review_claims,
+        },
+        "official_basis": official_sources,
+        "history": history_card,
+        "safety": {
+            "human_review_required": True,
+            "auto_send": False,
+            "note": "AI는 판단 근거와 초안을 제안하며, 최종 회신·법적 판단·제재·외부 이관은 담당자가 확인합니다.",
+        },
+    }

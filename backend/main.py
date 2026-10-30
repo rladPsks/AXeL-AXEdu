@@ -11,6 +11,7 @@ from agent.workflow import (
     generate_support_report,
     get_case_snapshot,
     get_case_evidence,
+    get_case_explanation,
     request_support,
     review_case_history,
 )
@@ -98,6 +99,13 @@ def create_app() -> FastAPI:
     def evidence_endpoint(case_id: str) -> dict:
         try:
             return get_case_evidence(case_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.get("/cases/{case_id}/explanation")
+    def explanation_endpoint(case_id: str) -> dict:
+        try:
+            return get_case_explanation(case_id)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 

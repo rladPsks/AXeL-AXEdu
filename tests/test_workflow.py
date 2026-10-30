@@ -194,3 +194,58 @@ def test_action_router_creates_history_task_for_follow_up():
     history = [x for x in actions if x["task_type"] == "HISTORY_REVIEW"]
     assert len(history) == 1
     assert "후속 민원" in history[0]["reason"]
+
+
+
+def test_product_explanation_hides_raw_rag_fields(monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "explanation.sqlite3")
+    monkeypatch.setattr(workflow, "init_db", db.init_db)
+    db.init_db()
+
+    result = {
+        "classification": {
+            "nature": "INFO_REQUEST",
+            "category": "INFO",
+            "domain_p55": "학교 운영",
+            "urgency": "LOW",
+            "classifier_mode": "LLM",
+        },
+        "routing": {"suggested_owner": "complaint_response_team"},
+        "response_draft": "검토용 초안",
+    }
+    db.create_case_record(
+        "CASE-X",
+        {"text": "교육활동 침해 시 조치는?", "channel": "web"},
+        result,
+        status="RESPONSE_REVIEW",
+        owner_role="complaint_response_team",
+        next_action="RESPONSE_REVIEW",
+    )
+    db.save_ai_run("CASE-X", "INITIAL_TRIAGE", {"text": "질문"}, {
+        "classification": {
+            "stage_reason": "일반 절차 문의",
+            "urgency_reason": "긴급 위험 없음",
+        },
+        "routing": {},
+        "evidence": [{
+            "title": "교원지위법",
+            "source_id": "LAW-X",
+            "source_type": "law",
+            "article": "제25조",
+            "pdf_page": 9,
+            "score": 99.9,
+            "verification_status": "pending",
+            "text": "아주 긴 원문 청크",
+        }],
+    })
+    monkeypatch.setattr(workflow, "review_case_history", lambda case_id: {
+        "history_action": "NONE",
+        "reason": "이력 없음",
+        "related_count": 0,
+        "comparison_summary": None,
+    })
+    view = workflow.get_case_explanation("CASE-X")
+    assert view["official_basis"][0]["title"] == "교원지위법"
+    assert view["official_basis"][0]["location"] == "제25조"
+    assert "score" not in view["official_basis"][0]
+    assert "text" not in view["official_basis"][0]
