@@ -1,13 +1,12 @@
 """PDF, HWPX, HTML 원본 문서 파서.
 
-원칙:
-- 추출한 원문을 요약하거나 문장을 고쳐 쓰지 않습니다.
-- PDF는 실제 PDF 페이지를, HWPX는 구역(section)을 위치 정보로 보존합니다.
-- 텍스트가 거의 없는 페이지는 OCR하지 않고 검토 대상으로 표시합니다.
+원문을 요약하거나 문장을 고쳐 쓰지 않습니다. 위치와 추출 경고를 함께 보존합니다.
+PDF의 페이지 번호와 HWPX의 구역 번호는 서로 다른 개념으로 관리합니다.
 """
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import zipfile
 from datetime import datetime, timezone
@@ -16,7 +15,7 @@ from typing import Any
 import xml.etree.ElementTree as ET
 
 SUPPORTED_EXTENSIONS = {".pdf", ".hwpx", ".html", ".htm"}
-PARSER_VERSION = "0.1.0"
+PARSER_VERSION = "0.1.1"
 
 
 def sha256_file(path: Path) -> str:
@@ -28,14 +27,10 @@ def sha256_file(path: Path) -> str:
 
 
 def load_sidecar_metadata(path: Path) -> dict[str, Any]:
-    """문서 옆의 <파일명>.<확장자>.meta.json 또는 <파일명>.meta.json을 읽습니다."""
-    candidates = [
-        path.with_name(path.name + ".meta.json"),
-        path.with_suffix(".meta.json"),
-    ]
+    """<파일명>.<확장자>.meta.json 또는 <파일명>.meta.json을 읽습니다."""
+    candidates = [path.with_name(path.name + ".meta.json"), path.with_suffix(".meta.json")]
     for candidate in candidates:
         if candidate.exists():
-            import json
             try:
                 value = json.loads(candidate.read_text(encoding="utf-8"))
             except (OSError, ValueError) as exc:
@@ -47,7 +42,6 @@ def load_sidecar_metadata(path: Path) -> dict[str, Any]:
 
 
 def _base_document(path: Path, metadata: dict[str, Any], file_type: str) -> dict[str, Any]:
-    now = datetime.now(timezone.utc).isoformat()
     return {
         "document_id": str(metadata.get("source_id") or path.stem),
         "title": str(metadata.get("title") or path.stem),
@@ -62,7 +56,7 @@ def _base_document(path: Path, metadata: dict[str, Any], file_type: str) -> dict
         "file_type": file_type,
         "file_sha256": sha256_file(path),
         "parser_version": PARSER_VERSION,
-        "parsed_at": now,
+        "parsed_at": datetime.now(timezone.utc).isoformat(),
         "pages": [],
         "warnings": [],
     }
@@ -73,7 +67,7 @@ def _clean_table(table: list[list[Any]] | None) -> list[list[str]]:
         return []
     cleaned = []
     for row in table:
-        cells = [re.sub(r"\\s+", " ", str(cell or "")).strip() for cell in row]
+        cells = [re.sub(r"\s+", " ", str(cell or "")).strip() for cell in row]
         if any(cells):
             cleaned.append(cells)
     return cleaned
@@ -86,37 +80,42 @@ def parse_pdf(path: Path, metadata: dict[str, Any] | None = None,
     except ImportError as exc:
         raise RuntimeError("PDF 파싱에는 PyMuPDF가 필요합니다. pip install PyMuPDF") from exc
 
-    metadata = metadata or {}
-    document = _base_document(path, metadata, "pdf")
+    document = _base_document(path, metadata or {}, "pdf")
     table_pages: dict[int, list[list[list[str]]]] = {}
+
     if extract_tables:
         try:
             import pdfplumber
             with pdfplumber.open(str(path)) as pdf:
-                for index, page in enumerate(pdf.pages, start=1):
+                for page_number, page in enumerate(pdf.pages, start=1):
                     extracted = []
                     for table in page.extract_tables() or []:
                         cleaned = _clean_table(table)
                         if cleaned:
                             extracted.append(cleaned)
                     if extracted:
-                        table_pages[index] = extracted
-        except Exception as exc:  # 표 추출 실패는 본문 파싱 실패로 처리하지 않습니다.
-            document["warnings"].append(f"표 추출을 완료하지 못했습니다: {type(exc).__name__}: {exc}")
+                        table_pages[page_number] = extracted
+        except Exception as exc:
+            document["warnings"].append(
+                f"표 추출 경고: {type(exc).__name__}: {exc}. 본문 텍스트는 별도로 추출했습니다."
+            )
 
     with fitz.open(path) as pdf:
+        if pdf.is_encrypted and not pdf.authenticate(""):
+            raise ValueError("암호가 설정된 PDF입니다. 암호를 해제한 사본을 사용하세요.")
         document["page_count"] = pdf.page_count
-        for index, page in enumerate(pdf, start=1):
-            text = page.get_text("text", sort=True) or ""
-            text = text.replace("\x00", "").strip()
+        for page_number, page in enumerate(pdf, start=1):
+            text = (page.get_text("text", sort=True) or "").replace("\x00", "").strip()
             warnings = []
             if len(text) < min_text_chars:
-                warnings.append("텍스트가 거의 없습니다. 이미지 기반 문서일 수 있어 원본 페이지 확인 또는 OCR이 필요합니다.")
+                warnings.append(
+                    "텍스트가 거의 없습니다. 이미지 기반 페이지일 수 있으므로 원본 확인 또는 별도 OCR이 필요합니다."
+                )
             document["pages"].append({
-                "page_number": index,
+                "page_number": page_number,
                 "section_number": None,
                 "text": text,
-                "tables": table_pages.get(index, []),
+                "tables": table_pages.get(page_number, []),
                 "char_count": len(text),
                 "extraction_method": "pymupdf",
                 "warnings": warnings,
@@ -169,28 +168,29 @@ def _parse_hwpx_section(xml_bytes: bytes) -> tuple[str, list[list[list[str]]]]:
             for cell in row.iter():
                 if _local_name(cell.tag) in {"tc", "cell"}:
                     cell_text = _element_text(cell)
-                    cells.append(re.sub(r"\\s+", " ", cell_text).strip())
+                    cells.append(re.sub(r"\s+", " ", cell_text).strip())
             if any(cells):
                 rows.append(cells)
         if rows:
             tables.append(rows)
-    return "\\n".join(paragraphs), tables
+    return "\n".join(paragraphs), tables
 
 
 def parse_hwpx(path: Path, metadata: dict[str, Any] | None = None,
                min_text_chars: int = 20) -> dict[str, Any]:
-    metadata = metadata or {}
-    document = _base_document(path, metadata, "hwpx")
+    document = _base_document(path, metadata or {}, "hwpx")
     try:
         with zipfile.ZipFile(path) as archive:
-            names = archive.namelist()
             section_names = [
-                name for name in names
-                if re.fullmatch(r"Contents/section\\d+\\.xml", name, flags=re.IGNORECASE)
+                name for name in archive.namelist()
+                if re.fullmatch(r"Contents/section\d+\.xml", name, flags=re.IGNORECASE)
             ]
-            section_names.sort(key=lambda name: int(re.search(r"section(\\d+)", name, re.IGNORECASE).group(1)))
+            section_names.sort(
+                key=lambda name: int(re.search(r"section(\d+)", name, re.IGNORECASE).group(1))
+            )
             if not section_names:
                 raise ValueError("HWPX 내부에서 Contents/section*.xml 파일을 찾지 못했습니다.")
+
             for section_index, name in enumerate(section_names, start=1):
                 text, tables = _parse_hwpx_section(archive.read(name))
                 warnings = []
@@ -208,8 +208,11 @@ def parse_hwpx(path: Path, metadata: dict[str, Any] | None = None,
                 })
     except zipfile.BadZipFile as exc:
         raise ValueError(f"유효한 HWPX 압축 문서가 아닙니다: {path}") from exc
+
     document["section_count"] = len(document["pages"])
-    document["warnings"].append("HWPX 구역은 실제 인쇄 페이지와 일치하지 않을 수 있습니다. 페이지 단위 인용이 필요한 경우 PDF 변환본과 대조하세요.")
+    document["warnings"].append(
+        "HWPX 구역은 실제 인쇄 페이지와 일치하지 않을 수 있습니다. 페이지 단위 인용은 PDF 변환본과 대조하세요."
+    )
     return document
 
 
@@ -219,24 +222,20 @@ def parse_html(path: Path, metadata: dict[str, Any] | None = None) -> dict[str, 
     except ImportError as exc:
         raise RuntimeError("HTML 파싱에는 beautifulsoup4가 필요합니다.") from exc
 
-    metadata = metadata or {}
-    document = _base_document(path, metadata, "html")
-    html = path.read_text(encoding="utf-8", errors="replace")
-    soup = BeautifulSoup(html, "html.parser")
+    document = _base_document(path, metadata or {}, "html")
+    soup = BeautifulSoup(path.read_text(encoding="utf-8", errors="replace"), "html.parser")
     for tag in soup(["script", "style", "noscript", "nav", "footer"]):
         tag.decompose()
 
-    title = soup.title.get_text(" ", strip=True) if soup.title else None
-    if title and not metadata.get("title"):
-        document["title"] = title
+    if soup.title and not (metadata or {}).get("title"):
+        document["title"] = soup.title.get_text(" ", strip=True)
 
     body = soup.body or soup
-    blocks = []
-    for element in body.find_all(["h1", "h2", "h3", "h4", "p", "li"]):
-        text = element.get_text(" ", strip=True)
-        if text:
-            blocks.append(text)
-
+    blocks = [
+        element.get_text(" ", strip=True)
+        for element in body.find_all(["h1", "h2", "h3", "h4", "p", "li"])
+    ]
+    blocks = [text for text in blocks if text]
     tables = []
     for table in body.find_all("table"):
         rows = []
@@ -247,7 +246,7 @@ def parse_html(path: Path, metadata: dict[str, Any] | None = None) -> dict[str, 
         if rows:
             tables.append(rows)
 
-    text = "\\n".join(blocks)
+    text = "\n".join(blocks)
     document["pages"].append({
         "page_number": None,
         "section_number": None,
@@ -257,12 +256,16 @@ def parse_html(path: Path, metadata: dict[str, Any] | None = None) -> dict[str, 
         "extraction_method": "beautifulsoup",
         "warnings": [],
     })
-    document["warnings"].append("HTML 문서는 고정 페이지가 없으므로 페이지 인용 대신 제목·문서 URL·문단 위치를 사용해야 합니다.")
+    document["warnings"].append(
+        "HTML 문서는 고정 페이지가 없으므로 페이지 대신 문서 제목·URL·문단 위치를 인용해야 합니다."
+    )
     return document
 
 
 def parse_document(path: Path, metadata: dict[str, Any] | None = None,
                    min_text_chars: int = 20, extract_tables: bool = True) -> dict[str, Any]:
+    if not path.exists() or not path.is_file():
+        raise FileNotFoundError(f"문서 파일이 없습니다: {path}")
     suffix = path.suffix.lower()
     if suffix == ".pdf":
         return parse_pdf(path, metadata, min_text_chars, extract_tables)

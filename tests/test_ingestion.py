@@ -12,8 +12,8 @@ def test_law_chunker_keeps_article_text_and_location():
         "title": "테스트 법령",
         "source_type": "law",
         "pages": [
-            {"page_number": 1, "text": "제1조(목적) 이 법은 목적을 정한다.\\n① 첫 번째 항이다."},
-            {"page_number": 2, "text": "제2조(정의) 이 법에서 사용하는 용어의 뜻은 다음과 같다."},
+            {"page_number": 1, "text": "제1조(목적) 이 법은 목적을 정한다.\n① 첫 번째 항이다."},
+            {"page_number": 2, "text": "제2조(정의)\n이 법에서 사용하는 용어의 뜻은 다음과 같다."},
         ],
         "warnings": [],
     }
@@ -61,7 +61,6 @@ def test_sidecar_metadata_is_applied(tmp_path: Path):
     sidecar = tmp_path / "source.html.meta.json"
     sidecar.write_text(json.dumps({"source_id": "DOC-01", "source_type": "school_policy"}), encoding="utf-8")
     from ingestion.parsers import load_sidecar_metadata
-    from ingestion.parsers import parse_document
     parsed = parse_document(path, load_sidecar_metadata(path))
     assert parsed["document_id"] == "DOC-01"
     assert parsed["source_type"] == "school_policy"
