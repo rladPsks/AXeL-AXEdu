@@ -178,6 +178,9 @@ def create_intake(body: IntakeCreate, request: Request):
         cls["history_reason"] = history_review["reason"]
         cls["follow_up_candidate"] = history_review["follow_up_candidate"]
         actions = decide_actions(cls, routing, evidence)
+        # Persist the enriched classification too, not only the initial classifier output.
+        db.execute("UPDATE case_intakes SET classification_json=? WHERE case_id=?",
+                   (json.dumps(cls, ensure_ascii=False), case_id))
         initial_draft = draft_information_reply(analysis_text, evidence) if cls.get("is_informational") else ""
         initial_validation = validate_response(draft=initial_draft, evidence=evidence, classification=cls)
         workflow = {

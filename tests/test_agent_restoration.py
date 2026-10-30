@@ -38,3 +38,12 @@ def test_support_report_accepts_integrated_b_shape():
     })
     assert report["report_status"] == "DRAFT"
     assert "자동 제출" in report["notice"]
+
+def test_support_report_handles_pending_b_task_shape():
+    report = build_support_report({
+        "case":{"id":"c","status":"OPEN","owner_id":"admin","title":"민원"},
+        "tasks":[{"type":"FACT_CHECK","assignee_id":"teacher","status":"REQUESTED","question":"확인"}],
+        "events":[],"support_requests":[],
+    })
+    assert report["pending_work"][0]["task_type"] == "FACT_CHECK"
+    assert report["pending_work"][0]["assignee_role"] == "teacher"
