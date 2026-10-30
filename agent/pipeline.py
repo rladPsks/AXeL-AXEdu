@@ -2,6 +2,7 @@ from typing import Any
 from .classify import classify_complaint
 from .draft import draft_information_reply, teacher_card
 from .knowledge import retrieve
+from .multilingual import translate_from_korean, translate_to_korean
 from .rules import apply_rules
 from .routing import route_case
 from .validator import validate_response
@@ -50,11 +51,15 @@ def _allowed_source_types(cls: dict[str, Any], text: str) -> set[str] | None:
 
 
 def process(complaint: dict[str, Any], history: list[dict[str, Any]] | None = None) -> dict[str, Any]:
-    text = str(complaint.get("text", "")).strip()
-    if not text:
+    original_text = str(complaint.get("text", "")).strip()
+    if not original_text:
         raise ValueError("민원 내용이 비어 있습니다.")
 
+    language_support = translate_to_korean(original_text)
+    text = language_support["translated_text_ko"]
     cls = apply_rules(classify_complaint(text), history or [])
+    cls["original_language"] = language_support.get("detected_language", "unknown")
+    cls["translation_mode"] = language_support.get("translation_mode", "NOT_NEEDED")
     cls["core_demand"] = _derive_core_demand(text, cls)
     cls["handling_route"] = _derive_handling_route(cls)
     cls["escalation_level"] = {
@@ -79,6 +84,14 @@ def process(complaint: dict[str, Any], history: list[dict[str, Any]] | None = No
         evidence=evidence,
         classification=cls,
     )
+    translated_reply = translate_from_korean(
+        reply,
+        language_support.get("detected_language", "unknown"),
+    )
+    multilingual = {
+        **language_support,
+        "translated_response": translated_reply,
+    }
 
     return {
         "classification": cls,
@@ -87,6 +100,7 @@ def process(complaint: dict[str, Any], history: list[dict[str, Any]] | None = No
         "response_draft": reply,
         "teacher_card": teacher_card(cls["summary_for_teacher"], cls["action_for_teacher"], risk),
         "validation": validation,
+        "multilingual": multilingual,
         "escalation_status": cls.get("escalation_status", "NOT_PROPOSED"),
         "requires_human_review": True,
     }

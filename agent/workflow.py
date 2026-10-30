@@ -22,6 +22,7 @@ from db import (
 )
 from .action_router import decide_actions, next_case_state
 from .history_agent import build_history_review, find_related_cases
+from .multilingual import translate_from_korean
 from .pipeline import process
 from .response_agent import generate_response_draft
 from .report_agent import build_support_report
@@ -202,6 +203,16 @@ def complete_task(task_id: str, result_text: str, actor: str = "staff") -> dict[
     )
     rerun["response_draft"] = response["draft"]
     rerun["response_generation"] = response
+    try:
+        original_cls = json.loads(case.get("classification_json") or "{}")
+    except Exception:
+        original_cls = {}
+    target_language = original_cls.get("original_language", "ko")
+    translated_response = translate_from_korean(response["draft"], target_language)
+    rerun["multilingual"] = {
+        "detected_language": target_language,
+        "translated_response": translated_response,
+    }
     rerun["validation"] = validate_response(
         draft=response["draft"],
         evidence=rerun.get("evidence", []),
@@ -521,6 +532,7 @@ def get_case_evidence(case_id: str) -> dict[str, Any]:
         },
         "evidence": evidence,
         "validation": output.get("validation", {}),
+        "multilingual": output.get("multilingual", {}),
         "response_basis": {
             "basis_summary": response_generation.get("basis_summary", []),
             "missing_information": response_generation.get("missing_information", []),
@@ -638,6 +650,7 @@ def get_case_explanation(case_id: str) -> dict[str, Any]:
         ),
         "history": history_card,
         "validator": raw.get("validation") or {},
+        "multilingual": raw.get("multilingual") or {},
         "safety": {
             "human_review_required": True,
             "auto_send": False,
