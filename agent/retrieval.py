@@ -146,7 +146,9 @@ def load_corpus(*, production: bool = False, as_of_date: str | None = None,
     allow = _allowlist().get("sources", {})
 
     # 원본 -> HITL 수정본 순서로 읽어 같은 chunk_id를 수정본이 덮어쓰게 합니다.
-    combined = _load_chunk_files(CHUNKS_DIR) or _legacy_chunks()
+    # Keep the curated legacy corpus as a stable baseline even after the full parser runs.
+    # Parsed chunks then override matching chunk_ids; HITL corrections override both.
+    combined = _legacy_chunks() + _load_chunk_files(CHUNKS_DIR)
     corrected = _load_chunk_files(CORRECTED_DIR)
     by_id: dict[str, dict[str, Any]] = {}
     for raw in combined + corrected:
