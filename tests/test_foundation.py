@@ -27,7 +27,7 @@ def test_adopts_legacy_database_without_losing_data(tmp_path):
     Database(path)
     with database.transaction() as db:
         assert db.execute("SELECT title, version FROM cases").fetchone()[:] == ("보존 사건", 7)
-        assert db.execute("SELECT count(*) FROM schema_migrations").fetchone()[0] == 2
+        assert db.execute("SELECT count(*) FROM schema_migrations").fetchone()[0] == len(list(Path('backend/migrations').glob('*.sql')))
         assert db.execute("PRAGMA foreign_key_check").fetchall() == []
 
 

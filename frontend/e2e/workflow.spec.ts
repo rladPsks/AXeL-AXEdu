@@ -10,6 +10,8 @@ const tokens = JSON.parse(readFileSync(file, "utf8")).tokens as Record<
   string,
   string
 >;
+const guardianTokens = JSON.parse(readFileSync(file, "utf8"))
+  .guardian_tokens as Record<string, string>;
 async function connect(page: Page, user: string) {
   await page.getByLabel("개발 세션 토큰").fill(tokens[user]);
   await page.getByRole("button", { name: "업무 공간 열기" }).click();
@@ -206,4 +208,96 @@ test("unsaved navigation is cancellable and a lost response replays one saved co
       (t: { question: string }) => t.question === "[가상] 네트워크 재시도 확인",
     ),
   ).toHaveLength(1);
+});
+
+test("private file upload/download and verified guardian revocation use the real server", async ({
+  page,
+  request,
+}, testInfo) => {
+  await page.goto("/cases/demo-case");
+  await connect(page, "admin");
+  await page.getByRole("button", { name: "사건 자료", exact: true }).click();
+  await page
+    .getByLabel("파일", { exact: true })
+    .setInputFiles({
+      name: "private-note.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("[fictional] private note"),
+    });
+  await page
+    .getByRole("combobox", { name: "열람 범위", exact: true })
+    .selectOption("RESTRICTED");
+  const uploaded = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      response.url().includes("/api/cases/demo-case/files?"),
+  );
+  await page.getByRole("button", { name: "자료 저장", exact: true }).click();
+  const response = await uploaded;
+  expect(response.status()).toBe(201);
+  const fileId = (await response.json()).file_id;
+  await expect(
+    page.getByText("private-note.txt", { exact: true }),
+  ).toBeVisible();
+  const saved = page.waitForEvent("download");
+  await page.getByRole("button", { name: "다운로드", exact: true }).click();
+  const download = await saved;
+  const output = testInfo.outputPath("downloaded-note.txt");
+  await download.saveAs(output);
+  expect(readFileSync(output, "utf8")).toBe("[fictional] private note");
+  await page.screenshot({
+    path: testInfo.outputPath("private-files.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "보호자 연결", exact: true }).click();
+  await page.getByText("확인한 보호자 연결", { exact: true }).click();
+  await page.getByLabel("확인된 보호자 계정 ID").fill("guardian");
+  await page.getByLabel("학교의 관계 확인 근거").fill("[가상] 학교 대면 확인");
+  await page.getByRole("button", { name: "관계 확인 후 연결" }).click();
+  await expect(page.getByText("관계 확인됨", { exact: true })).toBeVisible();
+  const parentHeaders = { Authorization: `Bearer ${guardianTokens.guardian}` };
+  const access = await request.get("/api/guardian/cases/demo-case/access", {
+    headers: parentHeaders,
+  });
+  expect(access.status()).toBe(200);
+  expect(await access.json()).toEqual({
+    case_id: "demo-case",
+    relationship_verified: true,
+  });
+  expect(
+    (
+      await request.get("/api/cases/demo-case", { headers: parentHeaders })
+    ).status(),
+  ).toBe(401);
+  await page.getByLabel("해제 사유").fill("[가상] 관계 종료");
+  await page
+    .getByRole("button", { name: "보호자 연결 해제", exact: true })
+    .click();
+  await expect(page.getByText("연결 해제됨", { exact: true })).toBeVisible();
+  expect(
+    (
+      await request.get("/api/guardian/cases/demo-case/access", {
+        headers: parentHeaders,
+      })
+    ).status(),
+  ).toBe(404);
+  await switchTo(page, "teacher");
+  await page.getByRole("button", { name: "사건 자료", exact: true }).click();
+  await expect(
+    page.getByText("등록한 자료가 없습니다.", { exact: true }),
+  ).toBeVisible();
+  expect(
+    (
+      await request.get(`/api/files/${fileId}/download`, {
+        headers: { Authorization: `Bearer ${tokens.teacher}` },
+      })
+    ).status(),
+  ).toBe(403);
+  await page.getByRole("button", { name: "AI 지원 검토", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "AI 지원 검토 시작" }),
+  ).toBeDisabled();
+  await expect(
+    page.getByText("OpenAI 연결 설정이 준비되지 않았습니다.", { exact: false }),
+  ).toBeVisible();
 });

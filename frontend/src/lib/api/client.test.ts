@@ -2,6 +2,43 @@ import { describe, it, expect, vi } from "vitest";
 import { ApiClient, ApiError, command } from "./client";
 
 describe("shared API transport", () => {
+  it("preserves binary bytes and idempotency key for upload", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response('{"file_id":"f1"}', { status: 201 }));
+    const api = new ApiClient("token", fetcher);
+    const file = new Blob(["binary content"]);
+    await api.upload(
+      "/api/cases/demo/files?filename=note.txt&expected_version=1",
+      file,
+      "upload-key",
+    );
+    const options = fetcher.mock.calls[0][1]!;
+    expect(options.body).toBe(file);
+    expect(options.headers).toMatchObject({
+      "Idempotency-Key": "upload-key",
+      "Content-Type": "application/octet-stream",
+      Authorization: "Bearer token",
+    });
+  });
+  it("downloads through authenticated transport and handles permission errors", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("private note"))
+      .mockResolvedValueOnce(
+        new Response('{"code":"FILE_FORBIDDEN","message":"권한 없음"}', {
+          status: 403,
+        }),
+      );
+    const api = new ApiClient("token", fetcher);
+    expect(await (await api.download("/api/files/f1/download")).text()).toBe(
+      "private note",
+    );
+    await expect(api.download("/api/files/f1/download")).rejects.toMatchObject({
+      code: "FILE_FORBIDDEN",
+      status: 403,
+    });
+  });
   it("replays an uncertain command with the exact key and body", async () => {
     const fetcher = vi
       .fn<typeof fetch>()
@@ -30,18 +67,16 @@ describe("shared API transport", () => {
     expect(one.cache).toBe("no-store");
   });
   it("preserves the conflict code and never automatically resends", async () => {
-    const fetcher = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            code: "VERSION_CONFLICT",
-            message: "다시 조회",
-            request_id: "r1",
-          }),
-          { status: 409 },
-        ),
-      );
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: "VERSION_CONFLICT",
+          message: "다시 조회",
+          request_id: "r1",
+        }),
+        { status: 409 },
+      ),
+    );
     await expect(
       new ApiClient("token", fetcher).execute(
         command("/api/example", { expected_version: 1 }),

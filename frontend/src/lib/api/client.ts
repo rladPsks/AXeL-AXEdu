@@ -49,10 +49,24 @@ export class ApiClient {
       },
     });
   }
+  async upload<T>(path: string, file: Blob, key: string): Promise<T> {
+    return this.request(path, {
+      method: "POST",
+      body: file,
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "Idempotency-Key": key,
+      },
+    });
+  }
+  async download(path: string): Promise<Blob> {
+    return this.request<Blob>(path, { method: "GET" }, undefined, true);
+  }
   private async request<T>(
     path: string,
     init: RequestInit,
     signal?: AbortSignal,
+    binary = false,
   ): Promise<T> {
     if (!path.startsWith("/api/"))
       throw new Error("API 경로는 /api/로 시작해야 합니다.");
@@ -77,6 +91,17 @@ export class ApiClient {
         undefined,
         init.method !== "GET",
       );
+    }
+    if (response.ok && binary) {
+      try {
+        return (await response.blob()) as T;
+      } catch {
+        throw new ApiError(
+          0,
+          "DOWNLOAD_INTERRUPTED",
+          "다운로드가 중단되었습니다. 다시 시도해 주세요.",
+        );
+      }
     }
     const data = await response.json().catch(() => null);
     if (!response.ok) {

@@ -1,6 +1,19 @@
 import type { ReactNode } from "react";
 import { ApiError } from "../lib/api/client";
 export const labels: Record<string, string> = {
+  QUEUED: "생성 대기",
+  RUNNING: "생성 중",
+  WAITING_REVIEW: "검토 대기",
+  SUCCEEDED: "생성물 검토 완료",
+  FAILED: "생성 실패",
+  CANCELLED: "취소됨",
+  INTERNAL_SUPPORT: "학교 내 지원",
+  SPECIALIST_SUPPORT: "전문 지원 검토",
+  EXTERNAL_SUPPORT: "외부 지원 검토",
+  KEEP_REVIEWING: "추가 확인",
+  FILE_UPLOADED: "자료 등록",
+  GUARDIAN_LINK_VERIFIED: "보호자 관계 확인",
+  GUARDIAN_LINK_REVOKED: "보호자 연결 해제",
   OPEN: "진행 중",
   CLOSED: "종결",
   REQUESTED: "확인 대기",

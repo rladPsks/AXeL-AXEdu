@@ -17,6 +17,9 @@ import { Badge, Empty, ErrorNotice, date, label } from "../shared/ui";
 import { TeacherTasks } from "../features/teacher-tasks";
 import { SchoolSupport } from "../features/school-support";
 import { Handover } from "../features/school-support/Handover";
+import { Files } from "../features/files";
+import { GuardianLinks } from "../features/guardian-links";
+import { AgentReview } from "../features/agent-review";
 
 export function App() {
   const [auth, setAuth] = useState<{
@@ -327,7 +330,7 @@ function MyTasks() {
 
 function CaseShell() {
   const { caseId = "" } = useParams();
-  const { api } = useSession();
+  const { api, session } = useSession();
   const scope = useScope();
   const [tab, setTab] = useState("tasks");
   const query = useQuery({
@@ -361,6 +364,11 @@ function CaseShell() {
     { id: "support", title: "학교 지원" },
     { id: "handover", title: "총괄·인계" },
     { id: "timeline", title: "처리 이력" },
+    { id: "files", title: "사건 자료" },
+    { id: "agent-review", title: "AI 지원 검토" },
+    ...(session.role === "ADMIN"
+      ? [{ id: "guardians", title: "보호자 연결" }]
+      : []),
     ...additionalCaseFeatures,
   ];
   return (
@@ -399,7 +407,13 @@ function CaseShell() {
           <button
             aria-current={tab === t.id ? "page" : undefined}
             key={t.id}
-            onClick={() => setTab(t.id)}
+            onClick={(event) => {
+              setTab(t.id);
+              event.currentTarget.scrollIntoView({
+                block: "nearest",
+                inline: "nearest",
+              });
+            }}
           >
             {t.title}
           </button>
@@ -414,6 +428,20 @@ function CaseShell() {
           <Handover record={record} members={members.data ?? []} />
         ) : tab === "timeline" ? (
           <Timeline caseId={caseId} />
+        ) : tab === "files" ? (
+          <Files
+            caseId={caseId}
+            version={record.version}
+            closed={record.status === "CLOSED"}
+          />
+        ) : tab === "agent-review" ? (
+          <AgentReview record={record} />
+        ) : tab === "guardians" && session.role === "ADMIN" ? (
+          <GuardianLinks
+            caseId={caseId}
+            version={record.version}
+            closed={record.status === "CLOSED"}
+          />
         ) : feature ? (
           <feature.Component caseId={caseId} />
         ) : null}

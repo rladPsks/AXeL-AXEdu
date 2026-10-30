@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import {
   useIsMutating,
   useMutation,
@@ -8,6 +8,7 @@ import { useScope, useSession } from "../app/providers";
 import { ApiError, command, type Command } from "../lib/api/client";
 import type { MutationResult } from "../lib/api/types";
 import { ErrorNotice } from "./ui";
+import { useUnsavedChanges } from "./useUnsavedChanges";
 
 export function CommandForm({
   caseId,
@@ -29,16 +30,7 @@ export function CommandForm({
   const queries = useQueryClient();
   const form = useRef<HTMLFormElement>(null);
   const [saved, setSaved] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  const { dirty, setDirty } = useUnsavedChanges();
   const [failed, setFailed] = useState<Command | null>(null);
   const busy =
     useIsMutating({ mutationKey: ["case-command", ...scope, caseId] }) > 0;
@@ -48,6 +40,10 @@ export function CommandForm({
       queries.invalidateQueries({ queryKey: ["timeline", ...scope, caseId] }),
       queries.invalidateQueries({ queryKey: ["cases", ...scope] }),
       queries.invalidateQueries({ queryKey: ["my-tasks", ...scope] }),
+      queries.invalidateQueries({ queryKey: ["runs", ...scope, caseId] }),
+      queries.invalidateQueries({
+        queryKey: ["guardian-links", ...scope, caseId],
+      }),
     ]);
   const mutation = useMutation({
     mutationKey: ["case-command", ...scope, caseId],

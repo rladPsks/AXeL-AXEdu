@@ -12,16 +12,27 @@ from .access import DomainError, fail, authenticate, accessible_case, admin, mem
 from .commands import mutate, resource_case
 from .closure import ClosureRegistry
 from .queries import router as query_router
+from .files import router as files_router, upload_limit
+from .guardians import router as guardians_router
+from .agents import router as agents_router
+from .runtime import build_registry
 from .models import (CaseTransition, Command, HandoverCreate, SupportCreate,
                      SupportUpdate, TaskCreate, TaskUpdate)
 
 
-def create_app(db_path=None, *, feature_routers=(), closure_guards=()):
+def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_bytes=None, agent_registry=None):
     app = FastAPI(title="학교 민원 에이전트 — 개발자 B", version="0.1.0")
     app.state.db = Database(db_path or os.getenv("SCHOOL_AGENT_DB", "data/private/dev.sqlite3"))
 
     app.state.closure = ClosureRegistry(closure_guards)
+    app.state.agent_registry = agent_registry if agent_registry is not None else build_registry()
+    app.state.max_file_bytes = upload_limit() if max_file_bytes is None else max_file_bytes
+    if app.state.max_file_bytes < 1:
+        raise ValueError('max_file_bytes must be positive')
     app.include_router(query_router)
+    app.include_router(files_router)
+    app.include_router(guardians_router)
+    app.include_router(agents_router)
     for router in feature_routers:
         app.include_router(router)
 
