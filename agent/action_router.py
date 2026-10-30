@@ -63,6 +63,16 @@ def decide_actions(classification: dict[str, Any], routing: dict[str, Any], evid
             "instructions": classification.get("needs_fact_check") or ["민원 핵심 요구와 관련 사실 확인"],
         })
 
+    collaborators = [role for role in (routing.get("collaborators") or []) if role and role != routing.get("action_role")]
+    if collaborators and nature not in {"INFO_REQUEST", "SAFETY", "INFRINGEMENT_REVIEW"}:
+        for role in collaborators:
+            actions.append({
+                "task_type": "COOP_FACT_CHECK",
+                "assignee_role": role,
+                "reason": "관련 업무 처리를 위한 협조 확인입니다.",
+                "instructions": ["본인 소관의 확인 가능한 사실만 회신", "추정 또는 법적 판단은 하지 않음"],
+            })
+
     risk_signal = bool(
         urgency == "HIGH"
         or infringement_flags
