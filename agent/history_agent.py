@@ -171,7 +171,7 @@ def build_history_review(current_case: dict[str, Any], related: list[dict[str, A
     elif not_substantively_answered:
         history_action = "LINK_UNRESOLVED"
         reason = (
-            "유사한 기존 사건에 검토·전달까지 끝난 실질 답변이 확인되지 않아 "
+            "유사한 기존 사건에 미응답 또는 검토·전달까지 끝난 실질 답변이 확인되지 않아 "
             "반복 민원으로 보지 않고 미해결 사건과 먼저 연결합니다."
         )
     elif closest_answered:
