@@ -1,0 +1,140 @@
+{
+  "contract_version": "1.0.0",
+  "as_of_date": "2026-10-30",
+  "description": "AXeL 학교민원 에이전트의 분류·라우팅·기한·반복·이관 판단 메타계약. AI는 후보를 제안하고 서버 규칙과 사람이 최종 확정한다.",
+  "nature": {
+    "DIRECT_RELAY": {
+      "label": "단순 전달",
+      "default_level": null,
+      "description": "출결·준비물 등 교육적 소통/전달. 민원 사건을 생성하지 않거나 전달 로그만 남긴다."
+    },
+    "INFO_REQUEST": {
+      "label": "정보 요청",
+      "default_level": "SIMPLE",
+      "description": "학사일정·공지·규정 등 확인 가능한 정보 요청"
+    },
+    "COUNSEL": {
+      "label": "상담",
+      "default_level": "COUNSEL",
+      "description": "학생의 교육·진로·학교생활 관련 상담"
+    },
+    "COMPLAINT": {
+      "label": "불만·요구",
+      "default_level": "COOP",
+      "description": "학교 또는 교직원에게 특정 행위·개선·조치를 요구"
+    },
+    "SAFETY": {
+      "label": "안전·긴급",
+      "default_level": "ADMIN",
+      "description": "즉시 사람 확인이 필요한 안전 위험"
+    },
+    "INFRINGEMENT_REVIEW": {
+      "label": "교육활동 침해 검토",
+      "default_level": "ADMIN",
+      "description": "특이민원·교육활동 침해 가능성 신호가 있어 관리자 검토가 필요한 상태. 법적 확정이 아니다."
+    }
+  },
+  "legal_kind": ["법정", "질의", "건의", "기타", "고충"],
+  "domain_p55": ["교무/학사", "생활지도/상담", "학부모/교직원 소통", "학교 운영", "기타"],
+  "handling_level": {
+    "SIMPLE": {
+      "owner_role": "complaint_response_team",
+      "action_role": null,
+      "approver_role": "complaint_response_team",
+      "manual_due": {"mode": "immediate", "authority": "manual_proposal"},
+      "source": {"source_id": "MOE-MANUAL-2026", "pdf_page": 15, "printed_page": 11}
+    },
+    "COUNSEL": {
+      "owner_role": "complaint_response_team",
+      "action_role": "homeroom_teacher",
+      "approver_role": "vice_principal",
+      "manual_due": {"mode": "appointment", "authority": "school_operation"},
+      "source": {"source_id": "MOE-MANUAL-2026", "pdf_page": 14, "printed_page": 10}
+    },
+    "COOP": {
+      "owner_role": "complaint_response_team",
+      "action_role": "relevant_staff",
+      "approver_role": "vice_principal",
+      "manual_due": {"days": 7, "authority": "manual_proposal"},
+      "source": {"source_id": "MOE-MANUAL-2026", "pdf_page": 15, "printed_page": 11}
+    },
+    "ADMIN": {
+      "owner_role": "principal",
+      "action_role": "relevant_staff",
+      "approver_role": "principal",
+      "manual_due": {"days": 14, "extendable": true, "authority": "manual_proposal"},
+      "source": {"source_id": "MOE-MANUAL-2026", "pdf_page": 15, "printed_page": 11}
+    },
+    "AGENCY": {
+      "owner_role": "principal",
+      "action_role": null,
+      "approver_role": "principal",
+      "manual_due": null,
+      "source": {"source_id": "MOE-MANUAL-2026", "pdf_page": 16, "printed_page": 12}
+    }
+  },
+  "legal_due_rules": {
+    "QUESTION_LAW_INTERPRETATION": {
+      "days": 14,
+      "authority": "legal",
+      "source_id": "DECREE-CIVIL-PETITION",
+      "article": "제14조"
+    },
+    "QUESTION_SYSTEM_OR_PROCEDURE": {
+      "days": 7,
+      "authority": "legal",
+      "source_id": "DECREE-CIVIL-PETITION",
+      "article": "제14조"
+    }
+  },
+  "routing": {
+    "server_decides": ["owner_role", "action_role", "approver_role", "due_rule"],
+    "llm_may_suggest": ["nature", "legal_kind", "domain_p55", "special_codes", "evidence_quotes"],
+    "school_assignment_required_for_actual_person": true,
+    "fallback_owner_role": "complaint_response_team"
+  },
+  "repeat_review": {
+    "threshold": 3,
+    "definition": "합리적인 답변 이후 동일·유사 내용을 정당한 사유 없이 3회 이상 지속·반복 제기한 경우 검토 후보",
+    "exclude_if": ["previous_unanswered", "previous_unresolved", "new_fact_or_evidence"],
+    "human_link_required": true,
+    "never_auto_classify_as_infringement": true,
+    "source": {"source_id": "MOE-MANUAL-2026", "pdf_pages": [11, 16]}
+  },
+  "escalation_gate": {
+    "all_required": [
+      "special_code_candidate_exists",
+      "source_quote_matches_original",
+      "not_unanswered_followup",
+      "citation_exists"
+    ],
+    "human_decision_required": true,
+    "source": {"source_id": "MOE-MANUAL-2026", "pdf_page": 16}
+  },
+  "special_signals": {
+    "CHILD_ABUSE_REPORT_MENTION": {
+      "description": "아동학대 신고·신고 의사 언급",
+      "auto_threat": false,
+      "review_note": "신고 의사 자체만으로 협박을 확정하지 않는다."
+    },
+    "SEVERE_DISRUPTION": {
+      "description": "교육활동에 현저한 지장을 주는 방식의 민원 신호",
+      "effective_from": "2026-12-03",
+      "requires_context_review": true,
+      "auto_infringement": false
+    }
+  },
+  "authority_action_policy": {
+    "ai_executes": false,
+    "human_required_for": [
+      "classification_confirmation",
+      "case_closure",
+      "response_send",
+      "agency_transfer",
+      "call_or_meeting_termination",
+      "entry_restriction",
+      "police_report",
+      "infringement_confirmation"
+    ]
+  }
+}

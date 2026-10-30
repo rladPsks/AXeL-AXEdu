@@ -1,0 +1,59 @@
+{
+  "contract_version": "1.0.0",
+  "required_fields": [
+    "chunk_id",
+    "source_id",
+    "title",
+    "source_type",
+    "text",
+    "locator",
+    "scope",
+    "verification_status"
+  ],
+  "field_definitions": {
+    "chunk_id": "안정적인 청크 식별자",
+    "source_id": "source_registry.json의 canonical source_id",
+    "source_aliases": "과거·팀 문서에서 사용한 별칭 목록",
+    "title": "문서명",
+    "source_type": "law|decree|local_rule|official_manual|school_policy|policy_plan|press_release_statistics|fixture",
+    "issuer": "발행기관",
+    "scope": "national|local|school|fixture",
+    "jurisdiction": "national 또는 시도 코드/명칭",
+    "pdf_page": "파일의 1-based PDF 페이지",
+    "printed_page": "문서에 인쇄된 쪽수. PDF 페이지와 다를 수 있음",
+    "article": "법령 조문 식별자",
+    "effective_from": "YYYY-MM-DD. 적용 시작일",
+    "effective_to": "YYYY-MM-DD 또는 null",
+    "version_status": "in_force|scheduled|expired|amended_unverified",
+    "verification_status": "pending|verified|corrected|rejected",
+    "authority_rank": "근거 우선순위. 숫자가 작을수록 강함",
+    "canonical": "동일 내용을 중복 색인하지 않기 위한 대표 청크 여부",
+    "retrieval_tags": "검색 보조 태그",
+    "text": "원문 또는 검수된 수정 원문",
+    "locator": "원문 위치",
+    "official_url": "공식 출처 URL"
+  },
+  "authority_rank": {
+    "law": 1,
+    "decree": 2,
+    "local_rule": 3,
+    "official_manual": 4,
+    "school_policy": 5,
+    "policy_plan": 6,
+    "press_release_statistics": 6,
+    "fixture": 7
+  },
+  "index_policy": {
+    "production_allowed_verification_status": ["verified", "corrected"],
+    "development_can_include_pending": true,
+    "development_pending_must_be_labeled": true,
+    "scheduled_law_excluded_before_effective_date": true,
+    "rejected_never_indexed": true,
+    "canonical_only_when_duplicate_group_exists": true
+  },
+  "citation_policy": {
+    "law": ["title", "article", "effective_from", "official_url"],
+    "manual_or_policy": ["title", "issuer", "pdf_page"],
+    "school": ["title", "effective_from", "locator"]
+  }
+}
