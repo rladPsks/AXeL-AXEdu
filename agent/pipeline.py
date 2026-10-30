@@ -16,6 +16,18 @@ def _routing_domain(cls: dict[str, Any]) -> str:
     return "fact_check"
 
 
+def _allowed_source_types(cls: dict[str, Any], text: str) -> set[str] | None:
+    if cls.get("nature") != "INFO_REQUEST":
+        return None
+    policy_terms = (
+        "법", "법률", "교육활동 침해", "교권", "교육청", "교육지원청",
+        "매뉴얼", "정책", "절차", "조치", "신고", "보호조치",
+    )
+    if any(term in text for term in policy_terms):
+        return None
+    return {"school_policy"}
+
+
 def process(complaint: dict[str, Any], history: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     text = str(complaint.get("text", "")).strip()
     if not text:
@@ -23,7 +35,7 @@ def process(complaint: dict[str, Any], history: list[dict[str, Any]] | None = No
 
     cls = apply_rules(classify_complaint(text), history or [])
     routing = route_case(_routing_domain(cls))
-    allowed_source_types = {"school_policy"} if cls.get("nature") == "INFO_REQUEST" else None
+    allowed_source_types = _allowed_source_types(cls, text)
     evidence = retrieve(
         text,
         as_of_date=complaint.get("as_of_date"),

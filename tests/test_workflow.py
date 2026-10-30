@@ -83,3 +83,26 @@ def test_rules_accept_timezone_aware_history():
     )
     assert out["repeat_count"] == 2
     assert out["repeat_review"] is False
+
+
+def test_info_policy_question_allows_official_sources():
+    from agent.pipeline import _allowed_source_types
+    cls = {"nature": "INFO_REQUEST"}
+    assert _allowed_source_types(cls, "교육활동 침해가 발생하면 학교는 어떤 조치를 해야 하나요?") is None
+    assert _allowed_source_types(cls, "내일 체험학습 몇 시까지 등교하나요?") == {"school_policy"}
+
+
+def test_history_draft_is_not_substantive_response():
+    from agent.history_agent import build_history_review
+    review = build_history_review(
+        {"id": "CURRENT"},
+        [{
+            "id": "OLD",
+            "similarity": 1.0,
+            "status": "IN_PROGRESS",
+            "response_status": "DRAFTED",
+            "has_substantive_response": False,
+        }],
+    )
+    assert review["repeat_candidate"] is False
+    assert review["unanswered_count"] == 1

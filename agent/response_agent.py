@@ -33,6 +33,8 @@ SYSTEM_PROMPT = """당신은 학교 공식 민원 답변 초안을 작성하는 
 미확인 잘못을 인정하거나 학교가 결정하지 않은 보상·제재·법적 조치를 약속하지 마세요.
 교육활동 침해 확정, 자동 이관, 자동 제재 결론을 내리지 마세요.
 최종 발송 전 사람이 검토해야 합니다.
+ready_for_human_review는 "외부 발송 준비 완료"가 아니라 "사람이 검토할 수 있는 근거 있는 초안이 생성되었는지"를 뜻합니다.
+확인된 사실과 미확인 사항을 구분한 초안이 생성되었다면 추가 확인 항목이 남아 있어도 true로 표시하세요.
 """
 
 
@@ -66,12 +68,15 @@ def generate_response_draft(
         },
     }
     try:
-        return chat_json(
+        result = chat_json(
             system=SYSTEM_PROMPT,
             user=json.dumps(payload, ensure_ascii=False),
             schema=RESPONSE_SCHEMA,
             schema_name="school_complaint_response_draft",
         )
+        if result.get("draft") and (confirmed_facts or evidence):
+            result["ready_for_human_review"] = True
+        return result
     except LLMUnavailable:
         if confirmed_facts:
             facts = " ".join(f"- {x}" for x in confirmed_facts)

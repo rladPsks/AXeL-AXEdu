@@ -99,11 +99,19 @@ def complete_task(task_id: str, result_text: str, actor: str = "staff") -> dict[
         "result_text": result_text,
     })
 
-    # 사람의 확인 결과가 들어오면 기존 원문과 함께 Agent가 다시 사건을 읽는다.
     case = get_case(case_id)
     if case is None:
         raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
 
+    if previous["task_type"] == "RESPONSE_REVIEW":
+        update_case_state(case_id, status="RESPONSE_APPROVED", next_action="AWAITING_DELIVERY")
+        append_event(case_id, "RESPONSE_APPROVED", actor, {
+            "task_id": task_id,
+            "review_note": result_text,
+        })
+        return get_case_snapshot(case_id)
+
+    # 사람의 확인 결과가 들어오면 기존 원문과 함께 Agent가 다시 사건을 읽는다.
     completed_context = "\n".join(
         f"- {t['task_type']}: {t.get('result_text') or ''}"
         for t in list_case_tasks(case_id)
@@ -199,7 +207,29 @@ def request_support(
         "support_type": support_type,
         "note": note,
     })
-    update_case_state(case_id, status="IN_PROGRESS", next_action="SUPPORT_RESPONSE")
+
+    existing_support = [
+        t for t in list_case_tasks(case_id)
+        if t["task_type"] == "SUPPORT_RESPONSE" and t["status"] != "COMPLETED"
+    ]
+    if not existing_support:
+        support_task = {
+            "id": _id("TASK"),
+            "case_id": case_id,
+            "task_type": "SUPPORT_RESPONSE",
+            "assignee_role": "complaint_response_team",
+            "status": "REQUESTED",
+            "reason": "교직원의 지원 요청을 검토하고 지원 방식을 확정해야 합니다.",
+            "instructions": [support_type, note] if note else [support_type],
+        }
+        create_task_record(support_task)
+        append_event(case_id, "TASK_CREATED", "agent", {
+            "task_id": support_task["id"],
+            "task_type": "SUPPORT_RESPONSE",
+            "assignee_role": support_task["assignee_role"],
+        })
+
+    # 지원 요청은 기존 사건 단계(RESPONSE_REVIEW 등)를 덮어쓰지 않는 병렬 업무다.
     return get_case_snapshot(case_id)
 
 
@@ -213,6 +243,7 @@ def get_case_snapshot(case_id: str) -> dict[str, Any]:
     for key in ("classification_json", "routing_json"):
         if item.get(key):
             item[key[:-5]] = json.loads(item[key])
+        item.pop(key, None)
     return {
         "case": item,
         "tasks": list_case_tasks(case_id),

@@ -40,7 +40,27 @@ def find_related_cases(
         if score < 0.20:
             continue
         item["similarity"] = round(score, 3)
-        item["has_response"] = bool(item.get("response_draft"))
+        with connect() as conn:
+            events = [r["event_type"] for r in conn.execute(
+                "SELECT event_type FROM case_events WHERE case_id = ? ORDER BY id",
+                (item["id"],),
+            ).fetchall()]
+            tasks = [dict(r) for r in conn.execute(
+                "SELECT task_type, status FROM tasks WHERE case_id = ?",
+                (item["id"],),
+            ).fetchall()]
+        if "RESPONSE_DELIVERED" in events:
+            response_status = "DELIVERED"
+        elif "RESPONSE_APPROVED" in events or any(
+            t["task_type"] == "RESPONSE_REVIEW" and t["status"] == "COMPLETED" for t in tasks
+        ):
+            response_status = "REVIEWED"
+        elif item.get("response_draft"):
+            response_status = "DRAFTED"
+        else:
+            response_status = "NOT_DRAFTED"
+        item["response_status"] = response_status
+        item["has_substantive_response"] = response_status in {"REVIEWED", "DELIVERED"}
         candidates.append(item)
     candidates.sort(key=lambda x: x["similarity"], reverse=True)
     return candidates[:limit]
@@ -56,22 +76,23 @@ def build_history_review(current_case: dict[str, Any], related: list[dict[str, A
         }
 
     unresolved = [x for x in related if x.get("status") not in {"CLOSED", "RESOLVED"}]
-    unanswered = [x for x in related if not x.get("has_response")]
+    not_substantively_answered = [x for x in related if not x.get("has_substantive_response")]
     high_similarity = [x for x in related if x["similarity"] >= 0.55]
+    high_similarity_answered = [x for x in high_similarity if x.get("has_substantive_response")]
 
-    repeat_candidate = len(high_similarity) >= 2 and not unanswered
-    if unanswered:
-        reason = "기존 사건 중 실질 답변이 확인되지 않은 건이 있어 반복 민원 확정보다 미응답 여부를 먼저 확인해야 합니다."
-    elif high_similarity:
-        reason = "유사한 기존 사건이 있으나 새 사실·요구 변화 여부를 사람이 비교해야 합니다."
+    repeat_candidate = bool(high_similarity_answered) and not not_substantively_answered
+    if not_substantively_answered:
+        reason = "유사한 기존 사건이 있어도 검토·전달까지 끝난 실질 답변이 확인되지 않은 건이 있어 반복 민원으로 보지 않고 미해결 사건을 먼저 연결합니다."
+    elif high_similarity_answered:
+        reason = "실질 답변이 완료된 유사 사건이 있습니다. 동일 요구 반복인지 새 사실·요구가 추가되었는지 사람이 비교해야 합니다."
     else:
-        reason = "동일인 관련 사건은 있으나 현재 문구 기준 동일 사안 유사도가 높지 않습니다."
+        reason = "동일인 관련 사건은 있으나 실질 답변 완료 이력 또는 충분한 동일 사안 유사도가 확인되지 않습니다."
 
     return {
         "related_count": len(related),
         "high_similarity_count": len(high_similarity),
         "unresolved_count": len(unresolved),
-        "unanswered_count": len(unanswered),
+        "unanswered_count": len(not_substantively_answered),
         "repeat_candidate": repeat_candidate,
         "reason": reason,
         "items": related,
