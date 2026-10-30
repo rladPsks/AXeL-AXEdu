@@ -142,7 +142,7 @@ def _propose_law_overrides(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]
                 "effective_to": None,
                 "revision_effective_from": "2026-11-20",
                 "version_group": f"{LEGAL_ID}:18",
-                "verification_status": "corrected",
+                "verification_status": "pending",
                 "review_basis": "법률 제21655호 제18조 및 부칙",
                 "official_source_url": OFFICIAL_21655,
             },
