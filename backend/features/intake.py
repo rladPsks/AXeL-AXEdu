@@ -13,6 +13,7 @@ from agent.rules import apply_rules
 from backend.access import authenticate, fail
 from backend.commands import command_identity, replay_command, save_command
 from backend.db import audit, now, uid
+from backend.notifications import enqueue
 
 router = APIRouter()
 
@@ -51,6 +52,39 @@ def _handling_route(cls: dict) -> str:
     if cls.get("nature") == "INFO_REQUEST" and not cls.get("needs_fact_check"):
         return "FRONT_DESK_RESOLVE"
     return "STAFF_OR_TEAM"
+
+
+def _role_user(db, school_id: str, label: str | None):
+    if not label:
+        return None
+    row = db.execute(
+        "SELECT user_id,substitute_id FROM school_responsibilities "
+        "WHERE school_id=? AND label=? AND active=1 ORDER BY id LIMIT 1",
+        (school_id, label),
+    ).fetchone()
+    if row is None:
+        return None
+    user_id = row["user_id"]
+    absence = db.execute(
+        "SELECT substitute_id FROM staff_absences WHERE school_id=? AND user_id=? AND active=1 "
+        "AND starts_at<=? AND ends_at>?",
+        (school_id, user_id, now(), now()),
+    ).fetchone()
+    return absence["substitute_id"] if absence else user_id
+
+
+def _create_initial_task(db, *, case_id: str, actor_id: str, assignee_id: str,
+                         question: str, callback_needed: str):
+    task_id = uid()
+    db.execute(
+        "INSERT INTO tasks(id,case_id,type,assignee_id,requester_id,question,callback_needed,status,reply,created_at) "
+        "VALUES (?,?,?,?,?,?,?,'REQUESTED',NULL,?)",
+        (task_id, case_id, "FACT_CHECK", assignee_id, actor_id, question,
+         callback_needed if callback_needed in {"REQUIRED","NOT_REQUIRED","UNDECIDED"} else "UNDECIDED", now()),
+    )
+    db.execute("INSERT OR IGNORE INTO case_participants(case_id,user_id) VALUES (?,?)", (case_id, assignee_id))
+    enqueue(db, case_id, assignee_id, "TASK_CREATED", task_id, f"intake-task:{task_id}:created")
+    return task_id
 
 
 @router.post("/api/intakes", status_code=201)
@@ -108,12 +142,41 @@ def create_intake(body: IntakeCreate, request: Request):
         )
         db.execute("INSERT OR IGNORE INTO case_participants(case_id,user_id) VALUES (?,?)", (case_id, actor["user_id"]))
         db.execute("INSERT OR IGNORE INTO case_participants(case_id,user_id) VALUES (?,?)", (case_id, owner["user_id"]))
+
+        task_ids = []
+        if cls["handling_route"] == "STAFF_OR_TEAM":
+            labels = routing.get("role_labels") or {}
+            primary_label = labels.get(routing.get("action_role"))
+            primary_user = _role_user(db, actor["school_id"], primary_label) or owner["user_id"]
+            question = "\n".join(cls.get("needs_fact_check") or ["민원 핵심 사실과 맥락을 확인해 주세요."])
+            task_ids.append(_create_initial_task(
+                db,
+                case_id=case_id,
+                actor_id=actor["user_id"],
+                assignee_id=primary_user,
+                question=question,
+                callback_needed=routing.get("callback_needed", "UNDECIDED"),
+            ))
+            for role in routing.get("collaborators") or []:
+                collaborator_label = labels.get(role)
+                collaborator_user = _role_user(db, actor["school_id"], collaborator_label)
+                if collaborator_user and collaborator_user != primary_user:
+                    task_ids.append(_create_initial_task(
+                        db,
+                        case_id=case_id,
+                        actor_id=actor["user_id"],
+                        assignee_id=collaborator_user,
+                        question=f"{collaborator_label or '협조 담당'} 사실 확인: {question}",
+                        callback_needed=routing.get("callback_needed", "UNDECIDED"),
+                    ))
+
         audit(db, actor, case_id, "CASE_INTAKE_CREATED", 1, {
             "channel": body.channel,
             "complaint_type": body.complaint_type,
             "handling_route": cls["handling_route"],
             "urgency": cls.get("urgency"),
             "owner_id": owner["user_id"],
+            "task_ids": task_ids,
         })
         response = {
             "case_id": case_id,

@@ -17,6 +17,16 @@ def seed(path, *, if_empty=False):
                     ("teacher", "demo-school", "TEACHER"), ("outsider", "demo-school", "TEACHER"),
                     ("other-admin", "other-school", "ADMIN")]
         db.executemany("INSERT INTO memberships(user_id, school_id, role) VALUES (?, ?, ?)", accounts)
+        responsibilities = [
+            ("resp-life", "demo-school", "생활체육부장", "deputy", "admin"),
+            ("resp-home", "demo-school", "담임교사", "teacher", None),
+            ("resp-academic", "demo-school", "교무기획부장", "admin", "deputy"),
+            ("resp-admin", "demo-school", "주무관(민원·재산·기타)", "admin", "deputy"),
+        ]
+        db.executemany(
+            "INSERT INTO school_responsibilities(id,school_id,label,user_id,substitute_id) VALUES (?,?,?,?,?)",
+            responsibilities,
+        )
         db.execute("INSERT INTO cases (id, school_id, title, owner_id, status, version) VALUES ('demo-case', 'demo-school', '[가상] 상담 지원 사례', 'admin', 'OPEN', 1)")
         audit(db, {"user_id": "admin"}, "demo-case", "DEMO_CASE_CREATED", 1, {"fictional": True})
         tokens = {user: issue_session(db, user, school) for user, school, _ in accounts}
