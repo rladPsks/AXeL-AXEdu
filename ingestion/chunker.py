@@ -161,7 +161,7 @@ def _law_occurrences(document: dict[str, Any]) -> tuple[list[dict[str, Any]], li
             if article_match:
                 article_no = article_match.group(1)
                 if article_match.group(2):
-                    article_no += f"-{article_match.group(2)}"
+                    article_no += f"의{article_match.group(2)}"
             occurrences.append({
                 "title": current["title"],
                 "article_number": article_no,
@@ -201,7 +201,7 @@ def _law_occurrences(document: dict[str, Any]) -> tuple[list[dict[str, Any]], li
     return occurrences, preamble
 
 
-def _law_units(document: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
+def _law_units(document: dict[str, Any]) -> tuple[list[dict[str, Any]], bool, list[str]]:
     occurrences, preamble = _law_occurrences(document)
     units = []
 
@@ -232,7 +232,7 @@ def _law_units(document: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
             item["effective_to"] = None
         units.append(item)
 
-    return units, bool(occurrences)
+    return units, bool(occurrences), preamble
 
 
 def _base_chunk(document: dict[str, Any], text: str, locator: str,
@@ -274,14 +274,10 @@ def chunk_document(document: dict[str, Any], max_chars: int = 1800,
     document_header = []
 
     if source_type in LAW_TYPES:
-        units, found_article_markers = _law_units(document)
-        records = _line_records(document)
+        units, found_article_markers, document_header = _law_units(document)
         if not found_article_markers:
             warnings.append("법령 조문 표식을 찾지 못했습니다. 원문 구조를 검토해야 합니다.")
         # 조문 이전의 법령명·법률번호·담당기관 표시는 조문 청크로 만들지 않습니다.
-        for line in records:
-            if not ARTICLE_RE.match(line["text"]) and not chunks:
-                document_header.append(line["text"])
 
         for unit_index, unit in enumerate(units, start=1):
             pieces = _split_long_text(unit["text"], max_chars, overlap)
