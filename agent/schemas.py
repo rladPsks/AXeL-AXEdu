@@ -41,3 +41,4 @@ class TriageResult(BaseModel):
     domain_p55: DomainP55 = "기타"
     special_codes: list[str] = Field(default_factory=list)
     classifier_mode: Literal["LLM", "RULE_FALLBACK"] = "RULE_FALLBACK"
+    classifier_error: str = ""

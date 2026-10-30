@@ -9,20 +9,79 @@ from .schemas import TriageResult
 
 SYSTEM_PROMPT = """당신은 학교 민원 접수·분류 보조 에이전트입니다.
 최종 행정·법적 결정을 내리지 말고 분류 후보만 제안합니다.
-반드시 사용자의 원문에서 확인되는 내용만 근거로 사용하세요.
+민원 원문에 없는 사실을 추정하지 마세요.
 아동학대 신고 의사 언급만으로 협박을 확정하지 마세요.
+'세 번째 전화' 같은 자기보고만으로 반복민원을 확정하지 말고 DB 이력 확인 필요성을 needs_fact_check에 넣으세요.
 교육활동 침해 여부, 상급기관 이관, 법적 조치는 항상 사람 검토 대상으로 남깁니다.
-
-다음 JSON 필드를 반환하세요:
-category, subcategory, dept, stage, stage_reason, urgency, urgency_reason,
-is_informational, infringement_flags, infringement_evidence, emotion, language,
-summary_for_teacher, action_for_teacher, needs_fact_check, action_items, confidence,
-requires_human_review, nature, legal_kind, domain_p55, special_codes, classifier_mode.
-classifier_mode은 반드시 LLM으로 설정하세요.
+위험·협박 표현은 원문에서 확인되는 경우에만 후보 코드와 근거 인용을 남기세요.
 """
 
+TRIAGE_JSON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "category": {"type": "string", "enum": ["INFO", "EDU", "SAFE", "COUNSEL", "ADMIN", "STAFF", "OTHER"]},
+        "subcategory": {"type": "string"},
+        "dept": {"type": "string"},
+        "stage": {"type": "integer", "enum": [1, 2, 3, 4]},
+        "stage_reason": {"type": "string"},
+        "urgency": {"type": "string", "enum": ["HIGH", "MID", "LOW"]},
+        "urgency_reason": {"type": "string"},
+        "is_informational": {"type": "boolean"},
+        "infringement_flags": {"type": "array", "items": {"type": "string"}},
+        "infringement_evidence": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {"flag": {"type": "string"}, "quote": {"type": "string"}},
+                "required": ["flag", "quote"],
+            },
+        },
+        "emotion": {"type": "string", "enum": ["CALM", "UPSET", "HOSTILE"]},
+        "language": {"type": "string"},
+        "summary_for_teacher": {"type": "string"},
+        "action_for_teacher": {"type": "string"},
+        "needs_fact_check": {"type": "array", "items": {"type": "string"}},
+        "action_items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "action": {"type": "string"},
+                    "target_role": {"type": "string"},
+                    "reason": {"type": "string"},
+                },
+                "required": ["action", "target_role", "reason"],
+            },
+        },
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "requires_human_review": {"type": "boolean"},
+        "nature": {
+            "type": "string",
+            "enum": ["DIRECT_RELAY", "INFO_REQUEST", "COUNSEL", "COMPLAINT", "SAFETY", "INFRINGEMENT_REVIEW"],
+        },
+        "legal_kind": {"type": "string", "enum": ["법정", "질의", "건의", "기타", "고충"]},
+        "domain_p55": {
+            "type": "string",
+            "enum": ["교무/학사", "생활지도/상담", "학부모/교직원 소통", "학교 운영", "기타"],
+        },
+        "special_codes": {"type": "array", "items": {"type": "string"}},
+        "classifier_mode": {"type": "string", "enum": ["LLM"]},
+        "classifier_error": {"type": "string"},
+    },
+    "required": [
+        "category", "subcategory", "dept", "stage", "stage_reason", "urgency", "urgency_reason",
+        "is_informational", "infringement_flags", "infringement_evidence", "emotion", "language",
+        "summary_for_teacher", "action_for_teacher", "needs_fact_check", "action_items", "confidence",
+        "requires_human_review", "nature", "legal_kind", "domain_p55", "special_codes",
+        "classifier_mode", "classifier_error"
+    ],
+}
 
-def _rule_fallback(text: str) -> dict[str, Any]:
+
+def _rule_fallback(text: str, error: str = "") -> dict[str, Any]:
     if any(w in text for w in ["다쳤", "위험", "자해", "폭력", "안전", "학교폭력"]):
         category, urgency, stage, info = "SAFE", "HIGH", 2, False
         nature, domain = "SAFETY", "생활지도/상담"
@@ -44,7 +103,7 @@ def _rule_fallback(text: str) -> dict[str, Any]:
         special_codes.append("VERBAL_ABUSE_REVIEW")
         infringement_flags.append("VERBAL_ABUSE_REVIEW")
 
-    result = TriageResult(
+    return TriageResult(
         category=category,
         subcategory="규칙 기반 예비 분류",
         dept="안전·보건" if category == "SAFE" else ("교육·학생생활" if category == "EDU" else "교육행정"),
@@ -63,8 +122,8 @@ def _rule_fallback(text: str) -> dict[str, Any]:
         domain_p55=domain,
         special_codes=special_codes,
         classifier_mode="RULE_FALLBACK",
-    )
-    return result.model_dump()
+        classifier_error=error[:500],
+    ).model_dump()
 
 
 def classify_complaint(text: str) -> dict[str, Any]:
@@ -72,10 +131,12 @@ def classify_complaint(text: str) -> dict[str, Any]:
         payload = chat_json(
             system=SYSTEM_PROMPT,
             user=json.dumps({"complaint_text": text}, ensure_ascii=False),
+            schema=TRIAGE_JSON_SCHEMA,
+            schema_name="school_complaint_triage",
         )
         payload["requires_human_review"] = True
         payload["classifier_mode"] = "LLM"
-        result = TriageResult.model_validate(payload)
-        return result.model_dump()
-    except (LLMUnavailable, ValueError, TypeError):
-        return _rule_fallback(text)
+        payload["classifier_error"] = ""
+        return TriageResult.model_validate(payload).model_dump()
+    except (LLMUnavailable, ValueError, TypeError) as exc:
+        return _rule_fallback(text, error=f"{type(exc).__name__}: {exc}")

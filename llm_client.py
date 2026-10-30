@@ -1,7 +1,7 @@
 """OpenAI-compatible 최소 LLM 어댑터.
 
-OpenAI Responses API를 사용합니다. 환경변수가 없거나 호출에 실패하면
-상위 레이어가 규칙 기반 fallback으로 처리합니다.
+OpenAI Responses API를 사용합니다. schema가 주어지면 Structured Outputs(JSON Schema)를
+강제합니다. 환경변수가 없거나 호출에 실패하면 상위 레이어가 fallback을 처리합니다.
 """
 from __future__ import annotations
 
@@ -32,9 +32,8 @@ def _extract_output_text(body: dict[str, Any]) -> str:
 
 
 def _parse_json_text(text: str) -> dict[str, Any]:
-    value = text.strip()
     try:
-        parsed = json.loads(value)
+        parsed = json.loads(text.strip())
     except json.JSONDecodeError as exc:
         raise LLMUnavailable("LLM 응답을 구조화 JSON으로 해석하지 못했습니다.") from exc
     if not isinstance(parsed, dict):
@@ -42,17 +41,35 @@ def _parse_json_text(text: str) -> dict[str, Any]:
     return parsed
 
 
-def chat_json(*, system: str, user: str, temperature: float = 0.0, timeout: int = 30) -> dict[str, Any]:
+def chat_json(
+    *,
+    system: str,
+    user: str,
+    schema: dict[str, Any] | None = None,
+    schema_name: str = "structured_response",
+    temperature: float = 0.0,
+    timeout: int = 30,
+) -> dict[str, Any]:
     del temperature
     if not configured():
         raise LLMUnavailable("LLM 환경변수가 설정되지 않았습니다.")
 
     url = LLM_BASE_URL.rstrip("/") + "/responses"
-    payload = {
+    payload: dict[str, Any] = {
         "model": LLM_MODEL,
         "instructions": system,
         "input": user,
     }
+    if schema is not None:
+        payload["text"] = {
+            "format": {
+                "type": "json_schema",
+                "name": schema_name,
+                "strict": True,
+                "schema": schema,
+            }
+        }
+
     request = urllib.request.Request(
         url,
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),

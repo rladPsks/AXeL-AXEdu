@@ -17,19 +17,32 @@ class _FakeResponse:
         return self._body
 
 
-def test_extracts_json_from_responses_api(monkeypatch):
-    monkeypatch.setattr(llm_client, "configured", lambda: True)
-    monkeypatch.setattr(llm_client, "LLM_BASE_URL", "https://api.example.com/v1")
-    monkeypatch.setattr(llm_client, "LLM_MODEL", "test-model")
-    monkeypatch.setattr(llm_client, "LLM_API_KEY", "secret")
-    monkeypatch.setattr(
-        llm_client.urllib.request,
-        "urlopen",
-        lambda request, timeout: _FakeResponse({
+def test_structured_schema_is_sent_to_responses_api(monkeypatch):
+    captured = {}
+
+    def fake_urlopen(request, timeout):
+        captured["payload"] = json.loads(request.data.decode("utf-8"))
+        return _FakeResponse({
             "output": [{
                 "type": "message",
                 "content": [{"type": "output_text", "text": "{\"ok\": true}"}],
             }]
-        }),
-    )
-    assert llm_client.chat_json(system="s", user="u") == {"ok": True}
+        })
+
+    monkeypatch.setattr(llm_client, "configured", lambda: True)
+    monkeypatch.setattr(llm_client, "LLM_BASE_URL", "https://api.example.com/v1")
+    monkeypatch.setattr(llm_client, "LLM_MODEL", "test-model")
+    monkeypatch.setattr(llm_client, "LLM_API_KEY", "secret")
+    monkeypatch.setattr(llm_client.urllib.request, "urlopen", fake_urlopen)
+
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {"ok": {"type": "boolean"}},
+        "required": ["ok"],
+    }
+    assert llm_client.chat_json(system="s", user="u", schema=schema) == {"ok": True}
+    fmt = captured["payload"]["text"]["format"]
+    assert fmt["type"] == "json_schema"
+    assert fmt["strict"] is True
+    assert fmt["schema"] == schema

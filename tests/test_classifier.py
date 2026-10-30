@@ -1,7 +1,7 @@
 from agent import classify
 
 
-def test_classifier_falls_back_without_llm(monkeypatch):
+def test_classifier_falls_back_and_exposes_reason(monkeypatch):
     monkeypatch.setattr(
         classify,
         "chat_json",
@@ -10,7 +10,7 @@ def test_classifier_falls_back_without_llm(monkeypatch):
     result = classify.classify_complaint("다음 주 현장체험학습 준비물과 집결 시간이 언제인가요?")
     assert result["classifier_mode"] == "RULE_FALLBACK"
     assert result["nature"] == "INFO_REQUEST"
-    assert result["is_informational"] is True
+    assert "LLMUnavailable" in result["classifier_error"]
 
 
 def test_classifier_accepts_structured_llm_result(monkeypatch):
@@ -37,12 +37,14 @@ def test_classifier_accepts_structured_llm_result(monkeypatch):
         "legal_kind": "고충",
         "domain_p55": "생활지도/상담",
         "special_codes": [],
-        "classifier_mode": "LLM"
+        "classifier_mode": "LLM",
+        "classifier_error": ""
     })
     result = classify.classify_complaint("우리 아이만 계속 혼낸다고 합니다.")
     assert result["classifier_mode"] == "LLM"
     assert result["nature"] == "COMPLAINT"
     assert result["confidence"] == 0.86
+    assert result["classifier_error"] == ""
 
 
 def test_child_abuse_report_mention_not_auto_threat(monkeypatch):
