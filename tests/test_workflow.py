@@ -318,9 +318,9 @@ def test_school_duty_map_routes_life_guidance_to_student_life_team():
         text="생활지도 과정에서 아이만 반복적으로 혼났다고 합니다.",
         classification={"domain_p55": "생활지도/상담"},
     )
-    assert out["action_role"] == "student_life_staff"
-    assert "homeroom_teacher" in out["collaborators"]
-    assert out["approver"] == "vice_principal"
+    assert out["action_role"] == "HEAD_LIFE_PE"
+    assert "HOMEROOM" in out["collaborators"]
+    assert out["approver"] == "VICE_PRINCIPAL"
 
 
 def test_school_duty_map_routes_facilities_to_administration_side():
@@ -330,8 +330,8 @@ def test_school_duty_map_routes_facilities_to_administration_side():
         text="교실 냉난방 시설이 고장났습니다.",
         classification={"domain_p55": "학교 운영"},
     )
-    assert out["action_role"] == "facilities_staff"
-    assert out["approver"] == "administration_head"
+    assert out["action_role"] == "ADMIN_FACILITY"
+    assert out["approver"] == "ADMIN_CHIEF"
 
 
 def test_action_router_adds_duty_map_collaborator_task():
@@ -357,3 +357,61 @@ def test_action_router_adds_duty_map_collaborator_task():
         x["task_type"] == "COOP_FACT_CHECK" and x["assignee_role"] == "homeroom_teacher"
         for x in actions
     )
+
+
+def test_confirmed_facts_exclude_history_and_review_notes(monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "task-separation.sqlite3")
+    monkeypatch.setattr(workflow, "init_db", db.init_db)
+    db.init_db()
+    fake = {
+        "classification": {"nature": "COMPLAINT", "domain_p55": "생활지도/상담", "urgency": "LOW"},
+        "routing": {"suggested_owner": "complaint_response_team"},
+        "response_draft": "초안",
+    }
+    db.create_case_record(
+        "CASE-S",
+        {"text": "확인해주세요.", "channel": "web"},
+        fake,
+        status="IN_PROGRESS",
+        owner_role="complaint_response_team",
+        next_action="FACT_CHECK",
+    )
+    for task_type, result in [
+        ("FACT_CHECK", "10월 29일 자리 이탈을 확인함"),
+        ("HISTORY_REVIEW", "이전 사건은 미해결"),
+        ("ADMIN_REVIEW", "관리자 검토 메모"),
+    ]:
+        task = {
+            "id": f"TASK-{task_type}",
+            "case_id": "CASE-S",
+            "task_type": task_type,
+            "assignee_role": "staff",
+            "status": "REQUESTED",
+            "reason": "test",
+            "instructions": [],
+        }
+        db.create_task_record(task)
+        db.complete_task_record(task["id"], result)
+    assert workflow._confirmed_fact_results("CASE-S") == ["10월 29일 자리 이탈을 확인함"]
+
+
+def test_delivery_requires_approval_and_records_delivered_event(monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "delivery.sqlite3")
+    monkeypatch.setattr(workflow, "init_db", db.init_db)
+    db.init_db()
+    fake = {
+        "classification": {"nature": "INFO_REQUEST", "domain_p55": "교무/학사", "urgency": "LOW"},
+        "routing": {"suggested_owner": "complaint_response_team"},
+        "response_draft": "승인된 답변",
+    }
+    db.create_case_record(
+        "CASE-D",
+        {"text": "문의", "channel": "web"},
+        fake,
+        status="RESPONSE_APPROVED",
+        owner_role="complaint_response_team",
+        next_action="AWAITING_DELIVERY",
+    )
+    out = workflow.deliver_response("CASE-D", actor="vice_principal", channel="web")
+    assert out["case"]["status"] == "RESOLVED"
+    assert any(e["event_type"] == "RESPONSE_DELIVERED" for e in out["events"])

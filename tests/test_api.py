@@ -63,3 +63,40 @@ def test_explanation_endpoint(monkeypatch):
     response = client.get("/cases/CASE-1/explanation")
     assert response.status_code == 200
     assert response.json()["safety"]["auto_send"] is False
+
+
+
+def test_delivery_endpoint(monkeypatch):
+    fake = {
+        "case": {"id": "CASE-1", "status": "RESOLVED"},
+        "tasks": [],
+        "events": [],
+        "support_requests": [],
+    }
+    monkeypatch.setattr(backend_main, "deliver_response", lambda case_id, actor, channel, note: fake)
+    client = TestClient(backend_main.app)
+    response = client.post("/cases/CASE-1/deliver", json={
+        "actor": "complaint_response_team",
+        "channel": "web",
+        "note": "전달 완료",
+    })
+    assert response.status_code == 200
+    assert response.json()["case"]["status"] == "RESOLVED"
+
+
+def test_dashboard_endpoint(monkeypatch):
+    monkeypatch.setattr(backend_main, "dashboard_metrics", lambda: {
+        "total_cases": 3,
+        "open_cases": 1,
+        "resolved_cases": 2,
+        "average_processing_hours": 4.5,
+        "related_history_rate": 0.33,
+        "overdue_task_count": 0,
+        "type_counts": {},
+        "open_task_load": [],
+        "metric_note": "test",
+    })
+    client = TestClient(backend_main.app)
+    response = client.get("/dashboard/summary")
+    assert response.status_code == 200
+    assert response.json()["total_cases"] == 3

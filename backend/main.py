@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from agent.workflow import (
     complete_task,
     create_case,
+    deliver_response,
     generate_support_report,
     get_case_snapshot,
     get_case_evidence,
@@ -15,11 +16,12 @@ from agent.workflow import (
     request_support,
     review_case_history,
 )
-from db import init_db, list_cases
+from db import dashboard_metrics, init_db, list_cases
 
 from .schemas import (
     CaseCreateRequest,
     CaseSnapshotResponse,
+    DeliveryRequest,
     SupportRequestCreate,
     TaskCompleteRequest,
 )
@@ -82,6 +84,22 @@ def create_app() -> FastAPI:
             return complete_task(task_id, body.result_text, actor=body.actor)
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post("/cases/{case_id}/deliver", response_model=CaseSnapshotResponse)
+    def deliver_response_endpoint(case_id: str, body: DeliveryRequest):
+        try:
+            return deliver_response(
+                case_id,
+                actor=body.actor,
+                channel=body.channel,
+                note=body.note,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/dashboard/summary")
+    def dashboard_summary_endpoint() -> dict:
+        return dashboard_metrics()
 
     @app.post("/cases/{case_id}/support", response_model=CaseSnapshotResponse, status_code=201)
     def request_support_endpoint(case_id: str, body: SupportRequestCreate):
