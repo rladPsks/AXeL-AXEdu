@@ -88,7 +88,7 @@ def test_rules_accept_timezone_aware_history():
 def test_info_policy_question_allows_official_sources():
     from agent.pipeline import _allowed_source_types
     cls = {"nature": "INFO_REQUEST"}
-    assert _allowed_source_types(cls, "교육활동 침해가 발생하면 학교는 어떤 조치를 해야 하나요?") is None
+    assert _allowed_source_types(cls, "교육활동 침해가 발생하면 학교는 어떤 조치를 해야 하나요?") == {"law", "decree", "official_manual", "local_rule", "policy_plan"}
     assert _allowed_source_types(cls, "내일 체험학습 몇 시까지 등교하나요?") == {"school_policy"}
 
 

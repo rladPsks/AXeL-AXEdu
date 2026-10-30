@@ -243,15 +243,27 @@ def retrieve(query: str, top_k: int = 6, *, production: bool = False,
             continue
 
         # 상위 규범 근거를 같은 lexical score에서 우선합니다.
-        authority_bonus = 1.0 + max(0, 7 - int(item.get("authority_rank", 8))) * 0.03
+        authority_bonus = 1.0 + max(0, 7 - int(item.get("authority_rank", 8))) * 0.05
+        source_type = item.get("source_type")
+        source_multiplier = {
+            "law": 1.18,
+            "decree": 1.15,
+            "official_manual": 1.12,
+            "local_rule": 1.08,
+            "school_policy": 1.05,
+            "policy_plan": 0.98,
+            "press_release_statistics": 0.88,
+            "legacy_operational_guidance": 0.72,
+        }.get(source_type, 1.0)
         if item.get("verification_status") in {"verified", "corrected"}:
             authority_bonus *= 1.08
-        scored.append((score * authority_bonus, item))
+        scored.append((score * authority_bonus * source_multiplier, item))
 
     scored.sort(key=lambda pair: pair[0], reverse=True)
 
     # 같은 source/locator/text가 body/table로 중복된 경우 하나만 반환합니다.
     seen: set[tuple[str, str, str]] = set()
+    per_source_count: Counter[str] = Counter()
     results = []
     effective_date = as_of_date or date.today().isoformat()
     for score, item in scored:
@@ -262,7 +274,15 @@ def retrieve(query: str, top_k: int = 6, *, production: bool = False,
         )
         if dedup in seen:
             continue
+
+        source_id = str(item.get("source_id"))
+        source_type = item.get("source_type")
+        source_cap = 1 if source_type == "legacy_operational_guidance" else 2
+        if per_source_count[source_id] >= source_cap:
+            continue
+
         seen.add(dedup)
+        per_source_count[source_id] += 1
         result = dict(item)
         result["score"] = round(score, 4)
         result["as_of_date"] = effective_date

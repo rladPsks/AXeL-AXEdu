@@ -24,7 +24,7 @@ def _allowed_source_types(cls: dict[str, Any], text: str) -> set[str] | None:
         "매뉴얼", "정책", "절차", "조치", "신고", "보호조치",
     )
     if any(term in text for term in policy_terms):
-        return None
+        return {"law", "decree", "official_manual", "local_rule", "policy_plan"}
     return {"school_policy"}
 
 

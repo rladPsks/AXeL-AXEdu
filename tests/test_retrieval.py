@@ -106,3 +106,35 @@ def test_allowed_source_types_filters_information_sources(monkeypatch):
         allowed_source_types={"school_policy"},
     )
     assert results[0]["chunk_id"] == "school"
+
+
+def test_legacy_guidance_does_not_dominate_results(monkeypatch):
+    monkeypatch.setattr(retrieval, "load_corpus", lambda **kwargs: [
+        {
+            "chunk_id": "law", "source_id": "LAW", "title": "교원지위법",
+            "source_type": "law", "authority_rank": 1,
+            "text": "교육활동 침해 발생 시 피해교원 보호조치와 침해자 조치 절차",
+            "locator": "제18조", "verification_status": "verified",
+        },
+        {
+            "chunk_id": "manual", "source_id": "MANUAL", "title": "학교민원 처리 매뉴얼",
+            "source_type": "official_manual", "authority_rank": 4,
+            "text": "교육활동 침해 사안은 관리자 검토와 보호조치를 연계한다",
+            "locator": "p20", "verification_status": "verified",
+        },
+        {
+            "chunk_id": "legacy1", "source_id": "LEGACY", "title": "학교 민원 응대 안내자료",
+            "source_type": "legacy_operational_guidance", "authority_rank": 6,
+            "text": "교육활동 침해 시 폭언 응대 조치",
+            "locator": "p20", "verification_status": "pending",
+        },
+        {
+            "chunk_id": "legacy2", "source_id": "LEGACY", "title": "학교 민원 응대 안내자료",
+            "source_type": "legacy_operational_guidance", "authority_rank": 6,
+            "text": "교육활동 침해 시 관리자 조치",
+            "locator": "p21", "verification_status": "pending",
+        },
+    ])
+    results = retrieval.retrieve("교육활동 침해 조치", top_k=4)
+    assert results[0]["source_type"] in {"law", "official_manual"}
+    assert sum(r["source_id"] == "LEGACY" for r in results) <= 1
