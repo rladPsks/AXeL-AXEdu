@@ -23,9 +23,13 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
 
 def process_file(path: Path, parsed_dir: Path, chunks_dir: Path,
                  max_chars: int = 1800, overlap: int = 180,
-                 extract_tables: bool = True) -> dict[str, Any]:
+                 extract_tables: bool = True, enable_ocr: bool = True,
+                 ocr_language: str = "kor+eng", ocr_dpi: int = 250) -> dict[str, Any]:
     metadata = load_sidecar_metadata(path)
-    document = parse_document(path, metadata, extract_tables=extract_tables)
+    document = parse_document(
+        path, metadata, extract_tables=extract_tables,
+        enable_ocr=enable_ocr, ocr_language=ocr_language, ocr_dpi=ocr_dpi,
+    )
     chunks = chunk_document(document, max_chars=max_chars, overlap=overlap)
 
     filename = _safe_name(str(document.get("document_id") or path.stem))
@@ -34,21 +38,46 @@ def process_file(path: Path, parsed_dir: Path, chunks_dir: Path,
     _write_json(parsed_path, document)
     _write_json(chunks_path, chunks)
 
+    pages = document.get("pages", [])
+    page_warning_list = [
+        {
+            "page_number": page.get("page_number"),
+            "page_type": page.get("page_type"),
+            "warnings": page.get("warnings", []),
+            "ocr_status": page.get("ocr_status"),
+        }
+        for page in pages if page.get("warnings")
+    ]
+    quality = {
+        "blank_pages": sum(page.get("page_type") == "blank" for page in pages),
+        "section_divider_pages": sum(page.get("page_type") == "section_divider" for page in pages),
+        "image_content_unreadable_pages": [
+            page.get("page_number") for page in pages
+            if page.get("page_type") == "image_content_unreadable"
+        ],
+        "ocr": document.get("ocr_summary", {}),
+        "pages_with_warnings": page_warning_list,
+        "law_chunks_requiring_review": sum(
+            bool(chunk.get("requires_review")) for chunk in chunks.get("chunks", [])
+        ),
+    }
     return {
         "file": path.name,
         "document_id": document.get("document_id"),
-        "page_or_section_count": len(document.get("pages", [])),
+        "page_or_section_count": len(pages),
         "chunk_count": chunks.get("chunk_count", 0),
         "parsed_output": str(parsed_path),
         "chunk_output": str(chunks_path),
-        "warnings": chunks.get("warnings", []),
+        "warnings": document.get("warnings", []) + chunks.get("warnings", []),
+        "quality": quality,
         "status": "ok",
     }
 
 
 def run(input_dir: Path, parsed_dir: Path, chunks_dir: Path,
         max_chars: int = 1800, overlap: int = 180,
-        extract_tables: bool = True) -> dict[str, Any]:
+        extract_tables: bool = True, enable_ocr: bool = True,
+        ocr_language: str = "kor+eng", ocr_dpi: int = 250) -> dict[str, Any]:
     if not input_dir.exists():
         raise FileNotFoundError(f"입력 폴더가 없습니다: {input_dir}")
 
@@ -60,8 +89,10 @@ def run(input_dir: Path, parsed_dir: Path, chunks_dir: Path,
     results = []
     for path in source_files:
         try:
-            results.append(process_file(path, parsed_dir, chunks_dir,
-                                        max_chars, overlap, extract_tables))
+            results.append(process_file(
+                path, parsed_dir, chunks_dir, max_chars, overlap,
+                extract_tables, enable_ocr, ocr_language, ocr_dpi,
+            ))
         except Exception as exc:
             results.append({
                 "file": path.name,
@@ -87,10 +118,16 @@ def main() -> None:
     parser.add_argument("--max-chars", type=int, default=1800, help="청크 최대 문자 수")
     parser.add_argument("--overlap", type=int, default=180, help="청크 간 겹치는 문자 수")
     parser.add_argument("--no-tables", action="store_true", help="PDF 표 추출 생략")
+    parser.add_argument("--no-ocr", action="store_true", help="이미지 페이지 OCR 생략")
+    parser.add_argument("--ocr-language", default="kor+eng", help="Tesseract 언어 데이터 (기본: kor+eng)")
+    parser.add_argument("--ocr-dpi", type=int, default=250, help="OCR 렌더링 해상도")
     args = parser.parse_args()
 
-    report = run(args.input, args.parsed_output, args.chunks_output,
-                 args.max_chars, args.overlap, not args.no_tables)
+    report = run(
+        args.input, args.parsed_output, args.chunks_output,
+        args.max_chars, args.overlap, not args.no_tables,
+        not args.no_ocr, args.ocr_language, args.ocr_dpi,
+    )
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if report["error_count"]:
         raise SystemExit(1)

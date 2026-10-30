@@ -11,6 +11,7 @@ def test_law_chunker_keeps_article_text_and_location():
         "document_id": "TEST-LAW",
         "title": "테스트 법령",
         "source_type": "law",
+        "effective_from": "2026-01-01",
         "pages": [
             {"page_number": 1, "text": "제1조(목적) 이 법은 목적을 정한다.\n① 첫 번째 항이다."},
             {"page_number": 2, "text": "제2조(정의)\n이 법에서 사용하는 용어의 뜻은 다음과 같다."},
@@ -22,6 +23,74 @@ def test_law_chunker_keeps_article_text_and_location():
     assert result["chunks"][0]["section_title"].startswith("제1조")
     assert "첫 번째 항" in result["chunks"][0]["text"]
     assert result["chunks"][1]["page_start"] == 2
+    assert result["document_header"] == []
+
+
+def test_law_header_is_not_created_as_article_chunk():
+    document = {
+        "document_id": "TEST-LAW",
+        "title": "테스트 법령",
+        "source_type": "law",
+        "effective_from": "2026-01-01",
+        "pages": [{"page_number": 1, "text": "테스트 법률\n[시행 2026. 1. 1.]\n제1조(목적) 목적이다."}],
+        "warnings": [],
+    }
+    result = chunk_document(document)
+    assert result["chunk_count"] == 1
+    assert "테스트 법률" in result["document_header"]
+    assert result["chunks"][0]["article_number"] == "1"
+
+
+def test_styled_law_separates_current_and_future_article_versions():
+    black = "#000000"
+    red = "#FF0000"
+    blue = "#0000FF"
+    document = {
+        "document_id": "TEST-LAW",
+        "title": "테스트 법령",
+        "source_type": "law",
+        "effective_from": "2026-02-19",
+        "pages": [{
+            "page_number": 1,
+            "text": "",
+            "styled_lines": [
+                {"text": "테스트 법률", "segments": [{"text": "테스트 법률", "color": black}]},
+                {"text": "제19조(침해행위)", "segments": [{"text": "제19조(침해행위)", "color": black}]},
+                {"text": "기존 조문 내용", "segments": [{"text": "기존 조문 내용", "color": black}]},
+                {"text": "제19조(침해행위)", "segments": [{"text": "제19조(침해행위)", "color": red}]},
+                {"text": "개정 조문 내용", "segments": [{"text": "개정 조문 내용", "color": red}]},
+                {"text": "[시행일: 2026. 12. 3.]", "segments": [{"text": "[시행일: 2026. 12. 3.]", "color": blue}]},
+            ],
+        }],
+        "warnings": [],
+    }
+    result = chunk_document(document)
+    assert result["chunk_count"] == 2
+    current, future = result["chunks"]
+    assert current["version_status"] == "in_force"
+    assert current["effective_to"] == "2026-12-02"
+    assert future["version_status"] == "scheduled"
+    assert future["effective_from"] == "2026-12-03"
+    assert "기존 조문 내용" in current["text"]
+    assert "개정 조문 내용" in future["text"]
+
+
+def test_blank_and_section_divider_pages_do_not_raise_ocr_warnings():
+    # 페이지 유형은 파서가 분류하지만, 청커는 빈 페이지를 건너뛰고 구분 제목을 보존합니다.
+    document = {
+        "document_id": "TEST-MANUAL",
+        "title": "테스트 매뉴얼",
+        "source_type": "official_manual",
+        "pages": [
+            {"page_number": 1, "page_type": "section_divider", "text": "Ⅱ\n특이민원 처리 원칙 및 방법", "tables": []},
+            {"page_number": 2, "page_type": "blank", "text": "", "tables": []},
+        ],
+        "warnings": [],
+    }
+    result = chunk_document(document)
+    assert result["chunk_count"] == 1
+    assert result["chunks"][0]["chunk_type"] == "section_heading"
+    assert result["chunks"][0]["locator"] == "p1-heading"
 
 
 def test_html_parser_extracts_text_and_tables(tmp_path: Path):

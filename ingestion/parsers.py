@@ -1,13 +1,14 @@
 """PDF, HWPX, HTML 원본 문서 파서.
 
-원문을 요약하거나 문장을 고쳐 쓰지 않습니다. 위치와 추출 경고를 함께 보존합니다.
-PDF의 페이지 번호와 HWPX의 구역 번호는 서로 다른 개념으로 관리합니다.
+원문을 요약·재작성하지 않고 텍스트, 표, 페이지 위치, 글자 스타일을 보존합니다.
+PDF의 저텍스트 페이지는 이미지가 있는 경우에만 선택적으로 OCR합니다.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import re
+import shutil
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,7 +16,7 @@ from typing import Any
 import xml.etree.ElementTree as ET
 
 SUPPORTED_EXTENSIONS = {".pdf", ".hwpx", ".html", ".htm"}
-PARSER_VERSION = "0.1.1"
+PARSER_VERSION = "0.2.0"
 
 
 def sha256_file(path: Path) -> str:
@@ -32,7 +33,8 @@ def load_sidecar_metadata(path: Path) -> dict[str, Any]:
     for candidate in candidates:
         if candidate.exists():
             try:
-                value = json.loads(candidate.read_text(encoding="utf-8"))
+                # PowerShell이 생성한 UTF-8 BOM 포함 JSON도 허용합니다.
+                value = json.loads(candidate.read_text(encoding="utf-8-sig"))
             except (OSError, ValueError) as exc:
                 raise ValueError(f"메타데이터 파일을 읽을 수 없습니다: {candidate}: {exc}") from exc
             if not isinstance(value, dict):
@@ -73,10 +75,100 @@ def _clean_table(table: list[list[Any]] | None) -> list[list[str]]:
     return cleaned
 
 
-def parse_pdf(path: Path, metadata: dict[str, Any] | None = None,
-              min_text_chars: int = 20, extract_tables: bool = True) -> dict[str, Any]:
+def _color_hex(color: Any) -> str:
+    """PyMuPDF의 RGB 정수 색상값을 #RRGGBB로 변환합니다."""
+    if not isinstance(color, int):
+        return "#000000"
+    return f"#{color & 0xFFFFFF:06X}"
+
+
+def _extract_styled_lines(page: Any) -> list[dict[str, Any]]:
+    """PDF 텍스트를 줄 단위로 추출하면서 색상·위치·글꼴 정보를 보존합니다."""
+    result = []
+    page_dict = page.get_text("dict", sort=True)
+    for block in page_dict.get("blocks", []):
+        if block.get("type") != 0:
+            continue
+        for line in block.get("lines", []):
+            segments = []
+            texts = []
+            for span in line.get("spans", []):
+                value = span.get("text", "")
+                if not value:
+                    continue
+                color = _color_hex(span.get("color", 0))
+                segments.append({
+                    "text": value,
+                    "color": color,
+                    "font": span.get("font"),
+                    "size": round(float(span.get("size", 0)), 2),
+                    "bbox": [round(float(v), 2) for v in span.get("bbox", [])],
+                })
+                texts.append(value)
+            line_text = "".join(texts).strip()
+            if line_text:
+                result.append({
+                    "text": line_text,
+                    "bbox": [round(float(v), 2) for v in line.get("bbox", [])],
+                    "segments": segments,
+                })
+    return result
+
+
+def _image_coverage(page: Any) -> tuple[float, int]:
+    """페이지 내 이미지가 차지하는 대략적인 면적 비율과 이미지 수를 계산합니다."""
+    page_area = max(float(page.rect.width * page.rect.height), 1.0)
+    rects = []
     try:
-        import fitz
+        for image in page.get_images(full=True):
+            xref = image[0]
+            rects.extend(page.get_image_rects(xref))
+    except Exception:
+        return 0.0, 0
+    # 겹치는 이미지가 있을 수 있어 합산 비율은 1.0에서 제한합니다.
+    covered = sum(max(0.0, float(rect.width * rect.height)) for rect in rects)
+    return min(covered / page_area, 1.0), len(rects)
+
+
+def _printed_page_number(text: str) -> str | None:
+    """문서에 인쇄된 쪽수 후보를 추출합니다. PDF 페이지 번호와 별도로 보관합니다."""
+    patterns = [
+        r"(?:^|\n)\s*[-–]\s*(\d{1,4})\s*[-–]\s*(?:\n|$)",
+        r"법제처\s*(\d{1,4})\s*국가법령정보센터",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.MULTILINE)
+        if match:
+            return match.group(1)
+    return None
+
+
+def _try_ocr(page: Any, language: str, dpi: int) -> tuple[str | None, str | None]:
+    """Tesseract가 설치된 경우 이미지 영역의 글자를 OCR합니다."""
+    if shutil.which("tesseract") is None:
+        return None, "Tesseract 실행 파일을 찾지 못했습니다. OCR이 필요한 페이지는 원본 확인 대상으로 남겼습니다."
+    try:
+        text_page = page.get_textpage_ocr(language=language, dpi=dpi, full=False)
+        value = page.get_text("text", textpage=text_page, sort=True).strip()
+        if not value:
+            return None, "OCR을 실행했지만 인식된 텍스트가 없습니다."
+        return value, None
+    except Exception as exc:
+        return None, f"OCR 실패: {type(exc).__name__}: {exc}"
+
+
+def parse_pdf(
+    path: Path,
+    metadata: dict[str, Any] | None = None,
+    min_text_chars: int = 20,
+    extract_tables: bool = True,
+    enable_ocr: bool = True,
+    ocr_language: str = "kor+eng",
+    ocr_dpi: int = 250,
+    ocr_image_coverage: float = 0.05,
+) -> dict[str, Any]:
+    try:
+        import pymupdf
     except ImportError as exc:
         raise RuntimeError("PDF 파싱에는 PyMuPDF가 필요합니다. pip install PyMuPDF") from exc
 
@@ -100,28 +192,89 @@ def parse_pdf(path: Path, metadata: dict[str, Any] | None = None,
                 f"표 추출 경고: {type(exc).__name__}: {exc}. 본문 텍스트는 별도로 추출했습니다."
             )
 
-    with fitz.open(path) as pdf:
+    with pymupdf.open(path) as pdf:
         if pdf.is_encrypted and not pdf.authenticate(""):
             raise ValueError("암호가 설정된 PDF입니다. 암호를 해제한 사본을 사용하세요.")
         document["page_count"] = pdf.page_count
+
         for page_number, page in enumerate(pdf, start=1):
-            text = (page.get_text("text", sort=True) or "").replace("\x00", "").strip()
+            native_text = (page.get_text("text", sort=True) or "").replace("\x00", "").strip()
+            styled_lines = _extract_styled_lines(page)
+            image_ratio, image_count = _image_coverage(page)
+            tables = table_pages.get(page_number, [])
+            text = native_text
             warnings = []
-            if len(text) < min_text_chars:
-                warnings.append(
-                    "텍스트가 거의 없습니다. 이미지 기반 페이지일 수 있으므로 원본 확인 또는 별도 OCR이 필요합니다."
-                )
+            ocr_status = "not_needed"
+            extraction_method = "pymupdf"
+
+            # 이미지 면적이 있고 원문 텍스트가 적은 페이지에만 선택적으로 OCR합니다.
+            should_ocr = (
+                enable_ocr
+                and len(native_text) < min_text_chars
+                and image_count > 0
+                and image_ratio >= ocr_image_coverage
+            )
+            if should_ocr:
+                ocr_text, ocr_warning = _try_ocr(page, ocr_language, ocr_dpi)
+                if ocr_text:
+                    text = ocr_text
+                    extraction_method = "pymupdf+ocr"
+                    ocr_status = "success"
+                else:
+                    ocr_status = "failed"
+                    warnings.append(ocr_warning or "OCR 결과가 비어 있습니다.")
+            elif len(native_text) < min_text_chars and image_count > 0 and not enable_ocr:
+                ocr_status = "disabled"
+                warnings.append("이미지가 포함된 저텍스트 페이지이나 OCR이 비활성화되어 있습니다.")
+
+            # 제목만 있는 구분 페이지와 실제 빈 페이지를 다르게 기록합니다.
+            if not text and not tables and image_count == 0:
+                try:
+                    has_drawings = bool(page.get_drawings())
+                except Exception:
+                    has_drawings = False
+                page_type = "blank" if not has_drawings else "graphic_or_blank"
+            elif len(text) < 100 and text:
+                page_type = "section_divider"
+            elif not text and image_count > 0:
+                page_type = "image_content_unreadable"
+                if not warnings:
+                    warnings.append("이미지 영역에서 텍스트를 추출하지 못했습니다. OCR 또는 원본 검토가 필요합니다.")
+            else:
+                page_type = "content"
+
+            if page_type == "blank":
+                # 실제 빈 페이지는 오류나 OCR 대상으로 처리하지 않습니다.
+                ocr_status = "not_applicable"
+
             document["pages"].append({
                 "page_number": page_number,
+                "printed_page_number": _printed_page_number(text or native_text),
                 "section_number": None,
+                "page_type": page_type,
                 "text": text,
-                "tables": table_pages.get(page_number, []),
+                "native_text": native_text,
+                "styled_lines": styled_lines,
+                "tables": tables,
                 "char_count": len(text),
-                "extraction_method": "pymupdf",
+                "native_char_count": len(native_text),
+                "image_count": image_count,
+                "image_coverage": round(image_ratio, 4),
+                "ocr_status": ocr_status,
+                "ocr_language": ocr_language if ocr_status in {"success", "failed"} else None,
+                "extraction_method": extraction_method,
                 "warnings": warnings,
             })
+
     if not document["pages"]:
         document["warnings"].append("PDF에서 페이지를 추출하지 못했습니다.")
+    document["ocr_summary"] = {
+        "attempted_pages": sum(p["ocr_status"] in {"success", "failed"} for p in document["pages"]),
+        "successful_pages": sum(p["ocr_status"] == "success" for p in document["pages"]),
+        "failed_pages": sum(p["ocr_status"] == "failed" for p in document["pages"]),
+        "blank_pages": sum(p["page_type"] == "blank" for p in document["pages"]),
+        "section_divider_pages": sum(p["page_type"] == "section_divider" for p in document["pages"]),
+    }
     return document
 
 
@@ -167,8 +320,7 @@ def _parse_hwpx_section(xml_bytes: bytes) -> tuple[str, list[list[list[str]]]]:
             cells = []
             for cell in row.iter():
                 if _local_name(cell.tag) in {"tc", "cell"}:
-                    cell_text = _element_text(cell)
-                    cells.append(re.sub(r"\s+", " ", cell_text).strip())
+                    cells.append(re.sub(r"\s+", " ", _element_text(cell)).strip())
             if any(cells):
                 rows.append(cells)
         if rows:
@@ -200,6 +352,7 @@ def parse_hwpx(path: Path, metadata: dict[str, Any] | None = None,
                     "page_number": None,
                     "section_number": section_index,
                     "section_file": name,
+                    "page_type": "content" if text or tables else "blank",
                     "text": text,
                     "tables": tables,
                     "char_count": len(text),
@@ -231,11 +384,9 @@ def parse_html(path: Path, metadata: dict[str, Any] | None = None) -> dict[str, 
         document["title"] = soup.title.get_text(" ", strip=True)
 
     body = soup.body or soup
-    blocks = [
-        element.get_text(" ", strip=True)
-        for element in body.find_all(["h1", "h2", "h3", "h4", "p", "li"])
-    ]
-    blocks = [text for text in blocks if text]
+    blocks = [element.get_text(" ", strip=True)
+              for element in body.find_all(["h1", "h2", "h3", "h4", "p", "li"])]
+    blocks = [value for value in blocks if value]
     tables = []
     for table in body.find_all("table"):
         rows = []
@@ -250,6 +401,7 @@ def parse_html(path: Path, metadata: dict[str, Any] | None = None) -> dict[str, 
     document["pages"].append({
         "page_number": None,
         "section_number": None,
+        "page_type": "content" if text or tables else "blank",
         "text": text,
         "tables": tables,
         "char_count": len(text),
@@ -263,12 +415,15 @@ def parse_html(path: Path, metadata: dict[str, Any] | None = None) -> dict[str, 
 
 
 def parse_document(path: Path, metadata: dict[str, Any] | None = None,
-                   min_text_chars: int = 20, extract_tables: bool = True) -> dict[str, Any]:
+                   min_text_chars: int = 20, extract_tables: bool = True,
+                   enable_ocr: bool = True, ocr_language: str = "kor+eng",
+                   ocr_dpi: int = 250) -> dict[str, Any]:
     if not path.exists() or not path.is_file():
         raise FileNotFoundError(f"문서 파일이 없습니다: {path}")
     suffix = path.suffix.lower()
     if suffix == ".pdf":
-        return parse_pdf(path, metadata, min_text_chars, extract_tables)
+        return parse_pdf(path, metadata, min_text_chars, extract_tables,
+                         enable_ocr, ocr_language, ocr_dpi)
     if suffix == ".hwpx":
         return parse_hwpx(path, metadata, min_text_chars)
     if suffix in {".html", ".htm"}:
