@@ -9,12 +9,15 @@ from .validator import validate_response
 
 
 def _routing_domain(cls: dict[str, Any]) -> str:
-    if cls.get("nature") == "INFO_REQUEST" or cls.get("is_informational"):
-        return "simple_inquiry"
     if cls.get("nature") in {"SAFETY", "INFRINGEMENT_REVIEW"} or cls.get("stage") == 4:
         return "complex_or_sensitive"
-    if cls.get("nature") == "COUNSEL" or cls.get("domain_p55") == "생활지도/상담":
+    needs_fact_check = bool(cls.get("needs_fact_check"))
+    if cls.get("domain_p55") == "생활지도/상담" and needs_fact_check:
         return "student_counseling"
+    if cls.get("nature") == "COUNSEL":
+        return "student_counseling"
+    if cls.get("nature") == "INFO_REQUEST" or cls.get("is_informational"):
+        return "simple_inquiry"
     return "fact_check"
 
 
@@ -25,8 +28,10 @@ def _derive_handling_route(cls: dict[str, Any]) -> str:
     }))
     if cls.get("urgency") == "HIGH" or risky or cls.get("nature") in {"SAFETY", "INFRINGEMENT_REVIEW"}:
         return "ADMIN_REVIEW"
-    if cls.get("nature") == "INFO_REQUEST":
+    if cls.get("nature") == "INFO_REQUEST" and not cls.get("needs_fact_check"):
         return "FRONT_DESK_RESOLVE"
+    if cls.get("nature") == "INFO_REQUEST" and cls.get("needs_fact_check"):
+        return "STAFF_OR_TEAM"
     return "STAFF_OR_TEAM"
 
 

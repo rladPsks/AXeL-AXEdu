@@ -183,3 +183,38 @@ def test_explanation_read_does_not_append_history_event(monkeypatch, tmp_path: P
     workflow.get_case_explanation("CASE-E")
     after = len(db.list_case_events("CASE-E"))
     assert before == after
+
+
+def test_info_request_with_fact_check_routes_to_staff_or_team():
+    cls = {
+        "nature": "INFO_REQUEST",
+        "urgency": "LOW",
+        "special_codes": [],
+        "infringement_flags": [],
+        "needs_fact_check": ["수업 상황 확인"],
+        "domain_p55": "생활지도/상담",
+    }
+    assert _derive_handling_route(cls) == "STAFF_OR_TEAM"
+
+
+def test_life_guidance_info_request_creates_primary_and_homeroom_tasks():
+    from agent.action_router import decide_actions
+    actions = decide_actions(
+        {
+            "nature": "INFO_REQUEST",
+            "handling_route": "STAFF_OR_TEAM",
+            "domain_p55": "생활지도/상담",
+            "urgency": "LOW",
+            "special_codes": [],
+            "infringement_flags": [],
+            "needs_fact_check": ["지도 상황 확인"],
+        },
+        {
+            "action_role": "HEAD_LIFE_PE",
+            "collaborators": ["HOMEROOM"],
+            "approver": "VICE_PRINCIPAL",
+        },
+        [],
+    )
+    assert any(x["task_type"] == "FACT_CHECK" and x["assignee_role"] == "HEAD_LIFE_PE" for x in actions)
+    assert any(x["task_type"] == "COOP_FACT_CHECK" and x["assignee_role"] == "HOMEROOM" for x in actions)

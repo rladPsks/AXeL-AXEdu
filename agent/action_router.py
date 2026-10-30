@@ -16,7 +16,9 @@ def decide_actions(classification: dict[str, Any], routing: dict[str, Any], evid
     special_codes = set(classification.get("special_codes") or [])
     infringement_flags = set(classification.get("infringement_flags") or [])
 
-    if nature == "INFO_REQUEST":
+    handling_route = classification.get("handling_route")
+
+    if nature == "INFO_REQUEST" and handling_route == "FRONT_DESK_RESOLVE":
         if evidence:
             actions.append({
                 "task_type": "RESPONSE_REVIEW",
@@ -31,6 +33,13 @@ def decide_actions(classification: dict[str, Any], routing: dict[str, Any], evid
                 "reason": "현재 연결된 자료만으로 확정하기 어려워 업무분장 담당자의 사실 확인이 필요합니다.",
                 "instructions": ["학교 공지·학사일정·담당 부서에서 사실 확인", "확인된 내용과 출처를 사건에 회신"],
             })
+    elif nature == "INFO_REQUEST" and handling_route == "STAFF_OR_TEAM":
+        actions.append({
+            "task_type": "FACT_CHECK",
+            "assignee_role": routing.get("action_role") or "relevant_staff",
+            "reason": "정보 요청 형태이지만 학교 내부 사실 확인이 필요한 사안입니다.",
+            "instructions": classification.get("needs_fact_check") or ["관련 사실과 맥락 확인"],
+        })
     elif nature == "COUNSEL":
         actions.append({
             "task_type": "STUDENT_COUNSEL",
@@ -64,7 +73,7 @@ def decide_actions(classification: dict[str, Any], routing: dict[str, Any], evid
         })
 
     collaborators = [role for role in (routing.get("collaborators") or []) if role and role != routing.get("action_role")]
-    if collaborators and nature not in {"INFO_REQUEST", "SAFETY", "INFRINGEMENT_REVIEW"}:
+    if collaborators and handling_route != "FRONT_DESK_RESOLVE" and nature not in {"SAFETY", "INFRINGEMENT_REVIEW"}:
         for role in collaborators:
             actions.append({
                 "task_type": "COOP_FACT_CHECK",
