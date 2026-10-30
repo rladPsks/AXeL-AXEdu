@@ -19,7 +19,10 @@ from db import (
     update_case_state,
 )
 from .action_router import decide_actions, next_case_state
+from .history_agent import build_history_review, find_related_cases
 from .pipeline import process
+from .response_agent import generate_response_draft
+from .report_agent import build_support_report
 
 
 def _id(prefix: str) -> str:
@@ -118,6 +121,20 @@ def complete_task(task_id: str, result_text: str, actor: str = "staff") -> dict[
         "student_ref": case.get("student_ref"),
     }
     rerun = process(rerun_input, history=_history_from_events(case_id))
+
+    confirmed_facts = [
+        str(t.get("result_text") or "").strip()
+        for t in list_case_tasks(case_id)
+        if t.get("status") == "COMPLETED" and str(t.get("result_text") or "").strip()
+    ]
+    response = generate_response_draft(
+        complaint_text=case["raw_text"],
+        confirmed_facts=confirmed_facts,
+        evidence=rerun.get("evidence", []),
+        classification=rerun["classification"],
+    )
+    rerun["response_draft"] = response["draft"]
+    rerun["response_generation"] = response
     save_ai_run(case_id, "POST_TASK_REVIEW", rerun_input, rerun)
 
     open_tasks = [t for t in list_case_tasks(case_id) if t["status"] != "COMPLETED"]
@@ -201,3 +218,32 @@ def get_case_snapshot(case_id: str) -> dict[str, Any]:
         "events": list_case_events(case_id),
         "support_requests": list_support_requests(case_id),
     }
+
+
+def review_case_history(case_id: str) -> dict[str, Any]:
+    init_db()
+    case = get_case(case_id)
+    if case is None:
+        raise ValueError(f"사건을 찾을 수 없습니다: {case_id}")
+    related = find_related_cases(
+        current_case_id=case_id,
+        complainant_id=case.get("complainant_id"),
+        student_ref=case.get("student_ref"),
+        raw_text=case["raw_text"],
+    )
+    review = build_history_review(case, related)
+    append_event(case_id, "HISTORY_REVIEWED", "agent", {
+        "related_count": review["related_count"],
+        "repeat_candidate": review["repeat_candidate"],
+        "reason": review["reason"],
+    })
+    return review
+
+
+def generate_support_report(case_id: str) -> dict[str, Any]:
+    snapshot = get_case_snapshot(case_id)
+    report = build_support_report(snapshot)
+    append_event(case_id, "SUPPORT_REPORT_DRAFTED", "agent", {
+        "report_status": report["report_status"],
+    })
+    return report

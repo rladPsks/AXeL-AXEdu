@@ -1,7 +1,7 @@
 import json
 import streamlit as st
 
-from agent.workflow import create_case, complete_task, get_case_snapshot, request_support
+from agent.workflow import create_case, complete_task, generate_support_report, get_case_snapshot, request_support, review_case_history
 from db import init_db, list_cases
 
 st.set_page_config(page_title="AXeL | CARE Agent", page_icon="🏫", layout="wide")
@@ -92,6 +92,23 @@ if case_id:
 
     st.write("**현재 보호자 답변 초안**")
     st.text(case.get("response_draft") or "아직 답변 초안이 없습니다.")
+
+    c_hist, c_report = st.columns(2)
+    with c_hist:
+        if st.button("기존 사건 맥락 비교"):
+            review = review_case_history(case_id)
+            st.session_state["history_review"] = review
+    with c_report:
+        if st.button("교육지원청 지원 보고서 초안"):
+            report = generate_support_report(case_id)
+            st.session_state["support_report"] = report
+
+    if st.session_state.get("history_review"):
+        st.write("**반복·누적 맥락 비교**")
+        st.json(st.session_state["history_review"])
+    if st.session_state.get("support_report"):
+        st.write("**지원 보고서 초안**")
+        st.json(st.session_state["support_report"])
 
     st.write("**사건 타임라인**")
     timeline = []
