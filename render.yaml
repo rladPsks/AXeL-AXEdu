@@ -1,27 +1,36 @@
+# Render Blueprint — 무료 시연용 단일 FastAPI 서비스 (SQLite는 컨테이너 내부, 휴면 시 초기화)
+# 비밀값(sync: false)은 Render 대시보드 > Environment 에서 직접 입력합니다.
 services:
   - type: web
     name: axel-axedu-demo
     runtime: python
     plan: free
+    autoDeploy: true
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn backend.main:create_app --factory --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
+      # 런타임
       - key: PYTHON_VERSION
         value: 3.12.12
       - key: SCHOOL_AGENT_DB
         value: data/private/demo.sqlite3
+      # 공개 시연 (가상 데이터 전용)
       - key: SCHOOL_AGENT_RUN_WORKER
         value: "1"
       - key: SCHOOL_AGENT_AUTO_SEED
         value: "1"
       - key: SCHOOL_AGENT_DEMO
         value: "1"
+      # OpenAI — 비밀값
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
         sync: false
+      # Azure AI Speech — 키만 비밀값
       - key: AZURE_SPEECH_KEY
         sync: false
       - key: AZURE_SPEECH_REGION
-        sync: false
+        value: koreacentral
+      - key: AZURE_SPEECH_LOCALE
+        value: ko-KR

@@ -12,3 +12,5 @@ frontend/playwright-report/
 *.sqlite3-*
 .env
 data/private/
+.env.local
+.env.*.local

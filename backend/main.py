@@ -18,6 +18,7 @@ from .files import router as files_router, upload_limit, file_access
 from .guardians import router as guardians_router
 from .agents import router as agents_router
 from .runtime import build_registry
+from .envfile import load_env_file
 from .worker import Worker
 from .seed import seed
 from .demo import router as demo_router
@@ -36,6 +37,7 @@ from .models import (CaseTransition, Command, HandoverCreate, SupportCreate,
 
 
 def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_bytes=None, agent_registry=None, inbox_worker=True):
+    load_env_file()
     @asynccontextmanager
     async def lifespan(app):
         if os.getenv('SCHOOL_AGENT_AUTO_SEED','0')=='1':
