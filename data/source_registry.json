@@ -215,13 +215,61 @@
         12
       ],
       "notes": "2024학년도 실태조사 및 당시 정책 발표 자료입니다. 통계의 조사시점·대상연도를 항상 함께 표시하고 현행 법적 기준으로 사용하지 않습니다."
+    },
+    {
+      "source_id": "PRIVACY-ACT-21445",
+      "title": "개인정보 보호법",
+      "source_type": "law",
+      "issuer": "국가법령정보센터",
+      "law_number": "법률 제21445호",
+      "promulgated_at": "2026-03-10",
+      "effective_from": "2026-09-11",
+      "status": "in_force_as_of_2026_10_30",
+      "uploaded_file": false,
+      "official_url": "https://www.law.go.kr/lsInfoR.do?ancYnChk=0&chrClsCd=010202&efYd=20260911&lsiSeq=283839&urlMode=lsInfoP",
+      "relevant_articles": [
+        "제15조",
+        "제16조",
+        "제17조",
+        "제18조",
+        "제29조"
+      ],
+      "notes": "민원 원문과 학생·보호자 정보의 AI 분석·저장·외부 제공 시 적용되는 개인정보 처리 근거입니다."
+    },
+    {
+      "source_id": "PRIVACY-ACT-21910",
+      "title": "개인정보 보호법 개정 예정 조문",
+      "source_type": "law_amendment_scheduled",
+      "issuer": "국가법령정보센터",
+      "law_number": "법률 제21910호",
+      "promulgated_at": "2026-09-08",
+      "effective_from": "2027-03-09",
+      "status": "scheduled",
+      "uploaded_file": false,
+      "official_url": "https://www.law.go.kr/LSW/lsInfoP.do?ancNo=21910&ancYd=20260908&efYd=20270309&lsiSeq=289415",
+      "relevant_articles": [
+        "개정 조문 전체"
+      ],
+      "notes": "2026-10-30 현재 미시행이므로 시행일 전에는 현행 근거로 사용하지 않습니다."
+    },
+    {
+      "source_id": "DECREE-PRIVACY-36671",
+      "title": "개인정보 보호법 시행령",
+      "source_type": "decree",
+      "issuer": "국가법령정보센터",
+      "law_number": "대통령령 제36671호",
+      "promulgated_at": "2026-09-10",
+      "effective_from": "2026-09-11",
+      "status": "in_force_as_of_2026_10_30",
+      "uploaded_file": false,
+      "official_url": "https://www.law.go.kr/lsSc.do?query=%EA%B0%9C%EC%9D%B8%EC%A0%95%EB%B3%B4%EB%B3%B4%ED%98%B8%EB%B2%95",
+      "relevant_articles": [
+        "안전조치 관련 조항"
+      ],
+      "notes": "개인정보 보호법의 안전조치 등 하위 절차를 확인할 때 함께 검색합니다."
     }
   ],
   "not_yet_uploaded_but_recommended": [
-    {
-      "title": "개인정보 보호법 및 시행령",
-      "reason": "민원 원문·학생·보호자 정보 처리, 최소수집·목적제한·안전조치 검토용"
-    },
     {
       "title": "해당 시도교육청 학교민원 처리 지원계획·조례·업무지침",
       "reason": "교육감이 정하는 학교민원 처리 절차 및 지역별 이관 경로를 연결하기 위해 필요"
