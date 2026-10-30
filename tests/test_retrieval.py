@@ -72,3 +72,37 @@ def test_criteria_contract_separates_manual_and_legal_due():
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["handling_level"]["COOP"]["manual_due"]["authority"] == "manual_proposal"
     assert payload["legal_due_rules"]["QUESTION_SYSTEM_OR_PROCEDURE"]["authority"] == "legal"
+
+
+def test_registry_alias_maps_to_canonical_source(monkeypatch):
+    registry = {
+        "학교 민원 응대 안내자료": {
+            "source_id": "MOE-GYEONGGI-COMPLAINT-GUIDE-2024",
+            "title": "학교 민원 응대 안내자료",
+            "source_type": "legacy_operational_guidance",
+        }
+    }
+    item = retrieval._normalize_chunk({
+        "chunk_id": "x",
+        "document_id": "학교 민원 응대 안내자료",
+        "text": "폭언 시 통화 종료",
+        "locator": "p20",
+    }, registry)
+    assert item["source_id"] == "MOE-GYEONGGI-COMPLAINT-GUIDE-2024"
+    assert item["document_id"] == "MOE-GYEONGGI-COMPLAINT-GUIDE-2024"
+
+
+def test_allowed_source_types_filters_information_sources(monkeypatch):
+    monkeypatch.setattr(retrieval, "load_corpus", lambda **kwargs: [
+        {
+            "chunk_id": "school", "source_id": "S", "title": "학교 일정",
+            "source_type": "school_policy", "authority_rank": 5,
+            "text": "현장체험학습 집결 시간은 오전 8시", "locator": "p1",
+            "verification_status": "verified",
+        }
+    ] if kwargs.get("allowed_source_types") == {"school_policy"} else [])
+    results = retrieval.retrieve(
+        "현장체험학습 집결 시간",
+        allowed_source_types={"school_policy"},
+    )
+    assert results[0]["chunk_id"] == "school"

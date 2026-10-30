@@ -80,13 +80,37 @@ def _content_hash(item: dict[str, Any]) -> str:
     return hashlib.sha256(str(item.get("text", "")).encode("utf-8")).hexdigest()
 
 
-def sync_from_corpus(corpus: list[dict[str, Any]], db_path: Path | None = None) -> dict[str, int]:
+def sync_from_corpus(
+    corpus: list[dict[str, Any]],
+    db_path: Path | None = None,
+    *,
+    prune_missing: bool = False,
+) -> dict[str, int]:
     init_db(db_path)
     now = datetime.now(timezone.utc).isoformat()
     inserted = 0
     updated = 0
 
+    deleted = 0
     with connect(db_path) as conn:
+        corpus_ids = {
+            str(item.get("chunk_id") or "").strip()
+            for item in corpus
+            if str(item.get("chunk_id") or "").strip()
+        }
+        if prune_missing:
+            existing_ids = {
+                row["chunk_id"]
+                for row in conn.execute("SELECT chunk_id FROM knowledge_chunks").fetchall()
+            }
+            stale_ids = existing_ids - corpus_ids
+            if stale_ids:
+                conn.executemany(
+                    "DELETE FROM knowledge_chunks WHERE chunk_id = ?",
+                    [(chunk_id,) for chunk_id in stale_ids],
+                )
+                deleted = len(stale_ids)
+
         for item in corpus:
             chunk_id = str(item.get("chunk_id") or "").strip()
             source_id = str(item.get("source_id") or "").strip()
@@ -157,7 +181,12 @@ def sync_from_corpus(corpus: list[dict[str, Any]], db_path: Path | None = None) 
             updated += int(existed)
             inserted += int(not existed)
 
-    return {"inserted": inserted, "updated": updated, "total": inserted + updated}
+    return {
+        "inserted": inserted,
+        "updated": updated,
+        "deleted": deleted,
+        "total": inserted + updated,
+    }
 
 
 def sync_retrieval_corpus(
@@ -174,7 +203,7 @@ def sync_retrieval_corpus(
         as_of_date=as_of_date,
         jurisdiction=jurisdiction,
     )
-    result = sync_from_corpus(corpus, db_path)
+    result = sync_from_corpus(corpus, db_path, prune_missing=True)
     result["corpus_size"] = len(corpus)
     return result
 

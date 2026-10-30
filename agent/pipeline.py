@@ -23,10 +23,12 @@ def process(complaint: dict[str, Any], history: list[dict[str, Any]] | None = No
 
     cls = apply_rules(classify_complaint(text), history or [])
     routing = route_case(_routing_domain(cls))
+    allowed_source_types = {"school_policy"} if cls.get("nature") == "INFO_REQUEST" else None
     evidence = retrieve(
         text,
         as_of_date=complaint.get("as_of_date"),
         jurisdiction=complaint.get("jurisdiction"),
+        allowed_source_types=allowed_source_types,
     )
     reply = draft_information_reply(text, evidence) if cls["is_informational"] else (
         "추가 사실 확인과 담당자 검토가 필요한 사안입니다. 자동 발송하지 말고 관리자 승인 후 처리하세요."

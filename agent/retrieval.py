@@ -64,7 +64,12 @@ def _registry() -> dict[str, dict[str, Any]]:
     path = DATA_DIR / "source_registry.json"
     if not path.exists():
         return {}
-    return {x["source_id"]: x for x in _read_json(path).get("sources", [])}
+    registry: dict[str, dict[str, Any]] = {}
+    for source in _read_json(path).get("sources", []):
+        registry[source["source_id"]] = source
+        for alias in source.get("source_aliases", []):
+            registry[str(alias)] = source
+    return registry
 
 
 def _allowlist() -> dict[str, Any]:
@@ -98,8 +103,9 @@ def _normalize_chunk(raw: dict[str, Any], registry: dict[str, dict[str, Any]]) -
     item = dict(raw)
     source_id = item.get("source_id") or item.get("document_id")
     source = registry.get(source_id, {})
-    item["source_id"] = source_id
-    item.setdefault("document_id", source_id)
+    canonical_source_id = source.get("source_id") or source_id
+    item["source_id"] = canonical_source_id
+    item["document_id"] = canonical_source_id
     item.setdefault("title", source.get("title") or item.get("document_title"))
     item.setdefault("issuer", source.get("issuer"))
     item.setdefault("source_type", source.get("source_type", "official_manual"))
@@ -118,7 +124,8 @@ def _normalize_chunk(raw: dict[str, Any], registry: dict[str, dict[str, Any]]) -
 
 
 def load_corpus(*, production: bool = False, as_of_date: str | None = None,
-                jurisdiction: str | None = None) -> list[dict[str, Any]]:
+                jurisdiction: str | None = None,
+                allowed_source_types: set[str] | None = None) -> list[dict[str, Any]]:
     effective_date = as_of_date or date.today().isoformat()
     registry = _registry()
     allow = _allowlist().get("sources", {})
@@ -143,6 +150,8 @@ def load_corpus(*, production: bool = False, as_of_date: str | None = None,
             continue
         if jurisdiction and item.get("jurisdiction") not in {None, "national", jurisdiction}:
             continue
+        if allowed_source_types is not None and item.get("source_type") not in allowed_source_types:
+            continue
 
         source_cfg = allow.get(item.get("source_id"), {})
         canonical_locators = source_cfg.get("canonical_locators")
@@ -156,16 +165,40 @@ def load_corpus(*, production: bool = False, as_of_date: str | None = None,
                 continue
 
         result.append(item)
-    return result
+
+    # 파서 재실행 전 남아 있던 별칭/중복 청크까지 canonical source 기준으로 제거합니다.
+    unique: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for item in result:
+        dedup_key = (
+            str(item.get("source_id")),
+            str(item.get("locator", "")).replace("-table1", "").replace("-table2", ""),
+            re.sub(r"\s+", "", str(item.get("text", ""))),
+        )
+        current = unique.get(dedup_key)
+        if current is None:
+            unique[dedup_key] = item
+            continue
+        # 검수 완료본과 canonical id가 더 높은 우선순위를 가집니다.
+        current_verified = current.get("verification_status") in {"verified", "corrected"}
+        item_verified = item.get("verification_status") in {"verified", "corrected"}
+        if item_verified and not current_verified:
+            unique[dedup_key] = item
+    return list(unique.values())
 
 
 def retrieve(query: str, top_k: int = 6, *, production: bool = False,
              as_of_date: str | None = None, jurisdiction: str | None = None,
-             include_policy: bool = True) -> list[dict[str, Any]]:
+             include_policy: bool = True,
+             allowed_source_types: set[str] | None = None) -> list[dict[str, Any]]:
     if not query.strip():
         return []
 
-    corpus = load_corpus(production=production, as_of_date=as_of_date, jurisdiction=jurisdiction)
+    corpus = load_corpus(
+        production=production,
+        as_of_date=as_of_date,
+        jurisdiction=jurisdiction,
+        allowed_source_types=allowed_source_types,
+    )
     if not include_policy:
         corpus = [c for c in corpus if c.get("source_type") not in {"policy_plan", "press_release_statistics", "legacy_operational_guidance"}]
     if not corpus:

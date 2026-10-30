@@ -293,7 +293,10 @@
         "current_statutory_deadline",
         "criminal_liability_determination"
       ],
-      "notes": "2024 운영 안내자료. 2026 현행 법령·교육부 매뉴얼보다 우선하지 않으며, 응대 절차·스크립트·사례의 보조 근거로만 사용합니다."
+      "notes": "2024 운영 안내자료. 2026 현행 법령·교육부 매뉴얼보다 우선하지 않으며, 응대 절차·스크립트·사례의 보조 근거로만 사용합니다.",
+      "source_aliases": [
+        "학교 민원 응대 안내자료"
+      ]
     }
   ],
   "not_yet_uploaded_but_recommended": [
