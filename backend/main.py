@@ -420,3 +420,54 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
 
     app.openapi = openapi_contract
     return app
+
+
+# Legacy A-prototype compatibility facade. The deployed integrated service uses create_app().
+# Keeping this module-level app preserves the original A regression/API contract without
+# weakening authentication or changing the /api/* production routes.
+from fastapi import HTTPException as _LegacyHTTPException
+from agent.workflow import (
+    create_case as _legacy_create_case,
+    complete_task as _legacy_complete_task,
+    deliver_response as _legacy_deliver_response,
+    get_case_snapshot as _legacy_get_case_snapshot,
+    get_case_explanation as _legacy_get_case_explanation,
+)
+from db import dashboard_metrics as _legacy_dashboard_metrics
+
+create_case = _legacy_create_case
+complete_task = _legacy_complete_task
+deliver_response = _legacy_deliver_response
+get_case_snapshot = _legacy_get_case_snapshot
+get_case_explanation = _legacy_get_case_explanation
+dashboard_metrics = _legacy_dashboard_metrics
+
+app = FastAPI(title="AXeL legacy compatibility API", version="0.1.0")
+
+@app.get("/health")
+def _legacy_health():
+    return {"status": "ok"}
+
+@app.post("/cases", status_code=201)
+def _legacy_create_case_endpoint(body: dict):
+    return create_case(body)
+
+@app.post("/cases/{case_id}/tasks/{task_id}/complete")
+def _legacy_complete_task_endpoint(case_id: str, task_id: str, body: dict):
+    snapshot = get_case_snapshot(case_id)
+    if not any(t.get("id") == task_id for t in snapshot.get("tasks", [])):
+        raise _LegacyHTTPException(status_code=404, detail="해당 사건의 업무를 찾을 수 없습니다.")
+    return complete_task(task_id, body.get("result_text", ""), actor=body.get("actor", "unknown"))
+
+@app.get("/cases/{case_id}/explanation")
+def _legacy_explanation_endpoint(case_id: str):
+    return get_case_explanation(case_id)
+
+@app.post("/cases/{case_id}/deliver")
+def _legacy_delivery_endpoint(case_id: str, body: dict):
+    return deliver_response(case_id, actor=body.get("actor", "unknown"),
+                            channel=body.get("channel", "web"), note=body.get("note"))
+
+@app.get("/dashboard/summary")
+def _legacy_dashboard_endpoint():
+    return dashboard_metrics()
