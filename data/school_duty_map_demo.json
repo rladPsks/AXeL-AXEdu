@@ -1,0 +1,54 @@
+{
+  "scope": "demo_template_not_school_verified",
+  "description": "학교별 실제 업무분장표로 교체 가능한 데모용 역할 매핑",
+  "areas": [
+    {
+      "id": "academic_affairs",
+      "label": "교무·학사",
+      "keywords": ["학사", "교육과정", "수업", "시간표", "평가", "성적", "출결", "체험학습", "학사일정"],
+      "primary_role": "academic_affairs_staff",
+      "collaborators": ["homeroom_teacher"],
+      "approver": "vice_principal"
+    },
+    {
+      "id": "student_life",
+      "label": "생활지도·학생생활",
+      "keywords": ["생활지도", "혼내", "지도", "교우", "학생생활", "훈육", "갈등", "자리 이탈"],
+      "primary_role": "student_life_staff",
+      "collaborators": ["homeroom_teacher"],
+      "approver": "vice_principal"
+    },
+    {
+      "id": "counseling",
+      "label": "학생·보호자 상담",
+      "keywords": ["상담", "면담", "정서", "심리", "학교생활", "진로"],
+      "primary_role": "homeroom_teacher",
+      "collaborators": ["counseling_teacher", "student_life_staff"],
+      "approver": "vice_principal"
+    },
+    {
+      "id": "school_safety_health",
+      "label": "안전·보건",
+      "keywords": ["안전", "다쳤", "부상", "보건", "응급", "자해", "위험"],
+      "primary_role": "safety_health_staff",
+      "collaborators": ["school_nurse", "homeroom_teacher"],
+      "approver": "vice_principal"
+    },
+    {
+      "id": "administration_finance",
+      "label": "행정·회계",
+      "keywords": ["회계", "납부", "수납", "환불", "계약", "예산", "증명서", "행정"],
+      "primary_role": "administration_office_staff",
+      "collaborators": [],
+      "approver": "administration_head"
+    },
+    {
+      "id": "facilities",
+      "label": "시설·환경",
+      "keywords": ["시설", "교실", "화장실", "냉난방", "주차", "출입", "공사", "환경"],
+      "primary_role": "facilities_staff",
+      "collaborators": ["administration_office_staff"],
+      "approver": "administration_head"
+    }
+  ]
+}
