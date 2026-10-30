@@ -26,6 +26,15 @@ def test_proposes_distinct_current_and_future_article_18_versions():
     assert updates["new18"]["effective_from"] == "2026-11-20"
     assert updates["new18"]["version_status"] == "scheduled"
     assert updates["new18"]["verification_status"] == "pending"
+    assert all(
+        p.get("proposed_updates", {}).get("verification_status", "pending") == "pending"
+        for p in proposals if p["operation"] == "update_chunk"
+    )
+    transition29 = next(
+        p for p in proposals
+        if p["proposal_id"] == "LAW21717-ADD-TRANSITION-ARTICLE-29"
+    )
+    assert "중인 교육활동보호센터" in transition29["proposed_chunk"]["text"]
 
 
 def test_proposes_article_19_and_29_effective_dates():

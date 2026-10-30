@@ -176,7 +176,7 @@ def _propose_law_overrides(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]
                 "effective_to": None if scheduled else "2026-12-02",
                 "revision_effective_from": effective_from if scheduled else None,
                 "version_group": f"{LEGAL_ID}:{article_no}",
-                "verification_status": "corrected",
+                "verification_status": "pending",
                 "review_basis": f"법률 제{act_no}호 부칙 제1조",
                 "official_source_url": source_url,
             }
@@ -217,7 +217,7 @@ def _propose_law_overrides(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]
             "version_status": "scheduled",
             "effective_from": "2026-11-20",
             "effective_to": None,
-            "verification_status": "corrected",
+            "verification_status": "pending",
             "requires_review": False,
         },
         "review_note": "원 PDF의 인쇄 쪽수·페이지와 혼동하지 않도록 별도 개정법 출처로 등록한 뒤 승인.",
