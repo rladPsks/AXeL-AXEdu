@@ -92,10 +92,20 @@ def _load_chunk_files(folder: Path) -> list[dict[str, Any]]:
 
 def _legacy_chunks() -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
-    for name in ("legal_chunks.json", "manual_chunks.json", "policy_chunks.json"):
+    legacy_defaults = {
+        "legal_chunks.json": None,
+        "manual_chunks.json": "MOE-MANUAL-2026",
+        "policy_chunks.json": None,
+    }
+    for name, default_source_id in legacy_defaults.items():
         path = DATA_DIR / name
-        if path.exists():
-            out.extend(_read_json(path).get("chunks", []))
+        if not path.exists():
+            continue
+        for raw in _read_json(path).get("chunks", []):
+            item = dict(raw)
+            if default_source_id and not item.get("source_id"):
+                item["source_id"] = default_source_id
+            out.append(item)
     return out
 
 
@@ -117,6 +127,7 @@ def _normalize_chunk(raw: dict[str, Any], registry: dict[str, dict[str, Any]]) -
     item.setdefault("pdf_page", item.get("page_start") or item.get("page"))
     item.setdefault("printed_page", item.get("printed_page_number"))
     item.setdefault("article", item.get("section_title") if item.get("chunk_type") == "law_article" else None)
+    item.setdefault("retrieval_tags", item.get("tags") or [])
     item.setdefault("verification_status", "pending")
     item.setdefault("authority_rank", AUTHORITY.get(item.get("source_type"), 8))
     item.setdefault("canonical", True)
