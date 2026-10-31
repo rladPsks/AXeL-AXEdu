@@ -12,6 +12,7 @@ from .models import Command, Text
 from .comparisons import settings
 from .decisions import latest as latest_decision, read_decision, serialize, require_current_decision
 from agent.history_agent import compare_case_text
+from .referral import find_referral_evidence, report_citation
 
 router = APIRouter()
 KINDS = Literal['REPORT', 'RESPONSE', 'TRANSLATION']
@@ -90,9 +91,9 @@ def product_json(row,case):
     return {**dict(row),'content':json.loads(row['content']),'stale':row['source_case_version']!=case['version']}
 
 
-def report_text(db,case,intake,decision):
-    workflow=json.loads(intake['workflow_json'] or '{}') if intake else {}
-    lines=['교육지원청 지원·이관 검토 서류 (초안)', '', '민원: '+case['title'], '접수번호: '+case['id'], '', '1. 민원 개요', intake['raw_text'] if intake else case['title'], '', '2. 학교 확인·조치']
+def report_text(db,case,intake,decision,evidence=None):
+    evidence = find_referral_evidence(case,intake) if evidence is None else evidence
+    lines=['교육지원청 지원·이관 검토 서류 (초안)', '작성 상태: 검토 전 초안 · 이관 여부 미확정', '', '민원: '+case['title'], '접수번호: '+case['id'], '', '1. 민원 개요', intake['raw_text'] if intake else case['title'], '', '2. 학교 확인·조치']
     for task in db.execute('SELECT * FROM tasks WHERE case_id=? ORDER BY created_at',(case['id'],)):
         lines.append(f"- {task['question']} / {task['status']} / {task['reply'] or '확인 중'}")
     lines += ['', '3. 관리자 지원 판단']
@@ -102,7 +103,8 @@ def report_text(db,case,intake,decision):
         for o in saved.get('observations',[]): lines.append(f"- {o['kind']}: {o['detail']} (출처: {o['source_id']})")
     else: lines.append('관리자 판단 미등록 · 학교 지원·판단 탭에서 등록 필요')
     lines += ['', '4. 참고 근거']
-    for e in workflow.get('tools',{}).get('rag',[]): lines.append(f"- {e.get('title') or e.get('source_id')} / {e.get('article') or e.get('pdf_page') or '위치 확인 필요'}: {e.get('text','')}")
+    for e in evidence: lines.append(report_citation(e))
+    if not evidence: lines.append('해당 민원과 관련성을 확인한 이관 근거가 없습니다. 담당자가 적용 요건을 확인해야 합니다.')
     lines += ['', '5. 첨부 목록']
     for f in db.execute("SELECT filename FROM private_files WHERE case_id=? AND category!='AUDIO'",(case['id'],)): lines.append('- '+f['filename'])
     lines += ['', '6. 미확인 사항·후속 업무', '관할 기관의 실제 서식과 접수 경로를 확인하고 필요한 개인정보를 검토하세요.', '학교의 사실 확인·학생 보호·민원인 안내는 담당자가 계속 수행합니다.', '', '이 문서는 자동 제출되지 않습니다.']
@@ -121,8 +123,11 @@ def get_products(case_id: str, kind: KINDS, request: Request):
         if decision:
             row,actual,saved=read_decision(db,actor,decision['id'])
             decision_result=serialize(db,row,actual,saved,actor)
+        evidence = workflow.get('tools',{}).get('rag',[])
         if kind=='REPORT':
-            initial={'text':report_text(db,case,intake,decision),'original':'','language':'ko'}
+            evidence = find_referral_evidence(case,intake)
+            current_decision = decision if decision_result and not decision_result['stale'] else None
+            initial={'text':report_text(db,case,intake,current_decision,evidence),'original':'','language':'ko'}
         elif kind=='TRANSLATION':
             language=workflow.get('multilingual',{})
             initial={'text':language.get('translated_text_ko') or (intake['raw_text'] if intake else ''),'original':intake['raw_text'] if intake else '', 'language':language.get('detected_language','ko')}
@@ -132,7 +137,7 @@ def get_products(case_id: str, kind: KINDS, request: Request):
             draft=result.get('response_draft') or workflow.get('initial_response_draft') or ''
             initial={'text':draft,'original':draft,'language':'ko'}
         products=[product_json(r,case) for r in db.execute('SELECT * FROM case_work_products WHERE case_id=? AND kind=? ORDER BY revision DESC',(case_id,kind))]
-        return {'initial':initial,'products':products,'decision':decision_result,'evidence':workflow.get('tools',{}).get('rag',[])}
+        return {'initial':initial,'products':products,'decision':decision_result,'evidence':evidence}
 
 
 class ProductSave(Command):
@@ -166,7 +171,8 @@ def save_product(case_id: str,kind: KINDS,body: ProductSave,request: Request):
         latest=latest_product(db,case_id,kind)
         if body.previous_revision != (latest['revision'] if latest else 0): fail(409,'PRODUCT_CONFLICT','최신 문서 버전을 확인하세요.')
         revision=body.previous_revision+1
-        identity=insert_product(db,actor,case,kind,body.content,revision,'DRAFT')
+        decision = latest_decision(db,case_id) if kind == 'REPORT' else None
+        identity=insert_product(db,actor,case,kind,body.content,revision,'DRAFT',decision['id'] if decision else None)
         log(db,actor,case,kind+'_DRAFT_SAVED',{'product_id':identity,'revision':revision,'reason':body.reason})
         return {'product_id':identity,'revision':revision}
     return mutate(request,case_id,body,kind+'_DRAFT_SAVED',operation,advance_case=False)
@@ -190,6 +196,8 @@ def transition_product(case_id: str,kind: KINDS,body: ProductTransition,request:
             if decision_id and decision_id!=decision['id']: fail(409,'DECISION_CHANGED','지원 판단이 바뀌었습니다. 서류를 다시 작성하세요.')
             decision_id=decision['id']
         content=json.loads(latest['content'])
+        if kind == 'REPORT' and body.action == 'APPROVED' and '[담당자 작성 필요]' in content['text']:
+            fail(409, 'REPORT_INCOMPLETE', '인용 근거와 해당 민원의 연결 사유를 작성한 뒤 새 초안을 저장하세요.')
         product_case=case
         if kind=='TRANSLATION' and body.action=='APPROVED':
             product_case={**dict(case),'version':case['version']+1}
@@ -220,20 +228,9 @@ def response_closure_guard(db,actor,case_id):
 @router.post('/api/cases/{case_id}/referral-evidence')
 def referral_evidence(case_id: str, body: Command, request: Request):
     def operation(db,actor,case):
-        from agent.retrieval import retrieve
         admin(actor)
-        intake=db.execute('SELECT raw_text FROM case_intakes WHERE case_id=?',(case_id,)).fetchone()
-        raw=intake['raw_text'] if intake else case['title']
-        hits=retrieve(raw+' 학교 민원 대응 이관 교육지원청 지원',top_k=4,allowed_source_types={'official_manual','policy_plan'})
-        items=[]
-        for hit in hits:
-            excerpt=hit.get('text','')
-            if not excerpt.strip(): continue
-            location=hit.get('article') or hit.get('section_title') or hit.get('locator')
-            if not location and hit.get('pdf_page'): location=f"PDF {hit['pdf_page']}쪽"
-            if not location: continue
-            external=any(word in excerpt for word in ('교육지원청','교육청','이관'))
-            items.append({'source_id':hit.get('source_id'),'title':hit.get('title'),'source_type':hit.get('source_type'),'location':location,'pdf_page':hit.get('pdf_page'),'official_url':hit.get('official_url'),'excerpt':excerpt,'verification_status':hit.get('verification_status'),'external_support_mention':external,'reason':('외부 기관·이관 관련 문구가 있는 검토 후보입니다. 적용 요건과 학교의 선행 조치를 대조하세요.' if external else '학교 내부 공동 대응 관련 후보입니다. 이 문구만으로 교육지원청 이관 요건을 충족했다고 볼 수 없습니다.')})
+        intake=db.execute('SELECT * FROM case_intakes WHERE case_id=?',(case_id,)).fetchone()
+        items=find_referral_evidence(case,intake)
         notice='저장된 매뉴얼·정책 자료에서 관련 문구를 검색한 추천입니다. 조항 번호가 없는 자료는 항목/쪽수로 표시합니다. 원문과 적용 요건을 확인한 뒤 사유에 반영하세요.'
         log(db,actor,case,'REFERRAL_EVIDENCE_RECOMMENDED',{'items':items,'notice':notice})
         return {'items':items,'notice':notice}

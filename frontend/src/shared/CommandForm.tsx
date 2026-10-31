@@ -21,6 +21,7 @@ export function CommandForm({
   transformValues,
   onSaved,
   disabled = false,
+  externalDirty = false,
 }: {
   caseId: string;
   version: number;
@@ -32,8 +33,9 @@ export function CommandForm({
   transformValues?: (
     values: Record<string, unknown>,
   ) => Record<string, unknown>;
-  onSaved?: () => void;
+  onSaved?: (result: Record<string, unknown>) => void;
   disabled?: boolean;
+  externalDirty?: boolean;
 }) {
   const { api } = useSession();
   const scope = useScope();
@@ -85,12 +87,12 @@ export function CommandForm({
   const mutation = useMutation({
     mutationKey: ["case-command", ...scope, caseId],
     mutationFn: (cmd: Command) => api.execute<Record<string, unknown>>(cmd),
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       setFailed(null);
       setSaved(true);
       setDirty(false);
       form.current?.reset();
-      onSaved?.();
+      onSaved?.(result);
       await refresh();
     },
     onError: (error, cmd) => {
@@ -104,7 +106,7 @@ export function CommandForm({
     <form
       ref={form}
       className="command-form"
-      data-dirty={dirty ? "true" : undefined}
+      data-dirty={dirty || externalDirty ? "true" : undefined}
       onChange={() => setDirty(true)}
       onSubmit={(event) => {
         event.preventDefault();
