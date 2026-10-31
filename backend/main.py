@@ -94,6 +94,7 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
                 agent_thread.join(timeout=12)
     app = FastAPI(title="학교 민원 에이전트 — 개발자 B", version="0.1.0",lifespan=lifespan)
     app.state.db = Database(db_path or os.getenv("SCHOOL_AGENT_DB", "data/private/dev.sqlite3"))
+    app.state.demo_mode = os.getenv('SCHOOL_AGENT_DEMO', '0') == '1'
 
     app.state.closure = ClosureRegistry((response_closure_guard, *closure_guards))
     app.state.agent_registry = agent_registry if agent_registry is not None else build_registry()

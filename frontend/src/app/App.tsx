@@ -217,7 +217,7 @@ function CaseList() {
     initialPageParam: "",
     queryFn: ({ pageParam, signal }) =>
       api.get<Page<CaseSummary>>(
-        `/api/cases?after=${encodeURIComponent(pageParam)}`,
+        `/api/cases?after=${encodeURIComponent(pageParam)}${demoEnabled ? "&order=demo" : ""}`,
         signal,
       ),
     getNextPageParam: (page) => page.next_cursor ?? undefined,
