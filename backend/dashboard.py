@@ -119,7 +119,6 @@ def staff_details(db,school,lower,upper):
         period_tasks=[t for t in mine if within(t['created_at'])]
         pending=[t for t in mine if t['status']!='COMPLETED' and cases[t['case_id']]['status']!='CLOSED']
         case_ids={a['case_id'] for a in logs}|{t['case_id'] for t in period_tasks}|{cid for cid in participants[identity] if within(cases[cid]['received_at'])}
-        if member['role']!='TEACHER' and not (logs or period_tasks or pending): continue
         rows=[];daily={};by_kind={}
         for a in logs:
             day=instant(a['occurred_at']).astimezone(KST).date().isoformat()

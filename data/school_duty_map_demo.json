@@ -4,10 +4,10 @@
   "verified_for_demo": true,
   "note": "00초등학교 2026학년도 업무분장 예시. 개인 이름이 아닌 role id로 저장하며 실제 도입 시 해당 학교 업무분장표로 교체한다.",
   "fallback": {
-    "primary_role": "VICE_PRINCIPAL",
-    "approver": "PRINCIPAL",
+    "primary_role": "complaint_response_team",
+    "approver": "HEAD_ACADEMIC_PLAN",
     "backup_role": "PRINCIPAL",
-    "reason": "미분류 업무는 학교장 자문을 바탕으로 교감이 배정"
+    "reason": "세부 분야가 일치하지 않아 민원대응팀에서 업무분장을 확인하고 분야 담당자를 지정"
   },
   "areas": [
     {"id":"academic_schedule","label":"학사일정·출결·학적·교외체험","keywords":["학사일정","재량휴업","입학식","졸업식","결석","미인정결석","전학","전출입","교외체험","체험학습 신청","출석인정"],"primary_role":"HEAD_ACADEMIC_PLAN","collaborators":["ACADEMIC_CLERK"],"approver":"VICE_PRINCIPAL","backup_role":"VICE_PRINCIPAL","callback_default":"NOT_REQUIRED"},

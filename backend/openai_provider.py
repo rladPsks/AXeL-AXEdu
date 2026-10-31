@@ -7,6 +7,7 @@ import openai
 from pydantic import BaseModel, ConfigDict, field_validator
 
 from agent.retrieval import retrieve as retrieve_official_evidence
+from agent.citations import with_source_metadata
 from agent.validator import validate_response
 from agent.multilingual import translate_from_korean
 
@@ -33,6 +34,11 @@ class SupportReviewResult(BaseModel):
     validation_checks: list[str] = []
     evidence_used: list[str] = []
     translated_response: dict[str, str] | None = None
+
+
+class StoredSupportReviewResult(SupportReviewResult):
+    # Added by server code after generation, never supplied by the model.
+    evidence_sources: list[dict] = []
 
 
 class ToneText(BaseModel):
@@ -160,7 +166,9 @@ class OpenAIAdapter:
                     "pdf_page": item.get("pdf_page"),
                     "printed_page": item.get("printed_page"),
                     "text": str(item.get("text") or "")[:1800],
+                    **{key: item.get(key) for key in ('chunk_id', 'official_url', 'issuer', 'locator', 'uploaded_filename')},
                 })
+        official = with_source_metadata(official)
         enriched["a_context"] = {
             "classification": intake.get("classification"),
             "routing": intake.get("routing"),
@@ -195,6 +203,10 @@ class OpenAIAdapter:
         source_ids.update(x.get("source_id") for x in official if x.get("source_id"))
         if any(observation['source_id'] not in source_ids for observation in result['observations']):
             raise ProviderFailure('INVALID_CITATION','입력에 없는 출처가 포함되어 재검토가 필요합니다.')
+        official_ids = {item['source_id'] for item in official}
+        if not set(result.get('evidence_used') or []) <= official_ids:
+            raise ProviderFailure('INVALID_CITATION','검색하지 않은 공식 근거가 포함되어 재검토가 필요합니다.')
+        result['evidence_sources'] = [item for item in official if item['source_id'] in result.get('evidence_used', [])]
         return result
 
     def rewrite_tone(self,snapshot):
@@ -228,7 +240,7 @@ def create_registry(*, key=None, model=None, client=None, speech=None):
     model = model or os.getenv('OPENAI_MODEL')
     if model and (key or client is not None):
         adapter = OpenAIAdapter(key,model,client)
-        registry.register(Handler('REVIEW_SUPPORT',adapter.support_review,SupportReviewResult,
+        registry.register(Handler('REVIEW_SUPPORT',adapter.support_review,StoredSupportReviewResult,
                                   version='support-review-v1',generation_mode='MODEL',
                                   metadata={'provider':'openai','model':model,'prompt_version':'support-review-v1'}))
         registry.register(Handler('TONE_REWRITE',adapter.rewrite_tone,ToneResult,version='tone-v1',generation_mode='MODEL',metadata={'provider':'openai','model':model}))

@@ -59,6 +59,8 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
                     seed_complaints(app.state.db.path)
                 from .seed_dashboard import seed_dashboard
                 seed_dashboard(app.state.db.path)
+                from .seed_multilingual import seed_multilingual
+                seed_multilingual(app.state.db.path)
         stop=Event()
         def deliver():
             while not stop.is_set():

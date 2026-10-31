@@ -6,6 +6,7 @@ import type { CaseDetail } from "../../lib/api/types";
 import { CommandForm } from "../../shared/CommandForm";
 import { Badge, date, Empty, ErrorNotice, label } from "../../shared/ui";
 import type { DocumentVersion } from "../case-comparison";
+import { EvidenceSource, type Evidence } from "../../shared/EvidenceSource";
 
 type Review = {
   summary: string;
@@ -16,6 +17,7 @@ type Review = {
   response_draft: string;
   validation_checks: string[];
   evidence_used: string[];
+  evidence_sources?: Evidence[];
   translated_response?: {
     target_language: string;
     translated_text: string;
@@ -317,6 +319,8 @@ export function AgentReview({ record }: { record: CaseDetail }) {
                   {run.result.evidence_used.join(", ") || "직접 인용 근거 없음"}{" "}
                   · 관리자 검토 전에는 발송되지 않습니다.
                 </p>
+                {(run.result.evidence_sources ?? []).map((entry, i) => <EvidenceSource key={i} entry={entry} />)}
+                {run.result.evidence_used.length > 0 && !run.result.evidence_sources?.length ? <p className="hint">이전 검토에는 상세 출처가 저장되지 않았습니다. AI 검토를 다시 실행하면 사용한 문서·페이지·원문 출처를 함께 확인할 수 있습니다.</p> : null}
               </>
             ) : null}
             {record.status === "OPEN" &&

@@ -10,6 +10,7 @@ import { koreanTime } from "../../shared/dates";
 import { channelName, dutyName } from "../../shared/names";
 import { useUnsavedChanges } from "../../shared/useUnsavedChanges";
 import { ErrorNotice, date } from "../../shared/ui";
+import { EvidenceSource, type Evidence } from "../../shared/EvidenceSource";
 
 type IntakeResult = {
   case_id: string;
@@ -169,8 +170,7 @@ export function IntakeCreate() {
               {create.isPending ? "분류·접수 중…" : "민원 접수하고 전송하기"}
             </button>
             <p className="hint">
-              ※ 접수한 민원은 담당자와 교장·교감 선생님(민원대응팀)에게
-              전송돼요.
+              ※ 민원 내용·긴급도와 업무분장에 따라 담당자를 연결하고 필요한 지원을 준비해요.
             </p>
           </div>
         </form>
@@ -207,15 +207,10 @@ export function IntakeDetail({ caseId }: { caseId: string }) {
   const risky =
     (cls.infringement_flags ?? []).length > 0 ||
     cls.nature === "INFRINGEMENT_REVIEW";
-  const roles = [
-    ...new Set<string>(
-      [
-        routing.action_role,
-        ...(routing.collaborators ?? []),
-        routing.backup_role,
-      ].filter(Boolean),
-    ),
-  ].slice(0, 3);
+  const recommendations = (routing.recommendations ?? []) as {
+    rank: number; role: string; purpose: string; reason: string;
+    sources: Evidence[]; reference_evidence: Evidence[];
+  }[];
   const url = `/cases/${encodeURIComponent(caseId)}`;
   const urgency: Record<string, string> = {
     HIGH: "긴급",
@@ -263,9 +258,20 @@ export function IntakeDetail({ caseId }: { caseId: string }) {
           </span>
         </div>
         <p className="hint">{cls.urgency_reason}</p>
-        <p className="notice">기본 담당 {personName(record.data?.owner_id ?? "deputy")} · 교감이 상황을 확인하고 업무 지원자·교사에게 나눠 줍니다.</p>
-        <ul className="routing-ranks">{roles.filter(role => !["교장", "교감", "행정실장"].includes(dutyName(labels[role] ?? role))).map(role => <li key={role}><b>참고: {routing.duty_label}</b><strong>{dutyName(labels[role] ?? role)} 지원 가능</strong></li>)}</ul>
-        <p className="hint">학교 업무분장에 따른 참고 후보입니다. 업무 지원은 교감이 확인하고 요청합니다.</p>
+        <p className="notice">현재 사건 총괄 {record.data ? personName(record.data.owner_id) : "확인 중"} · 아래 순위는 민원 분야·긴급도에 따른 지원 후보입니다.</p>
+        <ol className="routing-ranks">{recommendations.map(r => <li key={r.rank}>
+          <b>{r.rank}순위 · {r.purpose}</b>
+          <strong>{dutyName(labels[r.role] ?? r.role)}</strong>
+          <p>추천 이유: {r.reason}</p>
+          <h4>담당 추천 참고자료</h4>
+          {r.sources.map((entry, i) => <EvidenceSource key={i} entry={entry} />)}
+          <details><summary>함께 검토할 RAG 자료·출처 ({r.reference_evidence.length}건)</summary>
+            <p className="hint">접수 내용으로 검색한 절차 참고자료입니다. 이 자료가 해당 직위를 직접 지정한다는 뜻은 아닙니다.</p>
+            {r.reference_evidence.length ? r.reference_evidence.map((entry, i) => <EvidenceSource key={i} entry={entry} />) : <p>저장된 RAG 검색 자료가 없습니다. 공식 근거 확인이 필요합니다.</p>}
+          </details>
+        </li>)}</ol>
+        {!recommendations.length ? <p>담당 추천 자료를 불러오지 못했습니다. 학교 업무분장을 확인하세요.</p> : null}
+        <p className="hint">담당·협조·검토 역할을 구분한 제안입니다. 분야 담당자를 우선 연결하며, 실제 배정은 학교 업무분장과 담당자 가용 여부를 확인해 확정합니다.</p>
         {risky ? (
           <div className="notice">
             <strong>교육활동 침해 소지 · 이관 검토를 제안합니다</strong>
@@ -350,11 +356,7 @@ export function IntakeDetail({ caseId }: { caseId: string }) {
             "확인 필요"}
         </p>
         {(workflow.tools?.rag ?? []).map((entry: any, index: number) => (
-          <p key={index}>
-            <strong>{entry.title ?? entry.source_id}</strong>
-            <br />
-            {entry.text}
-          </p>
+          <EvidenceSource key={index} entry={entry} />
         ))}
         <Link to={`${url}?tab=agent-review`}>AI 지원 검토</Link>
       </details>

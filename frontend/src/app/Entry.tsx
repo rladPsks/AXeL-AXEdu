@@ -157,7 +157,6 @@ export function Entry({
       (a) =>
         a.kind === "STAFF" && ["admin", "deputy", "office-head", "academic-head", "teacher"].includes(a.id),
     ) ?? [];
-  const otherAccounts = accounts?.filter((a) => !featured.includes(a)) ?? [];
   const roleCard = (account: DemoAccount) => (
     <button
       className="role-card"
@@ -204,14 +203,6 @@ export function Entry({
               <p>현재 사용할 수 있는 계정이 없어요.</p>
             ) : null}
             <div className="entry-tools">
-              {otherAccounts.length ? (
-                <details>
-                  <summary>다른 시연 계정</summary>
-                  <div className="role-cards">
-                    {otherAccounts.map(roleCard)}
-                  </div>
-                </details>
-              ) : null}
               <details>
                 <summary>기존 토큰으로 연결</summary>
                 {tokenForm}

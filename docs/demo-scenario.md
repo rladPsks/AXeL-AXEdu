@@ -1,5 +1,7 @@
 # AXeL Demo Scenario
 
+관리자·지원 담당의 역할과 현황까지 보여주는 5분 진행안은 [관리자·지원 시연 워크플로우](support-demo-workflow.md)를 따른다.
+
 > 권장 시연 시간: 2~3분  
 > 공개 배포: https://axel-axedu.vercel.app
 

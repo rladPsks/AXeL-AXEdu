@@ -155,13 +155,35 @@ def test_staff_detail_distinguishes_exposure_duration_and_current_queue(env):
 
 
 def test_dashboard_fixtures_are_idempotent_and_explicitly_fictional(env):
+    from backend.seed_support import seed_support
     from backend.seed_patterns import seed_patterns
     from backend.seed_dashboard import seed_dashboard
     client,creds,app,path=env
+    seed_support(path)
     seed_patterns(path)
     seed_dashboard(path)
     seed_dashboard(path)
     with app.state.db.transaction() as db:
         assert db.execute("SELECT count(*) FROM activity_logs WHERE id LIKE 'demo-dashboard-%'").fetchone()[0]==8
         assert db.execute("SELECT count(*) FROM tasks WHERE id LIKE 'demo-dashboard-%'").fetchone()[0]==3
-        assert db.execute("SELECT count(*) FROM activity_logs WHERE note LIKE '[가상 시연]%'").fetchone()[0]==8
+        assert db.execute("SELECT count(*) FROM activity_logs WHERE note LIKE '[가상 시연]%'").fetchone()[0]==15
+        assert db.execute("SELECT count(*) FROM tasks WHERE id LIKE 'demo-support-task-%'").fetchone()[0]==6
+    rows={s['staff_id']:s for s in dashboard(client,creds).json()['staff_detail']}
+    assert len(rows)==8
+    for staff in ('admin','deputy','academic-head','office-head','life-head','work-support'):
+        assert rows[staff]['entries']>0
+        assert rows[staff]['pending_tasks_now']==1
+        assert rows[staff]['linked_cases']>0
+    assert rows['deputy']['missing_duration']==1
+
+
+def test_include_staff_keeps_active_members_without_activity(env):
+    from backend.seed_support import seed_support
+    client,creds,app,path=env
+    seed_support(path)
+    with app.state.db.transaction() as db:
+        db.execute("UPDATE memberships SET active=0 WHERE user_id='work-support'")
+    rows={s['staff_id']:s for s in dashboard(client,creds,**{'from':'2020-01-01','to':'2020-01-01'}).json()['staff_detail']}
+    assert len(rows)==7 and 'work-support' not in rows
+    assert rows['office-head']['recorded_seconds'] is None
+    assert rows['office-head']['entries']==0

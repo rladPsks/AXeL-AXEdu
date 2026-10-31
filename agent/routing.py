@@ -81,7 +81,7 @@ def route_case(domain: str, *, text: str = "", classification: dict[str, Any] | 
         backup_role = "PRINCIPAL"
         callback_needed = "NOT_REQUIRED"
 
-    return {
+    result = {
         "matched": bool(candidates),
         "suggested_owner": owner,
         "action_role": action_role,
@@ -104,3 +104,41 @@ def route_case(domain: str, *, text: str = "", classification: dict[str, Any] | 
         "reason": reason,
         "requires_human_review": True,
     }
+    result['recommendations'] = recommend_roles(result, text=text, classification=classification)
+    return result
+
+
+def recommend_roles(routing, *, text='', classification=None, evidence=()):
+    """Explain duty candidates separately from retrieved procedural reference material."""
+    duty_map = load_school_duty_map()
+    area = next((a for a in duty_map.get('areas', []) if a['id'] == routing.get('duty_area')), None)
+    matched = [k for k in (area or {}).get('keywords', []) if k in text]
+    primary = routing.get('action_role') if area else 'complaint_response_team'
+    candidates = [(primary, '분야 담당',
+        f"{routing.get('duty_label')} 업무분장의 1차 담당입니다." if area else '일치하는 세부 분야가 없어 민원대응팀에서 담당 분야를 확인합니다.')]
+    candidates += [(r, '사실확인 협조', '해당 분야 업무분장에 지정된 협조자로 필요한 사실만 확인합니다.') for r in routing.get('collaborators', [])]
+    candidates += [(routing.get('approver') if area else 'HEAD_ACADEMIC_PLAN', '검토·조정', '분야 담당자의 확인 결과를 검토하고 학교 차원의 대응을 조정합니다.'),
+                   (routing.get('backup_role') if area else 'PRINCIPAL', '대체·추가 지원', '업무분장에 지정된 대체 담당으로 부재나 추가 지원 필요 시 검토합니다.')]
+    cls = classification or {}
+    if cls.get('urgency') == 'HIGH' or cls.get('nature') in {'SAFETY', 'INFRINGEMENT_REVIEW'} or cls.get('infringement_flags'):
+        candidates.insert(0, ('PRINCIPAL', '긴급·보호 검토', '긴급도 또는 안전·교육활동 보호 검토 필요성이 있어 학교 차원의 지원 판단을 우선합니다.'))
+    candidates.append(('complaint_response_team', '접수·지원 조정', '민원대응팀이 분야 담당자의 처리 진행과 추가 지원 필요성을 확인합니다.'))
+    results = []
+    reference_purposes = {'official_manual': '민원 처리 절차와 담당자 협조 범위 확인',
+        'law': '처리 권한과 법적 기준 확인', 'decree': '세부 절차와 적용 요건 확인',
+        'school_policy': '학교별 운영 기준 확인', 'policy_plan': '학교 지원 방향과 정책 내용 확인'}
+    references = [{**e, 'reference_reason': '접수 내용으로 검색된 자료 · ' + reference_purposes.get(e.get('source_type'), '관련 처리 기준 확인')} for e in evidence]
+    for role, purpose, reason in candidates:
+        if not role or any(r['role'] == role for r in results):
+            continue
+        results.append({'rank': len(results)+1, 'role': role, 'purpose': purpose,
+            'reason': reason + (f" 원문 일치 표현: {', '.join(matched)}." if matched else ''),
+            'sources': [{'source_id': duty_map.get('source_id', 'SCH-DUTY'),
+                'title': '2026학년도 학교 업무분장 예시', 'source_type': 'school_duty_template',
+                'file': 'data/school_duty_map_demo.json', 'section': (area or {}).get('label', '분야 미일치·담당 확인'),
+                'text': ('가상 학교의 업무분장 예시이며 실제 학교의 확정 업무분장표가 아닙니다. '
+                    + (f"분야 담당: {duty_map['roles'].get(area['primary_role'], area['primary_role'])} · 협조: {', '.join(duty_map['roles'].get(r,r) for r in area.get('collaborators',[])) or '별도 지정 없음'} · 검토: {duty_map['roles'].get(area['approver'], area['approver'])}" if area else '세부 분야 확인 후 담당자를 지정합니다.'))}],
+            'reference_evidence': references})
+        if len(results) == 3:
+            break
+    return results

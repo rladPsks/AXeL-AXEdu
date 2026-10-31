@@ -8,7 +8,8 @@ from fastapi import APIRouter, Request
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from agent.classify import classify_complaint
-from agent.routing import route_case
+from agent.routing import route_case, recommend_roles
+from agent.citations import with_source_metadata
 from agent.retrieval import retrieve as retrieve_official_evidence
 from agent.rules import apply_rules
 from agent.multilingual import translate_to_korean
@@ -156,6 +157,7 @@ def create_intake(body: IntakeCreate, request: Request):
             "source_type": item.get("source_type"), "article": item.get("article"),
             "pdf_page": item.get("pdf_page"), "printed_page": item.get("printed_page"),
             "text": str(item.get("text") or "")[:700], "score": item.get("score"),
+            **{key: item.get(key) for key in ('chunk_id', 'official_url', 'issuer', 'locator', 'file_path', 'uploaded_filename')},
         })
     # Keep a compact, relevant evidence set. Very weak lexical matches are useful for search
     # inspection but must not become response evidence.
@@ -170,10 +172,20 @@ def create_intake(body: IntakeCreate, request: Request):
         if replay is not None:
             return replay
 
-        deputy = _role_user(db, actor["school_id"], "교감")
-        owner = db.execute("SELECT user_id FROM memberships WHERE school_id=? AND user_id=? AND role='ADMIN' AND active=1", (actor["school_id"], deputy or "deputy")).fetchone()
+        evidence = with_source_metadata(evidence)
+        routing['recommendations'] = recommend_roles(routing, text=routing_text, classification=cls, evidence=evidence)
+        labels = routing.get('role_labels') or {}
+        owner = None
+        for recommendation in routing['recommendations']:
+            user = _role_user(db, actor['school_id'], labels.get(recommendation['role']))
+            if user:
+                owner = db.execute("SELECT user_id FROM memberships WHERE school_id=? AND user_id=? AND role='ADMIN' AND active=1", (actor['school_id'], user)).fetchone()
+                if owner is not None:
+                    break
+        if owner is None and actor['role'] == 'ADMIN':
+            owner = {'user_id': actor['user_id']}
         if owner is None:
-            fail(409, "NO_ACTIVE_DEPUTY", "기본 담당 교감을 학교 업무분장에 지정해 주세요.")
+            fail(409, "NO_ACTIVE_COORDINATOR", "추천 분야의 활성 지원 담당자를 학교 업무분장에 지정해 주세요.")
 
         case_id = uid()
         title = f"[{body.complaint_type}] {body.raw_text.strip().replace(chr(10), ' ')[:60]}"
@@ -274,7 +286,9 @@ def create_intake(body: IntakeCreate, request: Request):
         if cls["handling_route"] == "STAFF_OR_TEAM":
             labels = routing.get("role_labels") or {}
             primary_label = labels.get(routing.get("action_role"))
-            primary_user = owner["user_id"]
+            primary_user = _role_user(db, actor['school_id'], primary_label)
+            if not primary_user or not db.execute('SELECT 1 FROM memberships WHERE school_id=? AND user_id=? AND active=1',(actor['school_id'],primary_user)).fetchone():
+                primary_user = owner['user_id']
             question = "\n".join(cls.get("needs_fact_check") or ["민원 핵심 사실과 맥락을 확인해 주세요."])
             task_ids.append(_create_initial_task(
                 db,
@@ -339,4 +353,15 @@ def get_intake(case_id: str, request: Request):
         item["classification"] = json.loads(item.pop("classification_json")) if item.get("classification_json") else None
         item["routing"] = json.loads(item.pop("routing_json")) if item.get("routing_json") else None
         item["workflow"] = json.loads(item.pop("workflow_json")) if item.get("workflow_json") else None
+        if item['workflow'] and item['workflow'].get('tools'):
+            item['workflow']['tools']['rag'] = with_source_metadata(item['workflow']['tools'].get('rag') or [])
+        # Existing intakes also receive current suggestions; recorded assignments stay intact.
+        cls = item['classification'] or {}
+        context = ' '.join(filter(None, [item['complaint_type'], item.get('incident_context'), item['raw_text']]))
+        current = route_case(_routing_domain(cls), text=context, classification=cls)
+        routing = item['routing'] or current
+        routing['recommendations'] = recommend_roles(current, text=context, classification=cls,
+            evidence=((item.get('workflow') or {}).get('tools') or {}).get('rag', []))
+        routing['role_labels'] = current['role_labels']
+        item['routing'] = routing
         return item
