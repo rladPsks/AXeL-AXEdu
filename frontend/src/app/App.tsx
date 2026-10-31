@@ -241,7 +241,7 @@ function CaseList() {
           새로고침
         </button>
       </div>
-      <LevelGuide caseId={records[0]?.id} />
+      <LevelGuide caseId={records.find(record => record.channel)?.id} />
       <section className="stage-tiles" aria-label="민원 단계별 현황">
         {(["simple", "review", "together"] as const).map((stage) => (
           <div className={`stage-tile stage-${stage}`} key={stage}>
