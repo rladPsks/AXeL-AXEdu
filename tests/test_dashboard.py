@@ -134,3 +134,34 @@ def test_invalid_period_is_rejected(env):
     client, creds, *_ = env
     assert dashboard(client, creds, **{'from': '2026-11-02', 'to': '2026-11-01'}).status_code == 422
     assert dashboard(client, creds, **{'from': 'yesterday'}).status_code == 422
+
+
+def test_staff_detail_distinguishes_exposure_duration_and_current_queue(env):
+    client,creds,app,path=env
+    assert log(client,creds,duration_seconds=600).status_code==201
+    assert log(client,creds,kind='TASK_WORK').status_code==201
+    with app.state.db.transaction() as db:
+        db.execute("INSERT INTO tasks(id,case_id,type,assignee_id,requester_id,question,callback_needed,status,created_at) VALUES ('waiting','demo-case','FACT_CHECK','teacher','admin','가상 확인','NOT_REQUIRED','REQUESTED','2026-10-29T00:00:00+00:00')")
+    result=dashboard(client,creds,**{'from':'2026-10-30','to':'2026-10-30'}).json()
+    teacher=next(s for s in result['staff_detail'] if s['staff_id']=='teacher')
+    assert teacher['linked_cases']==1 and teacher['contact_count']==1
+    assert teacher['recorded_seconds']==600 and teacher['average_recorded_case_seconds']==600
+    assert teacher['missing_duration']==1 and teacher['recording_coverage']==50
+    assert teacher['pending_tasks_now']==1 and teacher['oldest_wait_seconds']>0
+    assert teacher['daily'][0]['date']=='2026-10-30'
+    empty=next(s for s in result['staff_detail'] if s['staff_id']=='outsider')
+    assert empty['recorded_seconds'] is None and empty['recording_coverage'] is None
+    assert not {'score','rank'}&set(teacher)
+
+
+def test_dashboard_fixtures_are_idempotent_and_explicitly_fictional(env):
+    from backend.seed_patterns import seed_patterns
+    from backend.seed_dashboard import seed_dashboard
+    client,creds,app,path=env
+    seed_patterns(path)
+    seed_dashboard(path)
+    seed_dashboard(path)
+    with app.state.db.transaction() as db:
+        assert db.execute("SELECT count(*) FROM activity_logs WHERE id LIKE 'demo-dashboard-%'").fetchone()[0]==8
+        assert db.execute("SELECT count(*) FROM tasks WHERE id LIKE 'demo-dashboard-%'").fetchone()[0]==3
+        assert db.execute("SELECT count(*) FROM activity_logs WHERE note LIKE '[가상 시연]%'").fetchone()[0]==8

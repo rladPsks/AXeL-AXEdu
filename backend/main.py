@@ -57,6 +57,8 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
                 if initial_seed is not None:
                     from .seed_complaints import seed_complaints
                     seed_complaints(app.state.db.path)
+                from .seed_dashboard import seed_dashboard
+                seed_dashboard(app.state.db.path)
         stop=Event()
         def deliver():
             while not stop.is_set():

@@ -106,3 +106,21 @@ def test_tone_uses_saved_response_and_preserves_source_revision(env):
     adapter._structured=lambda *args: {'response_draft':'확인한 내용을 안내드리겠습니다.','changes':['존중 표현'],'meaning_checks':['새 약속 없음']}
     result=adapter.rewrite_tone(data)
     assert result['source_revision']==1 and result['original']=='확인 후 안내하겠습니다.'
+
+
+def test_referral_recommendation_preserves_actual_locator_and_logs(env,monkeypatch):
+    client,tokens,app=env
+    def retrieve(query,**kwargs):
+        assert kwargs['allowed_source_types']=={'official_manual','policy_plan'}
+        return [{'source_id':'manual-test','title':'가상 매뉴얼','source_type':'official_manual','pdf_page':11,'text':'학교 공동 대응을 검토한다.','verification_status':'pending'}, {'source_id':'no-location','text':'인용 위치 없음'}]
+    monkeypatch.setattr('agent.retrieval.retrieve',retrieve)
+    path='/api/cases/demo-pattern-01/referral-evidence'
+    result=client.post(path,headers=headers(tokens),json={'expected_version':1})
+    assert result.status_code==200,result.text
+    items=result.json()['items']
+    assert len(items)==1 and items[0]['location']=='PDF 11쪽'
+    assert items[0]['excerpt']=='학교 공동 대응을 검토한다.'
+    assert items[0]['verification_status']=='pending' and not items[0]['external_support_mention']
+    assert client.post(path,headers=headers(tokens,'teacher'),json={'expected_version':1}).status_code==403
+    history=client.get('/api/cases/demo-pattern-01/full-history',headers=headers(tokens)).json()
+    assert history[0]['action']=='REFERRAL_EVIDENCE_RECOMMENDED'

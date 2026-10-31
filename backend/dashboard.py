@@ -89,4 +89,55 @@ def dashboard(request: Request, start: str = Query('', alias='from'), end: str =
                 'tasks': {'by_type_status': task_rows},
                 'support': {'requested_in_period': support_period,
                             'unacknowledged_now': len(waiting), 'unacknowledged_case_ids': limited(waiting)},
-                'staff_activity': activity, 'notes': NOTES}
+                'staff_activity': activity, 'staff_detail': staff_details(db,school,lower,upper), 'notes': NOTES}
+
+
+def staff_details(db,school,lower,upper):
+    """Separate period exposure/activity from the current queue. No inferred work time."""
+    from collections import defaultdict
+    cases={r['id']:dict(r) for r in db.execute('SELECT c.id,c.title,c.status,i.received_at,i.classification_json FROM cases c LEFT JOIN case_intakes i ON i.case_id=c.id WHERE c.school_id=?',(school,))}
+    tasks=[dict(r) for r in db.execute('SELECT t.* FROM tasks t JOIN cases c ON c.id=t.case_id WHERE c.school_id=?',(school,))]
+    activities=[dict(r) for r in db.execute('SELECT * FROM activity_logs WHERE school_id=? AND occurred_at>=? AND occurred_at<?',(school,lower,upper))]
+    members=[dict(r) for r in db.execute('SELECT user_id,role FROM memberships WHERE school_id=? AND active=1 ORDER BY user_id',(school,))]
+    participants=defaultdict(set)
+    for r in db.execute('SELECT p.* FROM case_participants p JOIN cases c ON c.id=p.case_id WHERE c.school_id=?',(school,)):
+        participants[r['user_id']].add(r['case_id'])
+    lower_dt=datetime.fromisoformat(lower);upper_dt=datetime.fromisoformat(upper)
+    clock=datetime.now(timezone.utc)
+    def instant(value):
+        if not value: return None
+        try: return datetime.fromisoformat(value.replace('Z','+00:00')).astimezone(timezone.utc)
+        except ValueError: return None
+    def within(value):
+        at=instant(value)
+        return at is not None and lower_dt<=at<upper_dt
+    result=[]
+    for member in members:
+        identity=member['user_id']
+        logs=[a for a in activities if a['staff_id']==identity]
+        mine=[t for t in tasks if t['assignee_id']==identity]
+        period_tasks=[t for t in mine if within(t['created_at'])]
+        pending=[t for t in mine if t['status']!='COMPLETED' and cases[t['case_id']]['status']!='CLOSED']
+        case_ids={a['case_id'] for a in logs}|{t['case_id'] for t in period_tasks}|{cid for cid in participants[identity] if within(cases[cid]['received_at'])}
+        if member['role']!='TEACHER' and not (logs or period_tasks or pending): continue
+        rows=[];daily={};by_kind={}
+        for a in logs:
+            day=instant(a['occurred_at']).astimezone(KST).date().isoformat()
+            d=daily.setdefault(day,{'date':day,'entries':0,'contact_count':0,'recorded_seconds':0,'missing_duration':0})
+            k=by_kind.setdefault(a['kind'],{'kind':a['kind'],'entries':0,'recorded_seconds':0,'missing_duration':0})
+            for group in (d,k):
+                group['entries']+=1
+                if a['duration_seconds'] is None: group['missing_duration']+=1
+                else: group['recorded_seconds']+=a['duration_seconds']
+            if a['kind'] in ('DIRECT_CONTACT','CALLBACK','COUNSEL'): d['contact_count']+=1
+        for cid in sorted(case_ids|{t['case_id'] for t in pending}):
+            case=cases[cid];cls=json.loads(case['classification_json'] or '{}')
+            case_logs=[a for a in logs if a['case_id']==cid]
+            durations=[a['duration_seconds'] for a in case_logs if a['duration_seconds'] is not None]
+            waiting=[t for t in pending if t['case_id']==cid]
+            waits=[max(0,(clock-instant(t['created_at'])).total_seconds()) for t in waiting if instant(t['created_at'])]
+            rows.append({'case_id':cid,'title':case['title'],'status':case['status'],'in_period':cid in case_ids,'nature':cls.get('nature') or 'UNCLASSIFIED','urgency':cls.get('urgency') or 'UNCLASSIFIED','infringement_concern':bool(cls.get('infringement_flags')),'entries':len(case_logs),'recorded_seconds':sum(durations) if durations else None,'missing_duration':sum(a['duration_seconds'] is None for a in case_logs),'pending_tasks':len(waiting),'oldest_wait_seconds':max(waits,default=None)})
+        recorded=[a['duration_seconds'] for a in logs if a['duration_seconds'] is not None]
+        measured_cases={a['case_id'] for a in logs if a['duration_seconds'] is not None}
+        result.append({'staff_id':identity,'role':member['role'],'linked_cases':len(case_ids),'open_cases':sum(cases[c]['status']=='OPEN' for c in case_ids),'high_urgency_cases':sum(r['urgency']=='HIGH' and r['in_period'] for r in rows),'contact_count':sum(a['kind'] in ('DIRECT_CONTACT','CALLBACK','COUNSEL') for a in logs),'entries':len(logs),'recorded_seconds':sum(recorded) if recorded else None,'missing_duration':len(logs)-len(recorded),'recording_coverage':round(len(recorded)/len(logs)*100) if logs else None,'average_recorded_case_seconds':sum(recorded)/len(measured_cases) if measured_cases else None,'pending_tasks_now':len(pending),'oldest_wait_seconds':max((r['oldest_wait_seconds'] for r in rows if r['oldest_wait_seconds'] is not None),default=None),'by_kind':list(by_kind.values()),'daily':sorted(daily.values(),key=lambda d:d['date']),'cases':rows})
+    return result

@@ -7,18 +7,7 @@ import { CommandForm } from "../../shared/CommandForm";
 import { ErrorNotice, date, label } from "../../shared/ui";
 import { personName } from "../../shared/names";
 import "./mission.css";
-
-export function LevelGuide({ caseId }: { caseId?: string }) {
-  const { session } = useSession();
-  const base = caseId ? `/cases/${encodeURIComponent(caseId)}` : "/cases";
-  const groups = [
-    { level: "Level 1", title: "분류하고 답변하기", links: [["원문·유형·긴급도", `${base}?tab=intake`], ["근거 답변·표현 조절", `${base}?tab=response`], ["전체 처리 이력", `${base}?tab=timeline`]] },
-    { level: "Level 2", title: "반복의 맥락 살피기", links: [["민원인·누적 패턴", "/patterns"], ["같은 사안·새 사실 비교", `${base}?tab=comparison`], ["지원·이관 판단", `${base}?tab=support-decisions`]] },
-    { level: "Level 3", title: "학교 밖 지원까지 연결", links: [["교육지원청 이관 서류", `${base}?tab=report`], ["교사 노출도·처리시간", "/dashboard"], ["다국어 원문 대조", `${base}?tab=translation`], ["동의 녹취·요약", `${base}?tab=recordings`]] },
-  ];
-  if (session.role !== "ADMIN" || !caseId) return null;
-  return <section className="level-guide" aria-label="Level 1부터 3까지 업무 흐름">{groups.map((group) => <article key={group.level}><span className="meta">{group.level}</span><h3>{group.title}</h3>{group.links.map(([title,url]) => <Link key={url} to={url}>{title} →</Link>)}</article>)}</section>;
-}
+import { ReferralEvidence } from "./ReferralEvidence";
 
 type PatternCase = { id: string; title: string; received_at: string; issue_key: string; raw_text: string; response_recorded: boolean; signals: string[]; compare_case_id?: string };
 type Patterns = { window_days: number; minimum_count: number; unlinked_count: number; notice: string; groups: { person_key: string; display_name: string; count: number; issue_count: number; repeat_candidate: boolean; unanswered_count: number; cases: PatternCase[] }[] };
@@ -42,7 +31,7 @@ export function PatternsPage({ caseId }: { caseId?: string }) {
   </>;
 }
 
-const historyTitles:Record<string,string>={DEMO_PATTERN_CREATED:"반복 시연 민원 접수",DEMO_RESPONSE_RECORDED:"가상 답변 전달 기록",REPORT_DRAFT_SAVED:"이관 서류 초안 저장",REPORT_APPROVED:"이관 서류 승인",REPORT_EXPORTED:"이관 서류 내보내기",RESPONSE_DRAFT_SAVED:"답변 초안 저장",RESPONSE_APPROVED:"답변 승인",RESPONSE_DELIVERED:"답변 전달 사실 기록",TRANSLATION_DRAFT_SAVED:"번역 수정 저장",TRANSLATION_APPROVED:"번역 검토 확정",COMPARISON_INPUT_PREPARED:"민원 비교 자료 준비"};
+const historyTitles:Record<string,string>={DEMO_DASHBOARD_TASK_CREATED:"가상 교사 확인 업무 요청",REFERRAL_EVIDENCE_RECOMMENDED:"매뉴얼 이관 근거 추천",DEMO_PATTERN_CREATED:"반복 시연 민원 접수",DEMO_RESPONSE_RECORDED:"가상 답변 전달 기록",REPORT_DRAFT_SAVED:"이관 서류 초안 저장",REPORT_APPROVED:"이관 서류 승인",REPORT_EXPORTED:"이관 서류 내보내기",RESPONSE_DRAFT_SAVED:"답변 초안 저장",RESPONSE_APPROVED:"답변 승인",RESPONSE_DELIVERED:"답변 전달 사실 기록",TRANSLATION_DRAFT_SAVED:"번역 수정 저장",TRANSLATION_APPROVED:"번역 검토 확정",COMPARISON_INPUT_PREPARED:"민원 비교 자료 준비"};
 type History = {id:string;action:string;actor_id:string;created_at:string;source:string;payload:Record<string,unknown>};
 export function FullHistory({caseId}:{caseId:string}) {
   const {api}=useSession(); const scope=useScope(); const [search,setSearch]=useState("");
@@ -80,7 +69,7 @@ export function WorkProduct({record,kind}:{record:CaseDetail;kind:Kind}) {
 }
 function ProductEditor({record,kind,path,initial,revision,onSaved}:{record:CaseDetail;kind:Kind;path:string;initial:Content;revision:number;onSaved:()=>void}) {
  const [text,setText]=useState(initial.text);
- return <>{kind==="RESPONSE"?<ToneAssist record={record} revision={revision} onApply={setText}/>:null}<CommandForm caseId={record.id} version={record.version} path={path} button="새 초안 버전 저장" disabled={record.status==="CLOSED"} onSaved={onSaved} transformValues={v=>({previous_revision:revision,reason:v.reason,content:{text,original:initial.original||initial.text,language:String(v.language??initial.language??"ko")}})}>
+ return <>{kind==="REPORT"?<ReferralEvidence record={record} onApply={citation=>setText(current=>`${current}\n\n${citation}`)}/>:null}{kind==="RESPONSE"?<ToneAssist record={record} revision={revision} onApply={setText}/>:null}<CommandForm caseId={record.id} version={record.version} path={path} button="새 초안 버전 저장" disabled={record.status==="CLOSED"} onSaved={onSaved} transformValues={v=>({previous_revision:revision,reason:v.reason,content:{text,original:initial.original||initial.text,language:String(v.language??initial.language??"ko")}})}>
  {kind!=="REPORT"?<div className="draft-compare"><section><h3>{kind==="TRANSLATION"?"접수 원문":"다듬기 전 문장"}</h3><p className="preserve">{initial.original||initial.text||"아직 생성된 초안이 없습니다. AI 지원 검토에서 먼저 생성할 수 있습니다."}</p></section><label>{kind==="TRANSLATION"?"검토한 한국어 번역":"검토·수정 답변"}<textarea required rows={12} value={text} onChange={e=>setText(e.target.value)} maxLength={40000}/></label></div>:<label>이관 서류 본문<textarea required rows={18} value={text} onChange={e=>setText(e.target.value)} maxLength={40000}/></label>}
  {kind==="TRANSLATION"?<label>원문 언어<input name="language" defaultValue={initial.language} required maxLength={40}/></label>:null}
  {kind==="RESPONSE"?<><p className="hint">감정 완화 표현을 사용하되 확인되지 않은 잘못 인정·보상·기한 약속을 추가하지 마세요.</p><Link to={`/cases/${record.id}?tab=agent-review`}>AI 근거 답변 생성·검토 →</Link></>:null}

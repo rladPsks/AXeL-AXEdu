@@ -43,7 +43,7 @@ import { Recordings } from "../features/recordings";
 import { DashboardPage } from "../features/dashboard";
 import { IntakeCreate } from "../features/intake";
 
-import { LevelGuide, PatternsPage, FullHistory, WorkProduct } from "../features/mission";
+import { PatternsPage, FullHistory, WorkProduct } from "../features/mission";
 
 export function App() {
   const [auth, setAuth] = useState<{
@@ -241,7 +241,6 @@ function CaseList() {
           새로고침
         </button>
       </div>
-      <LevelGuide caseId={records.find(record => record.channel)?.id} />
       <section className="stage-tiles" aria-label="민원 단계별 현황">
         {(["simple", "review", "together"] as const).map((stage) => (
           <div className={`stage-tile stage-${stage}`} key={stage}>
@@ -497,7 +496,6 @@ function CaseShell() {
       </div>
       {query.isRefetchError ? <ErrorNotice error={query.error} /> : null}
       {members.error ? <ErrorNotice error={members.error} /> : null}
-      <LevelGuide caseId={caseId} />
       <nav className="tabs mission-tabs" aria-label="민원 메뉴">
         {tabs
           .filter((t) => ["intake", "tasks", "support", "response", "patterns", "timeline", "report"].includes(t.id))

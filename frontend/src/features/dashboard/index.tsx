@@ -1,3 +1,4 @@
+import { StaffExposure, type StaffDetail } from "./StaffExposure";
 import { personName } from "../../shared/names";
 import { caseName } from "../../shared/names";
 import { useState } from "react";
@@ -8,6 +9,7 @@ import { Empty, ErrorNotice, label } from "../../shared/ui";
 import { minutes } from "../activity-log";
 
 type Dashboard = {
+  staff_detail: StaffDetail[];
   period: { from: string; to: string; timezone: string };
   cases: { basis: string; by_status: Record<string, number> };
   tasks: {
@@ -70,7 +72,7 @@ export function DashboardPage() {
     <>
       <div className="page-heading">
         <div>
-          <h1>활동·지원 현황</h1>
+          <h1>교사별 민원 노출도·처리시간</h1>
           <p>
             발생한 민원에 대하여 필요한 지원 방안을 확인하기 위한 화면입니다.
           </p>
@@ -107,6 +109,8 @@ export function DashboardPage() {
           <ErrorNotice error={query.error} />
         ) : d ? (
           <>
+            <StaffExposure staff={d.staff_detail??[]} />
+            <details><summary>학교 전체 업무·지원 집계</summary>
             <h2>민원 현황</h2>
             <p className="hint">{d.cases.basis}</p>
             <p>
@@ -192,6 +196,7 @@ export function DashboardPage() {
                 </table>
               </div>
             )}
+            </details>
             <ul className="hint">
               {d.notes.map((n) => (
                 <li key={n}>{n}</li>

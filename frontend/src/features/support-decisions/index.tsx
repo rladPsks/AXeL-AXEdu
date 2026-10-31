@@ -1,3 +1,4 @@
+import { ReferralEvidence } from "../mission/ReferralEvidence";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useScope, useSession } from "../../app/providers";
@@ -149,6 +150,7 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
   const initial = (): Draft[] => [
     { key: `CASE:${record.id}`, kind: "UNVERIFIED", detail: "" },
   ];
+  const [reason,setReason] = useState("");
   const [observations, setObservations] = useState<Draft[]>(initial);
   const selected = sources.filter((source) =>
     observations.some((item) => item.key === source.key),
@@ -180,13 +182,14 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
         판단 저장은 기관 제출·지원 배정·민원 종결이 아닙니다. 남은 학교 업무는
         교사 업무와 학교 지원에서 계속 처리하세요.
       </div>
+      <ReferralEvidence record={record} onApply={citation=>setReason(current=>`${current}\n\n${citation}`.trim())} />
       {list.error ? <ErrorNotice error={list.error} /> : null}
       {files.error ? <ErrorNotice error={files.error} /> : null}
       {documents.error ? <ErrorNotice error={documents.error} /> : null}
       {comparisons.error ? <ErrorNotice error={comparisons.error} /> : null}
       {runs.error ? <ErrorNotice error={runs.error} /> : null}
       {record.status !== "CLOSED" && list.data ? (
-        <details open={!latest}>
+        <details open={!latest || !!reason}>
           <summary>
             {latest ? "검토 후 새 판단 기록" : "첫 지원 판단 기록"}
           </summary>
@@ -196,7 +199,7 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
             path={`/api/cases/${encodeURIComponent(record.id)}/support-decisions`}
             button="지원 판단 저장"
             disabled={list.isFetching || comparisons.isFetching}
-            onSaved={() => setObservations(initial())}
+            onSaved={() => {setObservations(initial());setReason("");}}
             transformValues={(values) => ({
               ...values,
               input_refs: JSON.parse(String(values.input_refs)),
@@ -242,7 +245,7 @@ export function SupportDecisions({ record }: { record: CaseDetail }) {
             </label>
             <label>
               판단 사유·변경 사유
-              <textarea name="reason" required maxLength={10000} />
+              <textarea name="reason" value={reason} onChange={e=>setReason(e.target.value)} required maxLength={10000} />
             </label>
             <label>
               지원 대상

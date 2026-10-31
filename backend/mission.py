@@ -215,3 +215,26 @@ def response_closure_guard(db,actor,case_id):
     latest=latest_product(db,case_id,'RESPONSE')
     if latest and latest['status']!='DELIVERED': return [{'code':'RESPONSE_REVIEW_REQUIRED','message':'최신 답변을 승인하고 전달 기록을 남기세요.'}]
     return []
+
+
+@router.post('/api/cases/{case_id}/referral-evidence')
+def referral_evidence(case_id: str, body: Command, request: Request):
+    def operation(db,actor,case):
+        from agent.retrieval import retrieve
+        admin(actor)
+        intake=db.execute('SELECT raw_text FROM case_intakes WHERE case_id=?',(case_id,)).fetchone()
+        raw=intake['raw_text'] if intake else case['title']
+        hits=retrieve(raw+' 학교 민원 대응 이관 교육지원청 지원',top_k=4,allowed_source_types={'official_manual','policy_plan'})
+        items=[]
+        for hit in hits:
+            excerpt=hit.get('text','')
+            if not excerpt.strip(): continue
+            location=hit.get('article') or hit.get('section_title') or hit.get('locator')
+            if not location and hit.get('pdf_page'): location=f"PDF {hit['pdf_page']}쪽"
+            if not location: continue
+            external=any(word in excerpt for word in ('교육지원청','교육청','이관'))
+            items.append({'source_id':hit.get('source_id'),'title':hit.get('title'),'source_type':hit.get('source_type'),'location':location,'pdf_page':hit.get('pdf_page'),'official_url':hit.get('official_url'),'excerpt':excerpt,'verification_status':hit.get('verification_status'),'external_support_mention':external,'reason':('외부 기관·이관 관련 문구가 있는 검토 후보입니다. 적용 요건과 학교의 선행 조치를 대조하세요.' if external else '학교 내부 공동 대응 관련 후보입니다. 이 문구만으로 교육지원청 이관 요건을 충족했다고 볼 수 없습니다.')})
+        notice='저장된 매뉴얼·정책 자료에서 관련 문구를 검색한 추천입니다. 조항 번호가 없는 자료는 항목/쪽수로 표시합니다. 원문과 적용 요건을 확인한 뒤 사유에 반영하세요.'
+        log(db,actor,case,'REFERRAL_EVIDENCE_RECOMMENDED',{'items':items,'notice':notice})
+        return {'items':items,'notice':notice}
+    return mutate(request,case_id,body,'REFERRAL_EVIDENCE_RECOMMENDED',operation,advance_case=False)
