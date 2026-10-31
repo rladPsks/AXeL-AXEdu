@@ -4,6 +4,7 @@ from datetime import datetime,timedelta,timezone
 from .db import Database,now,uid,audit
 from .demo import seeded
 from .access import DomainError
+from .demo_narratives import PATTERN_SAMPLES
 from agent.routing import route_case
 from agent.draft import teacher_card
 
@@ -11,16 +12,7 @@ from agent.draft import teacher_card
 def seed_patterns(path):
     added=0
     base=datetime.now(timezone.utc)-timedelta(days=7)
-    same="[가상] 수업 중 생활지도 기준과 당시 상황을 확인해 주세요. 아이만 자주 지적받았다는 이야기를 들었습니다."
-    samples=[
-        ('첫 생활지도 문의',same,'student-guidance'),
-        ('같은 질문 재문의',same,'student-guidance'),
-        ('학교 답변을 기다리는 재문의',same+' 아직 학교의 구체적인 답변을 받지 못해 다시 문의합니다.','student-guidance'),
-        ('새로운 자료를 첨부한 문의',same+' 새 증거로 학생이 작성한 당시 활동 기록을 제출합니다. 이전 문의에 없던 쉬는 시간 상황도 확인해 주세요.','student-guidance'),
-        ('지도 기준 설명 요청',same+' 확인된 지도 기준을 서면으로 설명해 주세요.','student-guidance'),
-        ('답변 이후 동일한 요청',same+' 확인된 지도 기준을 서면으로 설명해 주세요.','student-guidance'),
-        ('별도 사안: 홈페이지 사진', '[가상] 홈페이지에 게시된 아이 사진의 공개 동의 여부를 확인하고 비공개 처리해 주세요.','privacy'),
-    ]
+    samples=PATTERN_SAMPLES
     with Database(path).transaction() as db:
         try: seeded(db)
         except DomainError: return 0

@@ -370,6 +370,7 @@ export function IntakeDetail({ caseId }: { caseId: string }) {
           검토한 내용을 바탕으로 실제 담당자를 지정하고 확인 업무를 요청하세요.
         </p>
         <Link to={`${url}?tab=tasks`}>담당자 지정·업무 요청 →</Link>
+        {session.role === "ADMIN" ? <p><Link to={`${url}?tab=response`}>학부모 답변 직접 작성 →</Link></p> : null}
       </section>
       <details>
         <summary>분류 근거·추가 검토</summary>

@@ -454,7 +454,7 @@ function CaseShell() {
     ...(session.role === "ADMIN"
       ? [
           { id: "patterns", title: "민원인·누적 패턴" },
-          { id: "response", title: "답변 초안·승인" },
+          { id: "response", title: "학부모 답변 작성" },
           { id: "report", title: "교육지원청 이관 서류" },
           { id: "translation", title: "다국어 원문 대조" },
           { id: "guardians", title: "보호자 연결" },

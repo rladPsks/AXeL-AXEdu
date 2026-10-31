@@ -1,0 +1,32 @@
+import {test,expect} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
+
+test('a parent response can be written, saved and resumed without AI or approval',async({page,request},info)=>{
+  const cid='demo-flow-20-03';
+  await page.goto(`/cases/${cid}`);
+  await page.getByRole('button',{name:'김OO 교장 관리자',exact:true}).click();
+  await page.getByRole('link',{name:'학부모 답변 직접 작성 →',exact:true}).click();
+  const body=page.getByRole('textbox',{name:'학부모에게 보낼 답변',exact:true});
+  await expect(body).toHaveValue('');
+  const first='[가상 시연] 학부모님, 안녕하세요. 재학증명서 발급 문의에 대해 담당자가 신청 방법을 확인하여 안내드리겠습니다.';
+  await body.fill(first);
+  await page.getByRole('button',{name:'학부모 답변 초안 저장',exact:true}).click();
+  await expect(page.getByText('저장한 초안 · 검토 전 · 버전 1',{exact:true})).toBeVisible();
+  const revised=first+'\n문의하신 내용을 학교 공식 창구에서 확인하겠습니다.';
+  await body.fill(revised);
+  await page.getByRole('button',{name:'학부모 답변 초안 저장',exact:true}).click();
+  await expect(page.getByText('저장한 초안 · 검토 전 · 버전 2',{exact:true})).toBeVisible();
+  await page.reload();
+  await page.getByRole('button',{name:'김OO 교장 관리자',exact:true}).click();
+  await expect(body).toHaveValue(revised);
+  const download=page.waitForEvent('download');
+  await page.getByRole('button',{name:'초안 텍스트 파일 받기',exact:true}).click();
+  const artifact=await download;const path=info.outputPath('parent-response.txt');await artifact.saveAs(path);
+  expect(await readFile(path,'utf8')).toBe(revised);
+  const session=await request.post('/api/demo/login',{data:{account:'admin'}});
+  const token=(await session.json()).token;
+  const result=await request.get(`/api/cases/${cid}/work-products/RESPONSE`,{headers:{Authorization:`Bearer ${token}`}});
+  const products=(await result.json()).products;
+  expect(products[0].content.text).toBe(revised);
+  expect(products.every((p:{status:string})=>p.status==='DRAFT')).toBe(true);
+});

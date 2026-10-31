@@ -9,6 +9,7 @@ import { personName } from "../../shared/names";
 import "./mission.css";
 import { ReferralEvidence } from "./ReferralEvidence";
 import { ReportWorkspace } from "./ReportWorkspace";
+import { ParentResponse } from "./ParentResponse";
 
 type PatternCase = { id: string; title: string; received_at: string; issue_key: string; raw_text: string; response_recorded: boolean; signals: string[]; compare_case_id?: string };
 type Patterns = { window_days: number; minimum_count: number; unlinked_count: number; notice: string; groups: { person_key: string; display_name: string; count: number; issue_count: number; repeat_candidate: boolean; unanswered_count: number; cases: PatternCase[] }[] };
@@ -48,7 +49,7 @@ type Products={initial:Content;products:Product[];decision:{stale:boolean;snapsh
 const titles:Record<Kind,string>={REPORT:"교육지원청 이관 서류",RESPONSE:"근거 답변·표현 조절",TRANSLATION:"다국어 원문·번역 대조"};
 const states:Record<string,string>={DRAFT:"검토 전 초안",APPROVED:"관리자 승인",EXPORTED:"내보내기 기록",DELIVERED:"답변 전달 기록"};
 export function WorkProduct({record,kind}:{record:CaseDetail;kind:Kind}) {
- return kind==="REPORT"?<ReportWorkspace record={record}/>:<OtherWorkProduct record={record} kind={kind}/>;
+ return kind==="REPORT"?<ReportWorkspace record={record}/>:kind==="RESPONSE"?<ParentResponse record={record}/>:<OtherWorkProduct record={record} kind={kind}/>;
 }
 function OtherWorkProduct({record,kind}:{record:CaseDetail;kind:Kind}) {
  const {api}=useSession();const scope=useScope();const queries=useQueryClient();

@@ -6,22 +6,23 @@ from agent.draft import teacher_card
 from backend.access import DomainError
 from backend.db import Database, audit, now, uid
 from backend.demo import seeded
+from backend.demo_narratives import MULTILINGUAL_ORIGINALS
 
 SAMPLES = (
     {'language': 'zh', 'label': '중국어', 'title': '교외체험학습 신청 문의', 'category': 'INFO',
      'nature': 'INFO_REQUEST', 'owner': 'academic-head',
-     'original': '我们计划下个月带孩子回中国探亲，想申请校外体验学习。请问需要提交哪些材料、通过什么方式申请，以及如何确认是否可以计入出勤？我的韩语不太好，希望能提供中文说明。',
-     'korean': '다음 달 아이와 함께 중국의 친척을 방문할 계획이라 교외체험학습을 신청하려고 합니다. 필요한 서류, 신청 방법, 출석 인정 가능 여부를 확인하는 방법을 알려 주세요. 한국어가 서툴러 중국어 안내를 받고 싶습니다.',
+     'original': MULTILINGUAL_ORIGINALS['zh']['original'],
+     'korean': MULTILINGUAL_ORIGINALS['zh']['korean'],
      'action': '교외체험학습 신청 서류와 출석 인정 기준을 교무 담당자가 확인하고 중국어 안내를 준비해 주세요.'},
     {'language': 'mn', 'label': '몽골어', 'title': '학생 갈등 상담 요청', 'category': 'COUNSEL',
      'nature': 'COUNSEL', 'owner': 'life-head',
-     'original': 'Манай хүүхэд сүүлийн үед ангийнхаа хүүхдүүдтэй маргалдсанаас болж сургуульдаа явахаас санаа зовж байна. Сургууль дээр юу болсон талаар шалгаж, хүүхэдтэй ярилцан дэмжлэг үзүүлж өгнө үү. Боломжтой бол надад монгол хэлээр тайлбарлаж өгнө үү.',
-     'korean': '아이가 최근 같은 반 친구들과 다툰 뒤 학교에 가는 것을 걱정하고 있습니다. 학교에서 무슨 일이 있었는지 확인하고 아이와 이야기하여 지원해 주세요. 가능하면 몽골어로 설명해 주세요.',
+     'original': MULTILINGUAL_ORIGINALS['mn']['original'],
+     'korean': MULTILINGUAL_ORIGINALS['mn']['korean'],
      'action': '생활부장과 담임이 학생 갈등 경위를 확인하고 확인된 사실과 추가 확인 사항을 구분해 몽골어 상담 안내를 준비해 주세요.'},
     {'language': 'ru', 'label': '러시아어', 'title': '급식비 환불 절차 문의', 'category': 'ADMIN',
      'nature': 'INFO_REQUEST', 'owner': 'office-head',
-     'original': 'Наша семья переезжает, и ребёнок переводится в другую школу. Питание уже оплачено за весь месяц. Подскажите, можно ли вернуть деньги за неиспользованные дни, какие документы нужны и куда подать заявление. Мне трудно понимать корейский язык, поэтому прошу предоставить объяснение на русском языке.',
-     'korean': '가족이 이사하여 아이가 다른 학교로 전학합니다. 한 달 급식비를 이미 납부했습니다. 이용하지 않은 날의 급식비를 환불받을 수 있는지, 어떤 서류가 필요한지, 어디에 신청해야 하는지 알려 주세요. 한국어를 이해하기 어려워 러시아어 설명을 요청합니다.',
+     'original': MULTILINGUAL_ORIGINALS['ru']['original'],
+     'korean': MULTILINGUAL_ORIGINALS['ru']['korean'],
      'action': '행정실에서 납부 내역과 급식비 환불 기준·신청 서류를 확인하고 러시아어 안내를 준비해 주세요.'},
 )
 
