@@ -57,8 +57,8 @@ def test_integrated_intake_creates_shared_case_and_routed_tasks(monkeypatch, tmp
 
         case = client.get(f"/api/cases/{case_id}", headers=auth(tokens)).json()
         assert case["id"] == case_id
-        assert case["owner_id"] == "admin"
-        assert {task["assignee_id"] for task in case["tasks"]} == {"deputy", "teacher"}
+        assert case["owner_id"] == "deputy"
+        assert {task["assignee_id"] for task in case["tasks"]} == {"deputy"}
         assert all(task["type"] == "FACT_CHECK" for task in case["tasks"])
 
         intake = client.get(f"/api/cases/{case_id}/intake", headers=auth(tokens)).json()
@@ -75,7 +75,7 @@ def test_integrated_intake_creates_shared_case_and_routed_tasks(monkeypatch, tmp
         assert intake["workflow"]["agent"]["orchestrator"] == "AXeL"
         assert "rag" in intake["workflow"]["tools"]
         assert "history" in intake["workflow"]["tools"]
-        assert intake["workflow"]["action_plan"]["case_owner"] == "admin"
+        assert intake["workflow"]["action_plan"]["case_owner"] == "deputy"
 
         brief_path = f"/api/cases/{case_id}/teacher-brief"
         brief = {"expected_version": 1, "summary": "관리자가 확인한 요약", "action": "지도 기록을 확인해 주세요."}
@@ -111,7 +111,7 @@ def test_integrated_intake_creates_shared_case_and_routed_tasks(monkeypatch, tmp
         # Teachers see only their own connected complaints; administrators see the school list.
         def listed(user):
             return {item["id"] for item in client.get("/api/cases", headers=auth(tokens, user)).json()["items"]}
-        assert listed("teacher") == {case_id}
+        assert listed("teacher") == set()
         assert listed("outsider") == set()
         assert listed("admin") == {"demo-case", case_id}
         assert listed("deputy") == {"demo-case", case_id}
@@ -121,13 +121,13 @@ def test_integrated_intake_creates_shared_case_and_routed_tasks(monkeypatch, tmp
         # and never reaches an unrelated teacher or another school.
         from backend.notifications import dispatch_once
         dispatch_once(client.app.state.db)
-        for user in ("admin", "deputy", "teacher"):
+        for user in ("admin", "deputy"):
             inbox = client.get("/api/notifications", headers=auth(tokens, user)).json()
             arrivals = [n for n in inbox if n["kind"] == "CASE_INTAKE_CREATED"]
             assert len(arrivals) == 1
             assert arrivals[0]["case_id"] == case_id
             assert arrivals[0]["case_title"] == case["title"]
-        for user in ("outsider", "other-admin"):
+        for user in ("teacher", "outsider", "other-admin"):
             assert client.get("/api/notifications", headers=auth(tokens, user)).json() == []
 
 

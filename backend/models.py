@@ -26,7 +26,8 @@ class TaskUpdate(Command):
 
 
 class SupportCreate(Command):
-    coordinator_id: Identifier
+    coordinator_id: Identifier | None = None
+    coordinator_ids: list[Identifier] | None = Field(default=None, min_length=1, max_length=30)
     type: Literal["ATTEND", "JOINT_RESPONSE", "TAKEOVER", "URGENT"]
     reason: Text
 

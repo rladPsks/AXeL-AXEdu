@@ -19,10 +19,10 @@
 }
 .complaint-guide {
   padding: 20px 24px;
-  border: 1px solid #c7ddda;
+  border: 1px solid var(--line);
   border-radius: 10px;
   margin-bottom: 24px;
-  background: #f2faf8;
+  background: var(--tint);
   line-height: 1.8;
 }
 .complaint-guide > p {
@@ -32,8 +32,8 @@
   margin-bottom: 0;
 }
 .conduct-guide {
-  background: white;
-  border-left: 4px solid #137f79;
+  background: var(--card);
+  border-left: 4px solid var(--primary);
   padding: 12px 16px;
   border-radius: 4px;
 }
@@ -54,11 +54,11 @@
   margin: 24px 0;
 }
 .team-node {
-  border: 1px solid #c7ddda;
-  border-top: 4px solid #137f79;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--primary);
   border-radius: 8px;
   padding: 16px;
-  background: #f2faf8;
+  background: var(--tint);
   overflow-wrap: anywhere;
 }
 .team-node h3 {
@@ -91,14 +91,13 @@
 }
 :root {
   font-family: "Noto Sans KR", "Malgun Gothic", sans-serif;
-  color: #213a4b;
-  background: #f3f6f8;
+  color: var(--ink);
+  background: var(--bg);
   font-synthesis: none;
-  --navy: #19364a;
-  --teal: #137f79;
-  --line: #dce5ea;
-  --muted: #607581;
-  --red: #a33338;
+  --navy: var(--ink-strong);
+  --teal: var(--primary);
+  --muted: var(--ink-2);
+  --red: var(--warn-title);
 }
 * {
   box-sizing: border-box;
@@ -121,15 +120,15 @@ textarea {
 }
 button {
   cursor: pointer;
-  border: 1px solid #c6d4dc;
-  background: white;
+  border: 1px solid var(--line);
+  background: var(--card);
   color: var(--navy);
   padding: 10px 16px;
   border-radius: 6px;
   font-weight: 600;
 }
 button:hover:not(:disabled) {
-  background: #edf5f5;
+  background: var(--tint);
 }
 button:disabled {
   cursor: wait;
@@ -141,7 +140,7 @@ button:disabled {
   border-color: var(--teal);
 }
 .primary:hover:not(:disabled) {
-  background: #0e6964;
+  background: var(--primary-hover);
 }
 a {
   color: inherit;
@@ -151,7 +150,7 @@ a:hover {
   text-decoration: underline;
 }
 :focus-visible {
-  outline: 3px solid #e3b548;
+  outline: 3px solid var(--primary-mid);
   outline-offset: 3px;
 }
 h1,
@@ -191,9 +190,9 @@ label {
 input,
 select,
 textarea {
-  border: 1px solid #b9cad4;
+  border: 1px solid var(--line);
   border-radius: 5px;
-  background: white;
+  background: var(--card);
   color: var(--navy);
   padding: 11px 12px;
   width: 100%;
@@ -238,13 +237,13 @@ small {
   letter-spacing: -2px;
 }
 .login-story p {
-  color: #bfd4df;
+  color: var(--soft);
   font-size: 19px;
 }
 .story-line {
   font-size: 14px;
   margin-top: 80px;
-  color: #c5dedf;
+  color: var(--soft);
 }
 .story-line span {
   padding: 0 9px;
@@ -285,7 +284,7 @@ small {
   margin: 0 10px 45px;
 }
 .nav-label {
-  color: #b6cad4;
+  color: var(--soft);
   font-size: 12px;
   margin: 0 12px 12px;
 }
@@ -299,22 +298,22 @@ small {
   border-radius: 5px;
 }
 .sidebar nav a.active {
-  background: #2a5064;
-  box-shadow: inset 3px 0 #7dc8bc;
+  background: var(--pill);
+  box-shadow: inset 3px 0 var(--soft);
 }
 .sidebar-note {
   margin: 42px 10px;
-  color: #bad0d9;
+  color: var(--soft);
   font-size: 12px;
   line-height: 1.9;
 }
 .sidebar-note strong {
-  color: #e1f0f2;
+  color: var(--on-primary-sub);
 }
 .account {
   margin-top: auto;
   padding-top: 20px;
-  border-top: 1px solid #3d5869;
+  border-top: 1px solid var(--line);
 }
 .account strong,
 .account span {
@@ -322,13 +321,13 @@ small {
 }
 .account span {
   font-size: 12px;
-  color: #bad0d9;
+  color: var(--soft);
   margin: 8px 0 18px;
   overflow-wrap: anywhere;
 }
 .account button {
   background: transparent;
-  border-color: #54707f;
+  border-color: var(--line);
   color: white;
   font-size: 12px;
   padding: 8px 12px;
@@ -343,14 +342,14 @@ small {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: white;
+  background: var(--card);
   border-bottom: 1px solid var(--line);
   font-size: 13px;
   color: var(--muted);
 }
 .dev-label {
   padding: 4px 9px;
-  background: #eef3f5;
+  background: var(--tint);
   border-radius: 4px;
   font-size: 11px;
 }
@@ -375,7 +374,7 @@ small {
   flex-shrink: 0;
 }
 .panel {
-  background: white;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 9px;
   padding: 28px 30px;
@@ -403,7 +402,7 @@ small {
   min-width: 0;
 }
 .case-row:hover {
-  background: #f7fafb;
+  background: var(--bg);
   text-decoration: none;
 }
 .open-label {
@@ -430,32 +429,32 @@ small {
   font-weight: 600;
   padding: 6px 10px;
   border-radius: 4px;
-  background: #edf3f6;
-  color: #425d6e;
+  background: var(--tint);
+  color: var(--ink-strong);
 }
 .badge.open,
 .badge.in_progress,
 .badge.acknowledged {
-  background: #e4f3f1;
-  color: #09665f;
+  background: var(--tint);
+  color: var(--primary);
 }
 .badge.completed,
 .badge.accepted {
-  background: #ecf0f3;
-  color: #536976;
+  background: var(--line);
+  color: var(--ink-2);
 }
 .badge.requested,
 .badge.pending {
-  background: #fff1d8;
-  color: #8b6114;
+  background: var(--highlight);
+  color: var(--pill-ink);
 }
 .case-context {
   display: flex;
   gap: 28px;
   align-items: center;
   padding: 16px 20px;
-  background: #e8eff3;
-  border-left: 4px solid #7196a9;
+  background: var(--tint);
+  border-left: 4px solid var(--primary-mid);
   font-size: 13px;
   margin-bottom: 28px;
   flex-wrap: wrap;
@@ -465,7 +464,7 @@ small {
 }
 .tabs {
   display: flex;
-  border-bottom: 1px solid #b7cbd5;
+  border-bottom: 1px solid var(--line);
   margin-bottom: 22px;
   overflow-x: auto;
 }
@@ -510,13 +509,13 @@ small {
 blockquote {
   margin: 18px 0;
   padding: 14px 18px;
-  border-left: 3px solid #65aaa0;
-  background: #eff7f5;
+  border-left: 3px solid var(--primary-mid);
+  background: var(--tint);
   font-size: 14px;
 }
 .new-request {
   margin-top: 22px;
-  background: #f6f9fb;
+  background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 20px;
@@ -545,17 +544,17 @@ blockquote {
 }
 .notice {
   padding: 15px 18px;
-  background: #eaf1f5;
-  color: #426173;
+  background: var(--tint);
+  color: var(--ink-strong);
   border-radius: 5px;
   font-size: 13px;
   line-height: 1.8;
   margin: 18px 0;
 }
 .error {
-  color: #8c2932;
-  background: #fff0ef;
-  border-left: 3px solid #c76b6e;
+  color: var(--warn-title);
+  background: var(--warn-bg);
+  border-left: 3px solid var(--warn-line);
 }
 .error strong {
   font-size: 13px;
@@ -569,7 +568,7 @@ blockquote {
 }
 .success {
   font-size: 13px;
-  color: #087369;
+  color: var(--primary);
   margin-top: 12px;
 }
 .empty {
@@ -577,7 +576,7 @@ blockquote {
   text-align: center;
   color: var(--muted);
   font-size: 14px;
-  background: #f8fafb;
+  background: var(--bg);
   margin: 18px 0;
 }
 .timeline {
@@ -586,7 +585,7 @@ blockquote {
   margin-top: 28px;
 }
 .timeline li {
-  border-left: 2px solid #c6dcdf;
+  border-left: 2px solid var(--line);
   padding: 0 0 28px 22px;
   position: relative;
 }
@@ -618,7 +617,7 @@ blockquote {
   position: absolute;
   left: 10px;
   top: -100px;
-  background: white;
+  background: var(--card);
   padding: 10px;
   z-index: 5;
 }

@@ -283,24 +283,30 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
     @app.post("/api/cases/{case_id}/support-requests", status_code=201)
     def create_support(case_id: str, body: SupportCreate, request: Request):
         def operation(db, actor, case):
-            member(db, actor, body.coordinator_id, "ADMIN")
-            coordinator,routing=resolve_support(db,actor['school_id'],body.coordinator_id)
-            support_id = uid()
-            db.execute("INSERT INTO support_requests (id, case_id, requester_id, coordinator_id, type, reason, status, result, created_at) VALUES (?, ?, ?, ?, ?, ?, 'REQUESTED', NULL, ?)",
-                       (support_id, case_id, actor["user_id"], coordinator,
-                        body.type, body.reason, now()))
-            db.execute('UPDATE support_requests SET requested_coordinator_id=?,routing_reason=?,assigned_at=? WHERE id=?',
-                       (body.coordinator_id,routing,now(),support_id))
-            participate(db, case_id, coordinator)
-            enqueue(db,case_id,coordinator,'SUPPORT_REQUESTED',support_id,f'support:{support_id}:requested',severity='URGENT' if body.type=='URGENT' else 'NORMAL')
-            return {"support_request_id": support_id, "status": "REQUESTED",'coordinator_id':coordinator,'routing_reason':routing}
+            requested_ids = list(dict.fromkeys(body.coordinator_ids or ([body.coordinator_id] if body.coordinator_id else [])))
+            if not requested_ids:
+                fail(422, "SUPPORT_RECIPIENT_REQUIRED", "업무 지원자를 선택해 주세요.")
+            results = []
+            for requested in requested_ids:
+                member(db, actor, requested)
+                coordinator,routing=(resolve_support(db,actor['school_id'],requested) if db.execute("SELECT role FROM memberships WHERE school_id=? AND user_id=?", (actor['school_id'],requested)).fetchone()['role'] == 'ADMIN' else (requested, None))
+                support_id = uid()
+                db.execute("INSERT INTO support_requests (id, case_id, requester_id, coordinator_id, type, reason, status, result, created_at) VALUES (?, ?, ?, ?, ?, ?, 'REQUESTED', NULL, ?)",
+                           (support_id, case_id, actor["user_id"], coordinator,
+                            body.type, body.reason, now()))
+                db.execute('UPDATE support_requests SET requested_coordinator_id=?,routing_reason=?,assigned_at=? WHERE id=?',
+                           (requested,routing,now(),support_id))
+                participate(db, case_id, coordinator)
+                enqueue(db,case_id,coordinator,'SUPPORT_REQUESTED',support_id,f'support:{support_id}:requested',severity='URGENT' if body.type=='URGENT' else 'NORMAL')
+                results.append({'support_request_id': support_id, 'status': 'REQUESTED', 'coordinator_id': coordinator, 'routing_reason': routing})
+            return results[0] if len(results) == 1 else {"support_requests": results}
+
         return mutate(request, case_id, body, "SUPPORT_REQUESTED", operation, 201)
 
     @app.patch("/api/support-requests/{support_id}")
     def update_support(support_id: str, body: SupportUpdate, request: Request):
         case_id = resource_case(request, "support_requests", support_id)
         def operation(db, actor, case):
-            admin(actor)
             support = db.execute("SELECT * FROM support_requests WHERE id=?", (support_id,)).fetchone()
             if actor["user_id"] != support["coordinator_id"]:
                 fail(403, "SUPPORT_FORBIDDEN", "지정 지원 담당자가 확인해야 합니다.")

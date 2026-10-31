@@ -6,7 +6,9 @@
     "expected_category": "INFO",
     "expected_urgency": "LOW",
     "scenario": "정보성 문의",
-    "note": "가상 시연 사례"
+    "note": "가상 시연 사례",
+    "defaultOwner": "이정희 교감",
+    "supporters": []
   },
   {
     "id": "CASE-002",
@@ -15,7 +17,9 @@
     "expected_category": "EDU",
     "expected_urgency": "MID",
     "scenario": "복합 민원",
-    "note": "가상 시연 사례; 전문가 라벨 검수 필요"
+    "note": "가상 시연 사례; 전문가 라벨 검수 필요",
+    "defaultOwner": "이정희 교감",
+    "supporters": []
   },
   {
     "id": "CASE-003",
@@ -24,6 +28,8 @@
     "expected_category": "OTHER",
     "expected_urgency": "MID",
     "scenario": "미답변 후 재문의",
-    "note": "가상 시연 사례"
+    "note": "가상 시연 사례",
+    "defaultOwner": "이정희 교감",
+    "supporters": []
   }
 ]

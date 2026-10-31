@@ -1,22 +1,55 @@
-/* 함께 디자인 전달 v2: 햇살 노랑, 큰 활자, 교직원을 위한 밝은 공간. */
+/* 함께 PPT palette: olive, sage green and off-white. */
 :root {
-  --honey: #f6c343;
-  --honey-deep: #e0a91f;
-  --honey-soft: #fff4d6;
-  --sky: #5b8fd1;
-  --sky-soft: #eaf2fc;
-  --coral: #e8735c;
-  --rose: #b24a55;
-  --rose-soft: #fdeeee;
-  --ink: #2b2620;
-  --ink-2: #6e655a;
+  /* 배경·면 */
+  --bg:#f9f8f7;          /* 페이지 배경 (따뜻한 오프화이트) */
+  --card:#fdfdfb;        /* 카드·박스 */
+  --side:#e9f0e1;        /* 사이드바 (연한 초록) */
+  --line:#e1e6d8;        /* 카드·입력창 테두리 */
+  --tint:#e9f0e1;        /* 연한 초록 강조 박스 */
+  --tint-2:#e6efd8;      /* 첫 화면 배경 등 넓은 면 */
+
+  /* 메인 초록 */
+  --primary:#4b6636;       /* 주 버튼, 제목, 강조 숫자, 진한 박스 */
+  --primary-hover:#3d5429; /* 버튼 hover (primary를 약간 어둡게) */
+  --primary-mid:#6e8f52;   /* 링크, 보조 강조, 그래프 진한 쪽 */
+  --pill:#9bb97c;          /* 활성 메뉴, 알약 라벨 */
+  --pill-ink:#26331e;      /* 알약·활성 메뉴 위 글자 */
+  --soft:#c5d6b0;          /* 그래프 연한 쪽, 연한 테두리 */
+  --on-primary:#ffffff;    /* 진한 초록 위 글자 */
+  --on-primary-sub:#dce8cc;/* 진한 초록 박스 안 보조 글자 */
+
+  /* 글자 */
+  --ink:#2f372a;         /* 본문 */
+  --ink-strong:#26331e;  /* 굵은 소제목 */
+  --ink-2:#6b7561;       /* 보조·출처·메타 */
+
+  /* 경고 (악성 의심, '함께 대응') */
+  --warn-bg:#fdecea;
+  --warn-line:#c0392b;
+  --warn-title:#b3261e;
+  --warn-ink:#3a1f1c;
+
+  /* 포인트 */
+  --highlight:#ffe79a;   /* 형광펜, '살펴보기' 단계 */
+  --accent-red:#ff3434;  /* 핵심 문장 강조 글자 – 화면당 1곳 이하 */
+
+  color-scheme:light;
+
+  /* Compatibility aliases for existing components. */
+  --honey: var(--primary);
+  --honey-deep: var(--primary-hover);
+  --honey-soft: var(--tint);
+  --sky: var(--primary-mid);
+  --sky-soft: var(--tint);
+  --coral: var(--primary-mid);
+  --rose: var(--warn-title);
+  --rose-soft: var(--warn-bg);
+  --green: var(--primary-mid);
+  --green-soft: var(--tint);
   --muted: var(--ink-2);
-  --line: #efe6d6;
-  --bg: #fffbf3;
-  --card: #ffffff;
-  --side: #fff6e2;
-  --navy: var(--ink);
-  --teal: var(--honey-deep);
+  --navy: var(--ink-strong);
+  --teal: var(--primary);
+  --red: var(--warn-title);
   --r-lg: 20px;
   --r-md: 14px;
   --r-sm: 14px;
@@ -236,11 +269,11 @@ label {
 }
 .stage-badge.simple {
   background: var(--sky-soft);
-  color: #315e96;
+  color: var(--primary-mid);
 }
 .stage-badge.review {
   background: var(--honey-soft);
-  color: #78580b;
+  color: var(--pill-ink);
 }
 .stage-badge.together {
   background: var(--rose-soft);
@@ -286,7 +319,7 @@ label {
 }
 .case-row .open-label {
   font-size: 18px;
-  color: #315e96;
+  color: var(--primary-mid);
   white-space: nowrap;
 }
 .case-list-heading .scope-badge {
@@ -390,7 +423,7 @@ label {
 .badge.in_progress,
 .badge.acknowledged {
   background: var(--sky-soft);
-  color: #315e96;
+  color: var(--primary-mid);
 }
 .role-cards {
   display: grid;
@@ -550,3 +583,51 @@ label {
     width: 100%;
   }
 }
+
+
+/* Component colors; preserve existing typography and layout. */
+h1, h2 { color: var(--primary); }
+h3 { color: var(--ink-strong); }
+button { color: var(--primary); border: 2px solid var(--line); }
+.primary, .intake-submit .primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.primary:hover:not(:disabled) { background: var(--primary-hover); color: var(--on-primary); border-color: var(--primary-hover); }
+input, select, textarea { border: 2px solid var(--line); }
+input:focus, select:focus, textarea:focus { border-color: var(--primary-mid); }
+:focus-visible { outline-color: var(--primary-mid); }
+.sidebar nav a.active, .sidebar nav a.active:hover { background: var(--pill); color: var(--pill-ink); font-weight: 700; border-radius: 999px; }
+.section-heading .scope-badge { background: var(--pill); color: var(--pill-ink); }
+.stage-tile strong { color: var(--primary); }
+.stage-badge.simple, .badge.open, .badge.in_progress, .badge.acknowledged { background: var(--tint); color: var(--primary); }
+.stage-badge.review, .badge.requested, .badge.pending { background: var(--highlight); color: var(--pill-ink); }
+.stage-badge.together { background: var(--warn-bg); color: var(--warn-title); }
+.badge.completed, .badge.accepted, .badge.closed { background: var(--line); color: var(--ink-2); }
+.complaint-guide > p { background: var(--tint); color: var(--ink); }
+.complaint-guide strong { color: var(--primary); }
+.complaint-guide > .conduct-guide, .notice.error { background: var(--warn-bg); color: var(--warn-ink); border: 2px solid var(--warn-line); }
+.conduct-guide strong { color: var(--warn-title); }
+.complaint-guide > p::before { background: var(--primary); color: var(--on-primary); }
+.entry-v2 { background: var(--tint-2); }
+.entry-copy h1 .accent { color: var(--accent-red); }
+.role-card:hover:not(:disabled) { background: var(--tint); border-color: var(--pill); }
+.team-node { border: 2px solid var(--line); }
+.team-node:first-child { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.team-node:first-child h3 { color: var(--on-primary); }
+.team-node:first-child :is(.hint, ul) { color: var(--on-primary-sub); }
+.dashboard-panel th, th { background: var(--tint); color: var(--ink-strong); border-bottom-color: var(--line); }
+.case-row .open-label, .dashboard-panel td a, a.back { color: var(--primary-mid); }
+.copyright { margin-top: 24px; padding: 16px 0; text-align: center; font-size: 13px; font-weight: 400; color: var(--ink-2); white-space: nowrap; background: none; }
+.entry-v2 > .copyright { grid-column: 1 / -1; width: 100%; }
+
+/* Third feedback: smaller illustration at left, role selection at right. */
+.entry-v2 { grid-template-columns: 0.8fr 1.2fr; }
+.entry-v2 > .landing-art { grid-column: 1; grid-row: 1; max-width: 420px; }
+.entry-v2 > .entry-copy { grid-column: 2; grid-row: 1; }
+.team-groups { display: grid; gap: 24px; margin: 24px 0; }
+.team-group { border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+.team-group-nodes { display: flex; flex-wrap: wrap; gap: 16px; }
+.team-group .team-node { flex: 1 1 180px; width: auto; }
+.team-group .team-node::before, .team-group .team-node::after { display: none; }
+.team-group:not(:first-child) .team-node { background: var(--card); color: var(--ink); }
+.team-group:not(:first-child) .team-node :is(h3,.hint) { color: var(--ink-2); }
+.support-choices { display: grid; gap: 12px; }
+@media (max-width: 850px) { .entry-v2 { grid-template-columns: 1fr; } .entry-v2 > .landing-art { grid-column: 1; grid-row: 1; max-width: 260px; } .entry-v2 > .entry-copy { grid-column: 1; grid-row: 2; } }

@@ -1,7 +1,7 @@
 .demo-notice {
   padding: 12px 16px;
-  background: #e3f2f0;
-  color: #145650;
+  background: var(--tint);
+  color: var(--primary);
   border-left: 4px solid var(--teal);
   font-size: 0.9rem;
 }

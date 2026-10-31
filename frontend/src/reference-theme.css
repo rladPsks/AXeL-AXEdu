@@ -1,17 +1,14 @@
 /* Visual tokens and components from files (1)/함께_디자인시안.html. */
 :root {
-  --navy: #22344a;
-  --green: #3f7a72;
+  --navy: var(--ink-strong);
+  --green: var(--primary);
   --teal: var(--green);
-  --green-soft: #e7f1ef;
-  --honey: #e9b949;
-  --honey-soft: #fff6df;
-  --rose: #b24a55;
-  --rose-soft: #fbeeef;
-  --ink: #1f2a37;
-  --muted: #5b6675;
-  --line: #e3e7ec;
-  --bg: #f4f6f8;
+  --green-soft: var(--tint);
+  --honey: var(--pill);
+  --honey-soft: var(--tint);
+  --rose: var(--warn-title);
+  --rose-soft: var(--warn-bg);
+  --muted: var(--ink-2);
   --card: #fff;
   --r-lg: 16px;
   --r-md: 10px;
@@ -48,7 +45,7 @@ button:hover:not(:disabled) {
   border-color: var(--green);
 }
 .primary:hover:not(:disabled) {
-  background: #32635c;
+  background: var(--primary-hover);
 }
 :focus-visible {
   outline-color: var(--honey);
@@ -56,7 +53,7 @@ button:hover:not(:disabled) {
 input,
 select,
 textarea {
-  border-color: #c7ced7;
+  border-color: var(--line);
   border-radius: var(--r-sm);
   color: var(--ink);
 }
@@ -93,27 +90,27 @@ textarea {
   border-radius: var(--r-md);
 }
 .sidebar nav a:hover {
-  background: #2c4159;
+  background: var(--tint);
   text-decoration: none;
 }
 .sidebar nav a.active {
-  background: #314b5d;
+  background: var(--pill);
   box-shadow: inset 3px 0 var(--honey);
 }
 .sidebar-note {
-  border-top: 1px solid #ffffff26;
+  border-top: 1px solid var(--line);
   padding-top: 18px;
 }
 .sidebar-note strong {
-  color: #f2cc6b;
+  color: var(--pill);
   font-size: 17px;
   font-weight: 600;
 }
 .account {
-  border-color: #ffffff26;
+  border-color: var(--line);
 }
 .account button:hover:not(:disabled) {
-  background: #314b5d;
+  background: var(--pill);
 }
 .complaint-guide {
   padding: 0;
@@ -181,7 +178,7 @@ textarea {
   border-radius: 999px;
 }
 .section-heading .scope-all {
-  color: #8a6412;
+  color: var(--pill-ink);
   background: var(--honey-soft);
 }
 .section-heading .scope-mine {
@@ -202,11 +199,11 @@ textarea {
 .badge.requested,
 .badge.pending {
   background: var(--honey-soft);
-  color: #8a6412;
+  color: var(--pill-ink);
 }
 .badge.completed,
 .badge.accepted {
-  background: #e6ebf2;
+  background: var(--line);
   color: var(--navy);
 }
 .intake-submit .primary {
@@ -222,7 +219,7 @@ textarea {
 .notice,
 .demo-notice {
   background: var(--green-soft);
-  color: #325f59;
+  color: var(--primary);
   border-radius: var(--r-md);
 }
 .notice.error {
@@ -239,7 +236,7 @@ textarea {
 .team-node {
   position: relative;
   border: 2px solid var(--line);
-  background: white;
+  background: var(--card);
   border-radius: var(--r-md);
   padding: 16px;
   text-align: center;
@@ -267,7 +264,7 @@ textarea {
   color: white;
 }
 .team-node:first-child :is(.hint, ul) {
-  color: #cfd8e3;
+  color: var(--soft);
 }
 .team-node h3 {
   margin: 0 0 6px;

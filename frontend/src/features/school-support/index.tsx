@@ -17,7 +17,7 @@ export function SchoolSupport({
 }) {
   const { api, session } = useSession();
   const scope = useScope();
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState<string[]>([]);
   const admins = members.filter((m) => m.role === "ADMIN");
   const contacts = useQuery({ queryKey: ["school-contacts", ...scope], queryFn: ({ signal }) => api.get<SupportContact[]>("/api/school/contacts", signal) });
   const intake = useQuery({ queryKey: ["intake", ...scope, record.id], queryFn: ({ signal }) => api.get<SupportIntake>(`/api/cases/${encodeURIComponent(record.id)}/intake`, signal), retry: false });
@@ -31,16 +31,16 @@ export function SchoolSupport({
       <p className="hint">
         동석과 공동 대응이 필요할 때 학교의 지원을 요청하세요.
       </p>
-      <section className="support-recommendations" aria-label="지원 요청 대상 추천">
-        <h3>이 민원은 누구에게 지원을 요청하면 좋을까요?</h3>
-        <p className="meta">요청자: {personName(session.user_id)} · 추천은 민원 유형과 학교 업무분장 기준입니다.</p>
+      <section className="support-recommendations" aria-label="업무 지원 참고">
+        <h3>참고: 업무 지원자 후보</h3>
+        <p className="meta">요청자: {personName(session.user_id)} · 기본 담당은 교감이며, 교감이 업무 지원을 연결합니다.</p>
         {contacts.error ? <ErrorNotice error={contacts.error} /> : null}
         {intake.error ? <p className="hint">분류 기록을 불러오지 못해 추천을 표시하지 못했습니다. 아래에서 지원 담당자를 직접 선택할 수 있습니다.</p> : null}
         {contacts.isPending || intake.isPending ? <p role="status">지원 담당자를 확인하는 중…</p> : recommendations.length ? (
-          <ol className="routing-ranks">{recommendations.map((candidate, index) => <li key={candidate.user_id}>
-            <b>{index + 1}순위 · {candidate.role}</b><strong>{personName(candidate.user_id)}</strong><span>{candidate.reason}</span>
-            {record.status === "OPEN" ? <button type="button" onClick={() => { setSelected(candidate.user_id); document.querySelector<HTMLSelectElement>('select[name="coordinator_id"]')?.focus(); }}>이 담당자 선택</button> : null}
-          </li>)}</ol>
+          <ul className="routing-ranks">{recommendations.map((candidate) => <li key={candidate.user_id}>
+            <b>참고 · {candidate.role}</b><strong>{personName(candidate.user_id)}</strong><span>{candidate.reason}</span>
+            {record.status === "OPEN" ? <button type="button" onClick={() => { setSelected(ids => [...new Set([...ids, candidate.user_id])]); document.querySelector<HTMLSelectElement>('select[name="coordinator_id"]')?.focus(); }}>이 담당자 선택</button> : null}
+          </li>)}</ul>
         ) : !intake.error ? <p className="hint">일치하는 활성 담당자가 없습니다. 학교 업무분장을 확인하고 직접 선택해 주세요.</p> : null}
       </section>
       {record.support_requests.length === 0 ? (
@@ -75,7 +75,6 @@ export function SchoolSupport({
               <blockquote className="preserve">{support.result}</blockquote>
             ) : null}
             {record.status === "OPEN" &&
-            session.role === "ADMIN" &&
             session.user_id === support.coordinator_id &&
             support.status !== "COMPLETED" ? (
               <CommandForm
@@ -115,12 +114,15 @@ export function SchoolSupport({
       )}
       {record.status === "OPEN" ? (
         <details className="new-request" open>
-          <summary>학교 지원 요청</summary>
+          <summary>업무 지원 요청</summary>
           <CommandForm
             caseId={record.id}
             version={record.version}
             path={`/api/cases/${encodeURIComponent(record.id)}/support-requests`}
-            button="지원 요청 보내기"
+            button="업무 지원 요청"
+            disabled={!selected.length}
+            transformValues={(values) => ({ ...values, coordinator_ids: selected })}
+            onSaved={() => setSelected([])}
           >
             <div className="form-row">
               <label>
@@ -135,19 +137,9 @@ export function SchoolSupport({
                   )}
                 </select>
               </label>
-              <label>
-                업무지원자
-                <select required name="coordinator_id" value={selected} onChange={(event) => setSelected(event.target.value)}>
-                  <option value="" disabled>
-                    지원 담당자 선택
-                  </option>
-                  {admins.map((m) => (
-                    <option key={m.user_id} value={m.user_id}>
-                      {personName(m.user_id)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <fieldset className="support-choices"><legend>업무 지원자 (여러 명 선택)</legend>
+                {members.map(m => <label key={m.user_id}><input type="checkbox" checked={selected.includes(m.user_id)} onChange={event => setSelected(ids => event.target.checked ? [...ids, m.user_id] : ids.filter(id => id !== m.user_id))}/>{personName(m.user_id)}</label>)}
+              </fieldset>
             </div>
             <label>
               필요한 지원

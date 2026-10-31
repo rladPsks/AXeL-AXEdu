@@ -170,13 +170,10 @@ def create_intake(body: IntakeCreate, request: Request):
         if replay is not None:
             return replay
 
-        owner = db.execute(
-            "SELECT user_id FROM memberships WHERE school_id=? AND role='ADMIN' AND active=1 "
-            "ORDER BY CASE WHEN user_id='admin' THEN 0 ELSE 1 END, user_id LIMIT 1",
-            (actor["school_id"],),
-        ).fetchone()
+        deputy = _role_user(db, actor["school_id"], "교감")
+        owner = db.execute("SELECT user_id FROM memberships WHERE school_id=? AND user_id=? AND role='ADMIN' AND active=1", (actor["school_id"], deputy or "deputy")).fetchone()
         if owner is None:
-            fail(409, "NO_ACTIVE_ADMIN", "민원대응 총괄로 지정할 활성 관리자가 없습니다.")
+            fail(409, "NO_ACTIVE_DEPUTY", "기본 담당 교감을 학교 업무분장에 지정해 주세요.")
 
         case_id = uid()
         title = f"[{body.complaint_type}] {body.raw_text.strip().replace(chr(10), ' ')[:60]}"
@@ -204,13 +201,14 @@ def create_intake(body: IntakeCreate, request: Request):
         # Agent tool context: RAG + history + school duty map are persisted with the intake.
         history_rows = db.execute(
             "SELECT ci.case_id,ci.received_at,ci.complaint_type,ci.raw_text,c.status, "
-            "EXISTS(SELECT 1 FROM agent_runs ar WHERE ar.case_id=ci.case_id "
-            "AND ar.purpose='REVIEW_SUPPORT' AND ar.reviewed_by IS NOT NULL) AS has_substantive_response "
+            "EXISTS(SELECT 1 FROM case_document_versions v JOIN case_documents d ON d.id=v.document_id WHERE d.case_id=ci.case_id "
+            "AND d.kind='RESPONSE' AND v.delivery_state='DELIVERED' AND v.revision=(SELECT MAX(x.revision) FROM case_document_versions x WHERE x.document_id=d.id)) AS has_substantive_response "
             "FROM case_intakes ci JOIN cases c ON c.id=ci.case_id "
             "WHERE c.school_id=? AND ci.case_id<>? AND "
             "((? IS NOT NULL AND ci.student_name=?) OR ci.complainant_name=?) "
-            "ORDER BY ci.received_at DESC LIMIT 5",
-            (actor["school_id"], case_id, body.student_name, body.student_name, body.complainant_name),
+            "AND (?='ADMIN' OR EXISTS(SELECT 1 FROM case_participants p WHERE p.case_id=c.id AND p.user_id=?)) "
+            "ORDER BY ci.received_at DESC LIMIT 50",
+            (actor["school_id"], case_id, body.student_name, body.student_name, body.complainant_name, actor["role"], actor["user_id"]),
         ).fetchall()
         history_candidates = find_related_cases_from_rows(
             raw_text=body.raw_text,
@@ -269,10 +267,14 @@ def create_intake(body: IntakeCreate, request: Request):
         db.execute("INSERT OR IGNORE INTO case_participants(case_id,user_id) VALUES (?,?)", (case_id, owner["user_id"]))
 
         task_ids = []
+        if cls["handling_route"] == "ADMIN_REVIEW":
+            task_ids.append(_create_initial_task(db, case_id=case_id, actor_id=actor["user_id"],
+                assignee_id=owner["user_id"], question="관리자 우선 확인: " + cls["core_demand"], callback_needed="NOT_REQUIRED"))
+
         if cls["handling_route"] == "STAFF_OR_TEAM":
             labels = routing.get("role_labels") or {}
             primary_label = labels.get(routing.get("action_role"))
-            primary_user = _role_user(db, actor["school_id"], primary_label) or owner["user_id"]
+            primary_user = owner["user_id"]
             question = "\n".join(cls.get("needs_fact_check") or ["민원 핵심 사실과 맥락을 확인해 주세요."])
             task_ids.append(_create_initial_task(
                 db,
@@ -282,18 +284,6 @@ def create_intake(body: IntakeCreate, request: Request):
                 question=question,
                 callback_needed=routing.get("callback_needed", "UNDECIDED"),
             ))
-            for role in routing.get("collaborators") or []:
-                collaborator_label = labels.get(role)
-                collaborator_user = _role_user(db, actor["school_id"], collaborator_label)
-                if collaborator_user and collaborator_user != primary_user:
-                    task_ids.append(_create_initial_task(
-                        db,
-                        case_id=case_id,
-                        actor_id=actor["user_id"],
-                        assignee_id=collaborator_user,
-                        question=f"{collaborator_label or '협조 담당'} 사실 확인: {question}",
-                        callback_needed=routing.get("callback_needed", "UNDECIDED"),
-                    ))
             if history_review["history_action"] != "NONE":
                 history_task_id = uid()
                 db.execute(
@@ -315,7 +305,7 @@ def create_intake(body: IntakeCreate, request: Request):
             "SELECT assignee_id FROM tasks WHERE case_id=?", (case_id,)))
         for recipient in recipients:
             enqueue(db, case_id, recipient, "CASE_INTAKE_CREATED", case_id,
-                    f"intake:{case_id}:{recipient}")
+                    f"intake:{case_id}:{recipient}", severity="URGENT" if cls.get("urgency")=="HIGH" else "NORMAL")
 
         audit(db, actor, case_id, "CASE_INTAKE_CREATED", 1, {
             "channel": body.channel,

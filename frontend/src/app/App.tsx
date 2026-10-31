@@ -184,6 +184,7 @@ function Layout() {
             </p>
           ) : null}
           <Outlet />
+          <footer className="copyright">© 2026 AXeL. All rights reserved.</footer>
         </main>
       </div>
     </div>
@@ -300,7 +301,7 @@ function CaseList() {
                       : "접수 경로 확인 전"}{" "}
                     ·{" "}
                     {c.received_at ? date(c.received_at) : "접수 일시 확인 전"}{" "}
-                    · 담당 {personName(c.owner_id)}
+                    · 기본 담당 {personName(c.owner_id)}
                   </span>
                 </div>
                 <Badge value={c.status} />
@@ -480,7 +481,7 @@ function CaseShell() {
       <div className="case-context">
         <Badge value={record.status} />
         <span>
-          민원 총괄 <strong>{personName(record.owner_id)}</strong>
+          기본 담당 <strong>{personName(record.owner_id)}</strong>
         </span>
         <span>
           학교 <strong>{schoolName(record.school_id)}</strong>

@@ -70,7 +70,7 @@ def seed_complaints(path):
                 "fixture": {"fictional": True, "batch": "demo-flow-20", "legal_verification": False},
             }
             db.execute("INSERT INTO cases(id,school_id,title,owner_id,status,version) VALUES (?,?,?,?,'OPEN',1)",
-                       (case_id, "demo-school", "[가상] " + title, "admin"))
+                       (case_id, "demo-school", "[가상] " + title, "deputy"))
             db.execute("INSERT INTO case_intakes(case_id,received_at,channel,complainant_name,student_name,complaint_type,related_people,incident_context,raw_text,source_type,classification_json,routing_json,created_by,created_at,workflow_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                        (case_id, received, ["homepage", "ieodream", "message", "external_transfer"][(index-1)%4],
                         f"가상보호자{index:02d}", f"가상학생{index:02d}", title, "[]", "가상 학교 시스템에서 수신한 민원 시연 데이터",

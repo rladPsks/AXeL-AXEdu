@@ -155,7 +155,7 @@ export function Entry({
   const featured =
     accounts?.filter(
       (a) =>
-        a.kind === "STAFF" && ["admin", "deputy", "teacher"].includes(a.id),
+        a.kind === "STAFF" && ["admin", "deputy", "office-head", "academic-head", "teacher"].includes(a.id),
     ) ?? [];
   const otherAccounts = accounts?.filter((a) => !featured.includes(a)) ?? [];
   const roleCard = (account: DemoAccount) => (
@@ -189,7 +189,7 @@ export function Entry({
         <div className="brand">
           <Brand />
         </div>
-        <h1>학교 민원, 함께 처리해요</h1>
+        <h1>학교 민원, <span className="accent">함께</span> 처리해요</h1>
         <p>우리 학교 민원대응팀이 함께 쓰는 공간이에요.</p>
         {state === "loading" ? (
           <p role="status">학교 업무 공간을 준비하고 있어요…</p>
@@ -230,11 +230,12 @@ export function Entry({
       </section>
       <img
         className="landing-art"
-        src="/brand/landing-team.svg"
-        alt="큰 우산 아래 선생님을 교감과 동료가 감싸고, 교장과 행정실장이 함께해요."
+        src="/brand/umbrella_teacher.svg"
+        alt="우산 아래 함께하는 선생님"
         width="760"
         height="660"
       />
+      <footer className="copyright">© 2026 AXeL. All rights reserved.</footer>
     </main>
   );
 }
@@ -298,6 +299,7 @@ export function GuardianDemo({
           답변·접수 화면은 A 모듈 연결 후 사용할 수 있습니다.
         </p>
       </section>
+      <footer className="copyright">© 2026 AXeL. All rights reserved.</footer>
     </main>
   );
 }

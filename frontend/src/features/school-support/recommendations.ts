@@ -13,12 +13,10 @@ export function recommendSupport(intake: SupportIntake | undefined, contacts: Su
   const risk = !!cls.infringement_flags?.length || cls.nature === "INFRINGEMENT_REVIEW";
   const urgent = cls.urgency === "HIGH" || cls.nature === "SAFETY";
   const primary = dutyName(routing.role_labels?.[routing.action_role ?? ""] ?? "");
-  const order = risk || urgent ? ["교감", "교장", primary, "생활부장"]
-    : cls.category === "ADMIN" || /시설|납부|급식비|제증명/.test(routing.duty_label ?? "")
-      ? ["행정실장", primary, "업무지원", "교감"]
-      : [primary, "교무부장", "업무지원", "교감"];
+  const order = risk || urgent ? ["생활부장", "교무부장"]
+    : cls.category === "ADMIN" ? [] : [primary, "교무부장"];
   const ranked: { user_id: string; role: string; reason: string }[] = [];
-  for (const role of order.filter(Boolean)) {
+  for (const role of order.filter(role => !!role && !["교장", "교감", "행정실장"].includes(role))) {
     for (const contact of contacts.filter((c) => dutyName(c.label) === role)) {
       const id = contact.support_contact_id;
       if (!id || !eligible.includes(id) || ranked.some((r) => r.user_id === id)) continue;
@@ -29,5 +27,5 @@ export function recommendSupport(intake: SupportIntake | undefined, contacts: Su
           : `학교 업무분장의 ${role} 담당 · ${routing.duty_label ?? "민원 처리"} 지원` });
     }
   }
-  return ranked.slice(0, 3);
+  return ranked;
 }

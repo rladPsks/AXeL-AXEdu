@@ -1,3 +1,4 @@
+import { personName } from "../../shared/names";
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
@@ -245,7 +246,7 @@ export function IntakeDetail({ caseId }: { caseId: string }) {
         <p className="preserve">{item.raw_text}</p>
       </section>
       <section className="work-item">
-        <h3>02 유형·긴급도·담당 추천</h3>
+        <h3>02 유형·긴급도·업무 지원 참고</h3>
         <div className="case-context">
           <span>
             유형{" "}
@@ -262,23 +263,9 @@ export function IntakeDetail({ caseId }: { caseId: string }) {
           </span>
         </div>
         <p className="hint">{cls.urgency_reason}</p>
-        <ol className="routing-ranks">
-          {[0, 1, 2].map((index) => (
-            <li key={index}>
-              <b>{index + 1}순위</b>
-              <strong>
-                {roles[index]
-                  ? dutyName(labels[roles[index]] ?? roles[index])
-                  : "학교 업무분장 확인 필요"}
-              </strong>
-              <span>{index === 0 ? "주 담당 추천" : "협조·대리 후보"}</span>
-            </li>
-          ))}
-        </ol>
-        <p className="hint">
-          {routing.reason} 후보 순서는 주 담당 → 협조 → 업무 대리 기준이며, 최종
-          담당자는 관리자가 확인합니다.
-        </p>
+        <p className="notice">기본 담당 {personName(record.data?.owner_id ?? "deputy")} · 교감이 상황을 확인하고 업무 지원자·교사에게 나눠 줍니다.</p>
+        <ul className="routing-ranks">{roles.filter(role => !["교장", "교감", "행정실장"].includes(dutyName(labels[role] ?? role))).map(role => <li key={role}><b>참고: {routing.duty_label}</b><strong>{dutyName(labels[role] ?? role)} 지원 가능</strong></li>)}</ul>
+        <p className="hint">학교 업무분장에 따른 참고 후보입니다. 업무 지원은 교감이 확인하고 요청합니다.</p>
         {risky ? (
           <div className="notice">
             <strong>교육활동 침해 소지 · 이관 검토를 제안합니다</strong>

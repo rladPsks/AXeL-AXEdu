@@ -50,51 +50,28 @@ function ResponseTeam({
   members,
   responsibilities,
 }: {
-  members: Pick<Member, "user_id">[];
+  members: (Pick<Member, "user_id"> & { role?: string })[];
   responsibilities: Responsibility[];
 }) {
+  const teamRoles = ["교장", "교감", "행정실장"];
   const groups = [
-    { title: "팀장 · 교장", role: "교장", description: "최종 의사결정 · 교육활동 보호" },
-    { title: "총괄 · 교감", role: "교감", description: "민원 조정 · 지원 담당 연결" },
-    { title: "교무부장", role: "교무부장", description: "학사·수업 관련 확인과 지원" },
-    { title: "행정실장", role: "행정실장", description: "시설·행정·예산 관련 지원" },
-    { title: "생활부장", role: "생활부장", description: "생활지도·학생 갈등 공동 대응" },
-    { title: "업무지원", role: "업무지원", description: "자료 정리 · 일정·후속 업무 지원" },
-  ].map((group) => ({ ...group, people: members.filter((m) => responsibilities.some((r) => r.user_id === m.user_id && dutyName(r.label) === group.role)) }));
-  return (
-    <div className="response-team support-team-chart" aria-label="민원대응팀 업무분장 조직도">
-      {groups.map((group) => (
-        <section className="team-node" key={group.title}>
-          <h3>{group.title}</h3>
-          <p className="hint">{group.description}</p>
-          {group.people.length === 0 ? (
-            <p className="hint">등록된 구성원이 없어요</p>
-          ) : (
-            group.people.map((member) => (
-              <div key={member.user_id}>
-                <strong>{personName(member.user_id)}</strong>
-                <ul>
-                  {responsibilities
-                    .filter((r) => r.user_id === member.user_id)
-                    .map((r) => (
-                      <li key={r.id}>
-                        {dutyName(r.label)}
-                      </li>
-                    ))}
-                </ul>
-              </div>
-            ))
-          )}
-        </section>
-      ))}
-    </div>
-  );
+    { title: "민원대응팀", rows: teamRoles.map((role) => ({ role, ids: responsibilities.filter(r => dutyName(r.label) === role).map(r => r.user_id) })) },
+    { title: "업무 지원자", rows: responsibilities.filter(r => !teamRoles.includes(dutyName(r.label)) && !/교사|담임/.test(r.label)).map(r => ({ role: dutyName(r.label), ids: [r.user_id] })) },
+    { title: "교사", rows: members.filter(m => m.role === "TEACHER" || responsibilities.some(r => r.user_id === m.user_id && /교사|담임/.test(r.label))).map(m => ({ role: "담임·관련 교사", ids: [m.user_id] })) },
+  ];
+  return <div className="team-groups" aria-label="학교 대응 조직도">{groups.map(group => <section className="team-group" key={group.title}>
+    <h3>{group.title}</h3><div className="team-group-nodes">{group.rows.map((row,i) => <section className="team-node" key={row.role+i}>
+      <h3>{row.role}{row.role === "교감" ? " · 기본 담당" : ""}</h3>
+      {[...new Set(row.ids)].map(id => <strong key={id}>{personName(id)}</strong>)}
+      {!row.ids.length ? <p className="hint">미지정</p> : null}
+    </section>)}</div>{!group.rows.length ? <p className="hint">학교 업무분장에서 추가할 수 있어요.</p> : null}</section>)}</div>;
 }
 
 export function SchoolSettings() {
   const { api, session } = useSession();
   const scope = useScope();
   const [target, setTarget] = useState("");
+  const [supportRows, setSupportRows] = useState(1);
   const settings = useQuery({
     queryKey: ["school-settings", ...scope],
     queryFn: ({ signal }) => api.get<Settings>("/api/school/settings", signal),
@@ -429,18 +406,20 @@ export function SchoolSettings() {
         )}
         <details className="new-request">
           <summary>업무분장 추가</summary>
-          <CommandForm
+          <datalist id="support-role-options"><option value="교무부장"/><option value="생활부장"/></datalist>
+          {Array.from({ length: supportRows }, (_, row) => (
+          <CommandForm key={row}
             {...schoolForm}
             path="/api/school/responsibilities"
             button="업무분장 저장"
           >
             <label>
-              업무 이름
-              <input name="label" required maxLength={128} />
+              역할 (교무·생활·기타 직접 입력)
+              <input name="label" required maxLength={128} list="support-role-options" placeholder="예: 교무부장, 생활부장" />
             </label>
             <div className="form-row">
               <label>
-                업무 담당
+                이름 (학교 구성원)
                 <select name="user_id" required defaultValue="">
                   <option value="" disabled>
                     구성원 선택
@@ -465,6 +444,8 @@ export function SchoolSettings() {
               </label>
             </div>
           </CommandForm>
+          ))}
+          <button type="button" onClick={() => setSupportRows(n => n + 1)}>업무 지원자 행 추가</button>
         </details>
       </section>
       <section className="panel">

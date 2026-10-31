@@ -2,11 +2,11 @@
   <title>함께</title>
   <!-- 두 사람이 어깨를 맞댄 형태: 초록(교사) + 햇살(함께하는 팀) -->
   <g>
-    <circle cx="30" cy="30" r="13" fill="#3F7A72"/>
-    <path d="M8 78c0-16 10-28 22-28s22 12 22 28z" fill="#3F7A72"/>
-    <circle cx="58" cy="30" r="13" fill="#E9B949"/>
-    <path d="M36 78c0-16 10-28 22-28s22 12 22 28z" fill="#E9B949" opacity=".92"/>
-    <path d="M36 78c0-11 5-20 12-25 7 5 12 14 12 25z" fill="#9A9A55" opacity=".55"/>
+    <circle cx="30" cy="30" r="13" fill="#4b6636"/>
+    <path d="M8 78c0-16 10-28 22-28s22 12 22 28z" fill="#4b6636"/>
+    <circle cx="58" cy="30" r="13" fill="#9bb97c"/>
+    <path d="M36 78c0-16 10-28 22-28s22 12 22 28z" fill="#9bb97c" opacity=".92"/>
+    <path d="M36 78c0-11 5-20 12-25 7 5 12 14 12 25z" fill="#c5d6b0" opacity=".55"/>
   </g>
-  <text x="94" y="70" font-family="'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif" font-size="54" font-weight="800" fill="#22344A" letter-spacing="-1">함께</text>
+  <text x="94" y="70" font-family="'Pretendard','Noto Sans KR','Apple SD Gothic Neo',sans-serif" font-size="54" font-weight="800" fill="#2f372a" letter-spacing="-1">함께</text>
 </svg>

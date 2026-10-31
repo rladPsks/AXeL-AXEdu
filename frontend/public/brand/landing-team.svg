@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 660" role="img" aria-labelledby="title desc">
 <title id="title">큰 우산 아래 함께하는 선생님과 민원대응팀</title><desc id="desc">가운데 선생님을 교감과 동료가 감싸고 교장과 행정실장이 양옆에서 함께합니다.</desc>
 <rect x="25" y="35" width="710" height="600" rx="150" fill="#FFF4D6"/>
-<circle cx="652" cy="107" r="39" fill="#F6C343"/><g fill="#fff"><ellipse cx="136" cy="133" rx="61" ry="20"/><ellipse cx="156" cy="117" rx="30" ry="25"/><ellipse cx="584" cy="228" rx="66" ry="20"/></g>
+<circle cx="652" cy="107" r="39" fill="#ffe79a"/><g fill="#fff"><ellipse cx="136" cy="133" rx="61" ry="20"/><ellipse cx="156" cy="117" rx="30" ry="25"/><ellipse cx="584" cy="228" rx="66" ry="20"/></g>
 <ellipse cx="380" cy="567" rx="294" ry="33" fill="#EFE6D6"/>
 <path d="M380 74V486q0 29 27 29t27-29" fill="none" stroke="#6E655A" stroke-width="12" stroke-linecap="round"/>
-<path d="M80 265Q118 85 380 74q262 11 300 191-54-38-99 0-54-38-101 0-54-38-100 0-54-38-100 0-54-38-101 0-54-38-99 0" fill="#F6C343" stroke="#E0A91F" stroke-width="5" stroke-linejoin="round"/>
+<path d="M80 265Q118 85 380 74q262 11 300 191-54-38-99 0-54-38-101 0-54-38-100 0-54-38-100 0-54-38-101 0-54-38-99 0" fill="#ffe79a" stroke="#E0A91F" stroke-width="5" stroke-linejoin="round"/>
 <path d="M380 75Q243 108 179 265M380 75q137 33 201 190M380 75q-58 80-100 190M380 75q58 80 100 190" fill="none" stroke="#E0A91F" stroke-width="4"/>
 <!-- 교장과 행정실장 -->
 <g><path d="M98 529V409q0-49 49-49t49 49v120" fill="#6A8F78"/><circle cx="147" cy="323" r="36" fill="#F0C9AB"/><path d="M111 321q-8-52 36-50t37 50q-18-8-31-28-19 28-42 28" fill="#686258"/><path d="M127 337q20 17 40 0" fill="none" stroke="#9D614E" stroke-width="3" stroke-linecap="round"/><path d="M122 528v40m50-40v40" stroke="#6E655A" stroke-width="19" stroke-linecap="round"/></g>
