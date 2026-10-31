@@ -188,10 +188,10 @@ export function Entry({
         <strong>시연용 데이터입니다</strong>
         <span>모든 계정과 민원은 가상으로 구성된 시연 환경입니다.</span>
       </aside> : null}
+      <div className="brand entry-brand">
+        <Brand />
+      </div>
       <section className="entry-copy">
-        <div className="brand">
-          <Brand />
-        </div>
         <h1>학교 민원, <span className="accent">함께</span> 처리해요</h1>
         <p>우리 학교 민원대응팀이 함께 쓰는 공간이에요.</p>
         {state === "loading" ? (
