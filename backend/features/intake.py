@@ -85,6 +85,52 @@ def _handling_route(cls: dict) -> str:
     return "STAFF_OR_TEAM"
 
 
+def _evidence_query(complaint_type, analysis_text, cls):
+    return ' '.join(filter(None, [complaint_type, str(cls.get('domain_p55') or ''),
+        '민원대응팀 담당자 협조 사실 확인' if cls.get('handling_route') == 'STAFF_OR_TEAM' else '', analysis_text]))
+
+
+def _search_evidence(complaint_type, analysis_text, cls):
+    query = _evidence_query(complaint_type, analysis_text, cls)
+    evidence = []
+    for item in retrieve_official_evidence(query, top_k=6):
+        evidence.append({key: item.get(key) for key in (
+            'source_id', 'title', 'source_type', 'article', 'pdf_page', 'printed_page',
+            'chunk_id', 'official_url', 'issuer', 'locator', 'uploaded_filename', 'score')})
+        evidence[-1]['text'] = str(item.get('text') or '')[:700]
+    if evidence:
+        best = max(float(e.get('score') or 0) for e in evidence)
+        evidence = [e for e in evidence if float(e.get('score') or 0) >= max(0.8, best * 0.42)][:4]
+    return with_source_metadata(evidence), {'query': query, 'searched_at': now(),
+        'status': 'FOUND' if evidence else 'NO_MATCH', 'mode': 'LOCAL_CORPUS_RETRIEVAL'}
+
+
+def _analysis_text(raw_text, workflow):
+    language = workflow.get('multilingual') or {}
+    # Internal translations, including explicitly labelled demo drafts, are search
+    # input only. Retrieving documents does not approve a translation or a claim.
+    return language.get('translated_text_ko') or raw_text
+
+
+@router.post('/api/cases/{case_id}/intake/rag-search')
+def refresh_intake_evidence(case_id: str, body: Command, request: Request):
+    def operation(db, actor, case):
+        admin(actor)
+        row = db.execute('SELECT * FROM case_intakes WHERE case_id=?', (case_id,)).fetchone()
+        if row is None:
+            fail(404, 'INTAKE_NOT_FOUND', '접수 기록을 찾을 수 없습니다.')
+        cls = json.loads(row['classification_json'] or '{}')
+        workflow = json.loads(row['workflow_json'] or '{}')
+        evidence, search = _search_evidence(row['complaint_type'], _analysis_text(row['raw_text'], workflow), cls)
+        tools = workflow.setdefault('tools', {})
+        tools.update(rag=evidence, rag_search=search)
+        db.execute('UPDATE case_intakes SET workflow_json=? WHERE case_id=?',
+            (json.dumps(workflow, ensure_ascii=False), case_id))
+        return {'evidence_count': len(evidence), 'search_status': search['status'],
+            'source_ids': sorted({e['source_id'] for e in evidence if e.get('source_id')})}
+    return mutate(request, case_id, body, 'INTAKE_RAG_SEARCHED', operation)
+
+
 def _role_user(db, school_id: str, label: str | None):
     if not label:
         return None
@@ -143,28 +189,7 @@ def create_intake(body: IntakeCreate, request: Request):
     ]))
     routing = route_case(_routing_domain(cls), text=routing_text, classification=cls)
 
-    # Retrieval is decision-oriented: use the complaint plus the current handling question,
-    # not only the raw wording. This improves precision for fact-check/support decisions.
-    retrieval_query = " ".join(filter(None, [
-        body.complaint_type, str(cls.get("domain_p55") or ""),
-        "민원대응팀 담당자 협조 사실 확인" if cls.get("handling_route") == "STAFF_OR_TEAM" else "",
-        analysis_text,
-    ]))
-    evidence = []
-    for item in retrieve_official_evidence(retrieval_query, top_k=6):
-        evidence.append({
-            "source_id": item.get("source_id"), "title": item.get("title"),
-            "source_type": item.get("source_type"), "article": item.get("article"),
-            "pdf_page": item.get("pdf_page"), "printed_page": item.get("printed_page"),
-            "text": str(item.get("text") or "")[:700], "score": item.get("score"),
-            **{key: item.get(key) for key in ('chunk_id', 'official_url', 'issuer', 'locator', 'file_path', 'uploaded_filename')},
-        })
-    # Keep a compact, relevant evidence set. Very weak lexical matches are useful for search
-    # inspection but must not become response evidence.
-    if evidence:
-        best = max(float(x.get("score") or 0) for x in evidence)
-        floor = max(0.8, best * 0.42)
-        evidence = [x for x in evidence if float(x.get("score") or 0) >= floor][:4]
+    evidence, rag_search = _search_evidence(body.complaint_type, analysis_text, cls)
 
     with request.app.state.db.transaction() as db:
         actor = authenticate(db, request)
@@ -248,6 +273,7 @@ def create_intake(body: IntakeCreate, request: Request):
             "agent": {"classifier_mode": cls.get("classifier_mode"), "orchestrator": "AXeL"},
             "tools": {
                 "rag": evidence,
+                "rag_search": rag_search,
                 "history": history_candidates,
                 "history_review": history_review,
                 "duty": {
@@ -353,11 +379,21 @@ def get_intake(case_id: str, request: Request):
         item["classification"] = json.loads(item.pop("classification_json")) if item.get("classification_json") else None
         item["routing"] = json.loads(item.pop("routing_json")) if item.get("routing_json") else None
         item["workflow"] = json.loads(item.pop("workflow_json")) if item.get("workflow_json") else None
-        if item['workflow'] and item['workflow'].get('tools'):
-            item['workflow']['tools']['rag'] = with_source_metadata(item['workflow']['tools'].get('rag') or [])
+        workflow = item['workflow'] or {}
+        tools = workflow.setdefault('tools', {})
+        evidence = tools.get('rag') or []
+        saved_search = tools.get('rag_search') or {}
+        current_query = _evidence_query(item['complaint_type'], _analysis_text(item['raw_text'], workflow), item['classification'] or {})
+        if (not evidence and not saved_search) or (saved_search and saved_search.get('query') != current_query):
+            evidence, search = _search_evidence(item['complaint_type'],
+                _analysis_text(item['raw_text'], workflow), item['classification'] or {})
+            search['mode'] = 'ON_VIEW_RETRIEVAL'
+            tools.update(rag=evidence, rag_search=search)
+        tools['rag'] = with_source_metadata(tools.get('rag') or [])
+        item['workflow'] = workflow
         # Existing intakes also receive current suggestions; recorded assignments stay intact.
         cls = item['classification'] or {}
-        context = ' '.join(filter(None, [item['complaint_type'], item.get('incident_context'), item['raw_text']]))
+        context = ' '.join(filter(None, [item['complaint_type'], item.get('incident_context'), _analysis_text(item['raw_text'], workflow)]))
         current = route_case(_routing_domain(cls), text=context, classification=cls)
         routing = item['routing'] or current
         routing['recommendations'] = recommend_roles(current, text=context, classification=cls,

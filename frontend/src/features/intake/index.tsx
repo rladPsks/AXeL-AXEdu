@@ -203,6 +203,9 @@ export function IntakeDetail({ caseId }: { caseId: string }) {
   const routing = item.routing ?? {};
   const labels = routing.role_labels ?? {};
   const workflow = item.workflow ?? {};
+  const rag = (workflow.tools?.rag ?? []) as Evidence[];
+  const ragSearch = workflow.tools?.rag_search;
+  const classificationMode = workflow.agent?.classifier_mode ?? cls.classifier_mode;
   const card = workflow.teacher_card ?? {};
   const risky =
     (cls.infringement_flags ?? []).length > 0 ||
@@ -239,6 +242,12 @@ export function IntakeDetail({ caseId }: { caseId: string }) {
           <p className="meta">발생 일시: {date(item.occurred_at)}</p>
         ) : null}
         <p className="preserve">{item.raw_text}</p>
+        {workflow.multilingual?.translated_text_ko && workflow.multilingual.detected_language !== "ko" ? <details>
+          <summary>검색에 사용하는 한국어 번역 보기</summary>
+          <p className="preserve">{workflow.multilingual.translated_text_ko}</p>
+          <p className="hint">{workflow.multilingual.review_status === "APPROVED" ? "검토 확정된 번역" : "번역 초안 · 원문 의미 대조 필요"}</p>
+          {session.role === "ADMIN" ? <Link to={`${url}?tab=translation`}>다국어 원문·번역 대조 →</Link> : null}
+        </details> : null}
       </section>
       <section className="work-item">
         <h3>02 유형·긴급도·업무 지원 참고</h3>
@@ -258,6 +267,21 @@ export function IntakeDetail({ caseId }: { caseId: string }) {
           </span>
         </div>
         <p className="hint">{cls.urgency_reason}</p>
+        <p className="hint">분류: {classificationMode === "DEMO_FIXTURE" ? "시연용 예시 분류 · 실시간 AI 분류 결과가 아닙니다." : classificationMode === "LLM" ? "AI 모델 분류" : classificationMode ?? "분류 방식 확인 필요"}</p>
+        <section aria-label="공식 근거 RAG 검색" className="work-item">
+          <h4>공식 근거 RAG 검색 · {rag.length}건</h4>
+          <p role="status">{ragSearch?.mode === "ON_VIEW_RETRIEVAL" ? "저장된 근거가 없어 현재 접수 내용으로 실제 검색했습니다." : ragSearch ? "접수 내용을 바탕으로 검색한 공식 문서 결과입니다." : "접수 시 저장한 검색 결과입니다."}</p>
+          {ragSearch?.searched_at ? <p className="meta">검색 시각: {date(ragSearch.searched_at)}</p> : null}
+          {session.role === "ADMIN" && record.data ? <CommandForm
+            caseId={caseId} version={record.data.version}
+            path={`/api/cases/${encodeURIComponent(caseId)}/intake/rag-search`}
+            button="RAG 근거 다시 검색" disabled={record.data.status === "CLOSED" || record.isError}
+            onSaved={() => { void query.refetch(); }}
+          /> : null}
+          {rag.length ? <details open><summary>검색 결과·문서 출처</summary>{rag.map((entry, i) => <EvidenceSource key={i} entry={entry} />)}</details>
+            : <p>검색은 완료했지만 관련 근거를 찾지 못했습니다. 학교별 일정·서류·사실은 담당자에게 확인하세요.</p>}
+          <p className="hint">검색 결과는 적용 여부를 검토할 자료입니다. 근거 검색이 민원 사실·담당 배정·번역을 확정하지 않습니다.</p>
+        </section>
         <p className="notice">현재 사건 총괄 {record.data ? personName(record.data.owner_id) : "확인 중"} · 아래 순위는 민원 분야·긴급도에 따른 지원 후보입니다.</p>
         <ol className="routing-ranks">{recommendations.map(r => <li key={r.rank}>
           <b>{r.rank}순위 · {r.purpose}</b>
