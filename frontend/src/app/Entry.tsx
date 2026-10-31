@@ -184,6 +184,10 @@ export function Entry({
   );
   return (
     <main className="entry-v2">
+      {demoEnabled ? <aside className="demo-notice entry-demo-notice" role="note">
+        <strong>시연용 데이터입니다</strong>
+        <span>모든 계정과 민원은 가상으로 구성된 시연 환경입니다.</span>
+      </aside> : null}
       <section className="entry-copy">
         <div className="brand">
           <Brand />
@@ -213,11 +217,6 @@ export function Entry({
           tokenForm
         )}
         {error ? <ErrorNotice error={error} /> : null}
-        {demoEnabled ? (
-          <p className="demo-notice" role="note">
-            {demoNotice}
-          </p>
-        ) : null}
       </section>
       <img
         className="landing-art"

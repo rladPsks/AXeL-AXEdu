@@ -11,14 +11,14 @@ from .models import Identifier
 
 router = APIRouter()
 ACCOUNTS = (
-    {'id': 'admin', 'name': '김갑수 교장', 'role': 'ADMIN', 'kind': 'STAFF', 'school_id': 'demo-school'},
-    {'id': 'deputy', 'name': '이정희 교감', 'role': 'ADMIN', 'kind': 'STAFF', 'school_id': 'demo-school'},
-    {'id': 'academic-head', 'name': '최유진 교무부장', 'role': 'ADMIN', 'kind': 'STAFF', 'school_id': 'demo-school'},
-    {'id': 'office-head', 'name': '박민수 행정실장', 'role': 'ADMIN', 'kind': 'STAFF', 'school_id': 'demo-school'},
-    {'id': 'life-head', 'name': '한서윤 생활부장', 'role': 'ADMIN', 'kind': 'STAFF', 'school_id': 'demo-school'},
-    {'id': 'work-support', 'name': '오○○ 업무지원', 'role': 'ADMIN', 'kind': 'STAFF', 'school_id': 'demo-school'},
-    {'id': 'teacher', 'name': '정하늘 교사', 'role': 'TEACHER', 'kind': 'STAFF', 'school_id': 'demo-school'},
-    {'id': 'outsider', 'name': '정○○ 교사', 'role': 'TEACHER', 'kind': 'STAFF', 'school_id': 'demo-school'},
+    {'id': 'admin', 'name': '김OO 교장', 'role': 'ADMIN', 'kind': 'STAFF', 'school_id': 'demo-school'},
+    {'id': 'deputy', 'name': '이OO 교감', 'role': 'ADMIN', 'kind': 'STAFF', 'school_id': 'demo-school'},
+    {'id': 'academic-head', 'name': '최OO 교무부장', 'role': 'ADMIN', 'kind': 'STAFF', 'school_id': 'demo-school'},
+    {'id': 'office-head', 'name': '박OO 행정실장', 'role': 'ADMIN', 'kind': 'STAFF', 'school_id': 'demo-school'},
+    {'id': 'life-head', 'name': '한OO 생활부장', 'role': 'ADMIN', 'kind': 'STAFF', 'school_id': 'demo-school'},
+    {'id': 'work-support', 'name': '오OO 업무지원', 'role': 'ADMIN', 'kind': 'STAFF', 'school_id': 'demo-school'},
+    {'id': 'teacher', 'name': '정OO 교사', 'role': 'TEACHER', 'kind': 'STAFF', 'school_id': 'demo-school'},
+    {'id': 'outsider', 'name': '정OO 교사', 'role': 'TEACHER', 'kind': 'STAFF', 'school_id': 'demo-school'},
     {'id': 'other-admin', 'name': '다른 학교 관리자', 'role': 'ADMIN', 'kind': 'STAFF', 'school_id': 'other-school'},
     {'id': 'guardian', 'name': '보호자', 'role': 'GUARDIAN', 'kind': 'GUARDIAN', 'school_id': 'demo-school'},
     {'id': 'other-guardian', 'name': '다른 보호자', 'role': 'GUARDIAN', 'kind': 'GUARDIAN', 'school_id': 'demo-school'},

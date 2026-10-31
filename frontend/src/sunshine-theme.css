@@ -391,7 +391,7 @@ label {
   display: grid;
   grid-template-columns: 1.05fr 1fr;
   min-height: 100vh;
-  align-items: center;
+  align-items: start;
   gap: 40px;
   padding: 54px max(5vw, 24px);
   background: var(--bg);
@@ -399,7 +399,7 @@ label {
 .entry-copy {
   width: 100%;
   max-width: 640px;
-  margin: auto;
+  margin: 0 auto;
 }
 .entry-copy h1 {
   font-size: 44px;
@@ -619,9 +619,25 @@ input:focus, select:focus, textarea:focus { border-color: var(--primary-mid); }
 .entry-v2 > .copyright { grid-column: 1 / -1; width: 100%; }
 
 /* Third feedback: smaller illustration at left, role selection at right. */
-.entry-v2 { grid-template-columns: 0.8fr 1.2fr; }
-.entry-v2 > .landing-art { grid-column: 1; grid-row: 1; max-width: 420px; }
-.entry-v2 > .entry-copy { grid-column: 2; grid-row: 1; }
+.entry-v2 {
+  grid-template-columns: 0.8fr 1.2fr;
+  grid-template-areas: "notice notice" "art copy" "footer footer";
+  grid-template-rows: auto 1fr auto;
+  row-gap: 24px;
+}
+.entry-v2 > .landing-art { grid-area: art; max-width: 420px; align-self: start; object-position: center top; }
+.entry-v2 > .entry-copy { grid-area: copy; align-self: start; }
+.entry-v2 > .copyright { grid-area: footer; }
+.entry-v2 > .entry-demo-notice {
+  grid-area: notice;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  width: 100%;
+  margin: 0;
+  padding: 14px 20px;
+  font-size: 15px;
+}
 .team-groups { display: grid; gap: 24px; margin: 24px 0; }
 .team-group { border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
 .team-group-nodes { display: flex; flex-wrap: wrap; gap: 16px; }
@@ -630,4 +646,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--primary-mid); }
 .team-group:not(:first-child) .team-node { background: var(--card); color: var(--ink); }
 .team-group:not(:first-child) .team-node :is(h3,.hint) { color: var(--ink-2); }
 .support-choices { display: grid; gap: 12px; }
-@media (max-width: 850px) { .entry-v2 { grid-template-columns: 1fr; } .entry-v2 > .landing-art { grid-column: 1; grid-row: 1; max-width: 260px; } .entry-v2 > .entry-copy { grid-column: 1; grid-row: 2; } }
+@media (max-width: 850px) {
+  .entry-v2 {
+    grid-template-columns: 1fr;
+    grid-template-areas: "notice" "art" "copy" "footer";
+    grid-template-rows: auto auto 1fr auto;
+  }
+  .entry-v2 > .landing-art { max-width: 260px; }
+}

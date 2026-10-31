@@ -4,7 +4,7 @@ test("opening a seeded complaint searches real evidence and supports refresh", a
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/cases");
-  await page.getByRole("button", { name: "김갑수 교장 관리자", exact: true }).click();
+  await page.getByRole("button", { name: "김OO 교장 관리자", exact: true }).click();
   await page.locator('a.case-row[href="/cases/demo-multilingual-zh"]').click();
   const rag = page.getByRole("region", { name: "공식 근거 RAG 검색" });
   await expect(rag.getByRole("heading", { name: /공식 근거 RAG 검색 · [1-4]건/ })).toBeVisible();
