@@ -43,6 +43,8 @@ import { Recordings } from "../features/recordings";
 import { DashboardPage } from "../features/dashboard";
 import { IntakeCreate } from "../features/intake";
 
+import { LevelGuide, PatternsPage, FullHistory, WorkProduct } from "../features/mission";
+
 export function App() {
   const [auth, setAuth] = useState<{
     api: ApiClient;
@@ -84,6 +86,7 @@ export function App() {
           <Route path="intake" element={<IntakeCreate />} />
           <Route path="my-tasks" element={<MyTasks />} />
           <Route path="inbox" element={<Inbox />} />
+          <Route path="patterns" element={<PatternsPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="school-settings" element={<SchoolSettings />} />
           <Route path="school-contacts" element={<SchoolContacts />} />
@@ -151,7 +154,7 @@ function Layout() {
             <NavLink to="/school-settings">학교 지원 설정</NavLink>
           ) : null}
           {session.role === "ADMIN" ? (
-            <NavLink to="/dashboard">활동·지원 현황</NavLink>
+            <><NavLink to="/patterns">민원인·반복 누적 패턴</NavLink><NavLink to="/dashboard">교사 노출도·처리시간</NavLink></>
           ) : null}
         </nav>
         <div className="sidebar-note">
@@ -238,6 +241,7 @@ function CaseList() {
           새로고침
         </button>
       </div>
+      <LevelGuide caseId={records[0]?.id} />
       <section className="stage-tiles" aria-label="민원 단계별 현황">
         {(["simple", "review", "together"] as const).map((stage) => (
           <div className={`stage-tile stage-${stage}`} key={stage}>
@@ -407,7 +411,7 @@ function CaseShell() {
     "activities",
     "recordings",
     ...(session.role === "ADMIN"
-      ? ["guardians", "support-decisions", "documents", "comparison"]
+      ? ["guardians", "support-decisions", "documents", "comparison", "patterns", "report", "response", "translation"]
       : []),
     ...additionalCaseFeatures.map((feature) => feature.id),
   ];
@@ -450,6 +454,10 @@ function CaseShell() {
     { id: "recordings", title: "동의 녹취" },
     ...(session.role === "ADMIN"
       ? [
+          { id: "patterns", title: "민원인·누적 패턴" },
+          { id: "response", title: "답변 초안·승인" },
+          { id: "report", title: "교육지원청 이관 서류" },
+          { id: "translation", title: "다국어 원문 대조" },
           { id: "guardians", title: "보호자 연결" },
           { id: "support-decisions", title: "지원 판단" },
           { id: "documents", title: "원문·답변" },
@@ -489,9 +497,10 @@ function CaseShell() {
       </div>
       {query.isRefetchError ? <ErrorNotice error={query.error} /> : null}
       {members.error ? <ErrorNotice error={members.error} /> : null}
-      <nav className="tabs" aria-label="민원 메뉴">
+      <LevelGuide caseId={caseId} />
+      <nav className="tabs mission-tabs" aria-label="민원 메뉴">
         {tabs
-          .filter((t) => ["intake", "tasks", "support"].includes(t.id))
+          .filter((t) => ["intake", "tasks", "support", "response", "patterns", "timeline", "report"].includes(t.id))
           .map((t) => (
             <button
               aria-current={tab === t.id ? "page" : undefined}
@@ -510,12 +519,12 @@ function CaseShell() {
       </nav>
       <details
         className="case-more"
-        open={!["intake", "tasks", "support"].includes(tab)}
+        open={!["intake", "tasks", "support", "response", "patterns", "timeline", "report"].includes(tab)}
       >
         <summary>자료·이력·기타 기능</summary>
         <nav className="tabs" aria-label="민원 부가 기능">
           {tabs
-            .filter((t) => !["intake", "tasks", "support"].includes(t.id))
+            .filter((t) => !["intake", "tasks", "support", "response", "patterns", "timeline", "report"].includes(t.id))
             .map((t) => (
               <button
                 key={t.id}
@@ -535,7 +544,7 @@ function CaseShell() {
         ) : tab === "handover" ? (
           <Handover record={record} members={members.data ?? []} />
         ) : tab === "timeline" ? (
-          <Timeline caseId={caseId} />
+          session.role === "ADMIN" ? <FullHistory caseId={caseId} /> : <Timeline caseId={caseId} />
         ) : tab === "files" ? (
           <Files
             caseId={caseId}
@@ -554,6 +563,10 @@ function CaseShell() {
           <CaseDocuments record={record} />
         ) : tab === "comparison" && session.role === "ADMIN" ? (
           <CaseComparison record={record} />
+        ) : tab === "patterns" && session.role === "ADMIN" ? (
+          <PatternsPage caseId={caseId} />
+        ) : ["response", "report", "translation"].includes(tab) && session.role === "ADMIN" ? (
+          <WorkProduct record={record} kind={tab === "report" ? "REPORT" : tab === "translation" ? "TRANSLATION" : "RESPONSE"} />
         ) : tab === "guardians" && session.role === "ADMIN" ? (
           <GuardianLinks
             caseId={caseId}

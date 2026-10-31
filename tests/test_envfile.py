@@ -31,5 +31,5 @@ def test_config_and_registry_use_server_settings_without_a_provider_call():
     code = ('from backend.runtime import build_registry; import config; '
             'assert config.LLM_API_KEY; '
             'assert set(build_registry().handlers) == '
-            '{"REVIEW_SUPPORT", "COMPARE_CASES", "SUMMARIZE_TRANSCRIPT", "TRANSCRIBE_AUDIO"}')
+            '{"REVIEW_SUPPORT", "COMPARE_CASES", "SUMMARIZE_TRANSCRIPT", "TRANSCRIBE_AUDIO", "TONE_REWRITE"}')
     subprocess.run([sys.executable, '-c', code], env=environment, check=True, capture_output=True)

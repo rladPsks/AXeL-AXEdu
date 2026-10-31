@@ -6,7 +6,7 @@ from typing import Callable, Literal
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from .access import accessible_case, authenticate, fail, DomainError
+from .access import accessible_case, authenticate, fail, DomainError, admin
 from .commands import mutate
 from .db import now, uid
 from .files import file_access
@@ -108,7 +108,14 @@ def snapshot(db, actor, case, refs, purpose=None):
                 intake_data["related_people"] = json.loads(intake_data.get("related_people") or "[]")
                 intake_data["classification"] = json.loads(intake_data.pop("classification_json")) if intake_data.get("classification_json") else None
                 intake_data["routing"] = json.loads(intake_data.pop("routing_json")) if intake_data.get("routing_json") else None
+                intake_data["workflow"] = json.loads(intake_data.pop("workflow_json", "{}") or "{}")
                 item["intake"] = intake_data
+            if purpose == 'TONE_REWRITE':
+                admin(actor)
+                product=db.execute("SELECT revision,content FROM case_work_products WHERE case_id=? AND kind='RESPONSE' ORDER BY revision DESC LIMIT 1",(case['id'],)).fetchone()
+                if not product: fail(422,'RESPONSE_DRAFT_REQUIRED','답변 초안을 먼저 저장하세요.')
+                item['response_for_tone']={'revision':product['revision'],'text':json.loads(product['content'])['text']}
+
         elif ref.resource_type == 'FILE':
             item = dict(file_access(db, actor, ref.resource_id))
             if item['category'] == 'AUDIO':

@@ -56,6 +56,9 @@ export function CommandForm({
     Promise.all([
       queries.invalidateQueries({ queryKey: ["case", ...scope, caseId] }),
       queries.invalidateQueries({ queryKey: ["timeline", ...scope, caseId] }),
+      queries.invalidateQueries({ queryKey: ["full-history", ...scope, caseId] }),
+      queries.invalidateQueries({ queryKey: ["work-products", ...scope, caseId] }),
+      queries.invalidateQueries({ queryKey: ["patterns", ...scope] }),
       queries.invalidateQueries({ queryKey: ["cases", ...scope] }),
       queries.invalidateQueries({ queryKey: ["my-tasks", ...scope] }),
       queries.invalidateQueries({ queryKey: ["runs", ...scope, caseId] }),

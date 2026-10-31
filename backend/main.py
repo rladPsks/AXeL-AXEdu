@@ -36,6 +36,7 @@ from .coordination import router as coordination_router, resolve_support
 from .scheduling import router as scheduling_router
 from .notifications import router as notifications_router, enqueue, dispatch_once
 from .features.intake import router as intake_router
+from .mission import router as mission_router, response_closure_guard
 from agent.report_agent import build_support_report
 
 from .models import (CaseTransition, Command, HandoverCreate, SupportCreate,
@@ -51,6 +52,8 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
             if os.getenv('SCHOOL_AGENT_DEMO','0')=='1':
                 from .seed_support import seed_support
                 seed_support(app.state.db.path)
+                from .seed_patterns import seed_patterns
+                seed_patterns(app.state.db.path)
                 if initial_seed is not None:
                     from .seed_complaints import seed_complaints
                     seed_complaints(app.state.db.path)
@@ -88,13 +91,14 @@ def create_app(db_path=None, *, feature_routers=(), closure_guards=(), max_file_
     app = FastAPI(title="학교 민원 에이전트 — 개발자 B", version="0.1.0",lifespan=lifespan)
     app.state.db = Database(db_path or os.getenv("SCHOOL_AGENT_DB", "data/private/dev.sqlite3"))
 
-    app.state.closure = ClosureRegistry(closure_guards)
+    app.state.closure = ClosureRegistry((response_closure_guard, *closure_guards))
     app.state.agent_registry = agent_registry if agent_registry is not None else build_registry()
     app.state.max_file_bytes = upload_limit() if max_file_bytes is None else max_file_bytes
     if app.state.max_file_bytes < 1:
         raise ValueError('max_file_bytes must be positive')
     app.include_router(query_router)
     app.include_router(intake_router)
+    app.include_router(mission_router)
     app.include_router(files_router)
     app.include_router(guardians_router)
     app.include_router(agents_router)
